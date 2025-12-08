@@ -291,12 +291,6 @@ MIT License - see [LICENSE](LICENSE) file.
 
 ---
 
-## 👥 Authors
-
-**IoTSRG Team**
-
----
-
 ## 🙏 Acknowledgments
 
 - Original ANDI (Android Inspector) project
@@ -304,7 +298,7 @@ MIT License - see [LICENSE](LICENSE) file.
 - NIST Cybersecurity for IoT Program
 - ISO/SAE 21434 Working Group
 
----
+
 
 <p align="center">
   Made with ❤️ by <b>IoTSRG Team</b><br>
