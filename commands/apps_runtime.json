@@ -6,7 +6,8 @@
       "command": "which su",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "Check for root binaries"
+      "description": "Check for root binaries",
+      "empty_is_safe": true
     },
     {
       "category": "APPS & RUNTIME",
@@ -14,7 +15,8 @@
       "command": "pm list packages -d | wc -l",
       "safe_pattern": "^0$",
       "level": "warning",
-      "description": "Debuggable apps should be 0"
+      "description": "Debuggable apps should be 0",
+      "empty_is_safe": true
     },
     {
       "category": "APPS & RUNTIME",
@@ -45,24 +47,27 @@
       "label": "Frida Detected",
       "command": "pm list packages | grep frida",
       "safe_pattern": "^$",
-      "level": "critical",
-      "description": "Frida binary indicates runtime manipulation"
+      "level": "warning",
+      "description": "Frida binary indicates runtime manipulation",
+      "empty_is_safe": true
     },
     {
       "category": "APPS & RUNTIME",
       "label": "Magisk Detected",
       "command": "pm list packages | grep magisk",
       "safe_pattern": "^$",
-      "level": "critical",
-      "description": "Magisk can hide root access"
+      "level": "warning",
+      "description": "Magisk can hide root access",
+      "empty_is_safe": true
     },
     {
       "category": "APPS & RUNTIME",
       "label": "Xposed Framework",
       "command": "pm list packages | grep xposed",
       "safe_pattern": "^$",
-      "level": "critical",
-      "description": "Xposed framework enables deep system tweaks"
+      "level": "warning",
+      "description": "Xposed framework enables deep system tweaks",
+      "empty_is_safe": true
     },
     {
       "category": "APPS & RUNTIME",
