@@ -6,7 +6,8 @@
       "command": "ls /sbin | grep magisk",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "Magisk binary indicates systemless root"
+      "description": "Magisk binary indicates systemless root",
+      "empty_is_safe": true
     }
   ]
 }
