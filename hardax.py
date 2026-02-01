@@ -404,7 +404,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
     for r in rows:
         cat = r["category"]
         if cat not in categories:
-            categories[cat] = {"rows": [], "stats": {"CRITICAL": 0, "WARNING": 0, "SAFE": 0, "INFO": 0}}
+            categories[cat] = {"rows": [], "stats": {"CRITICAL": 0, "WARNING": 0, "VERIFY": 0, "SAFE": 0, "INFO": 0}}
         categories[cat]["rows"].append(r)
         status = r["status"]
         if status in categories[cat]["stats"]:
@@ -424,6 +424,8 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
             badges.append(f'<span class="cat-badge critical">{stats["CRITICAL"]} Critical</span>')
         if stats["WARNING"] > 0:
             badges.append(f'<span class="cat-badge warning">{stats["WARNING"]} Warning</span>')
+        if stats["VERIFY"] > 0:
+            badges.append(f'<span class="cat-badge verify">{stats["VERIFY"]} Verify</span>')
         if stats["SAFE"] > 0:
             badges.append(f'<span class="cat-badge safe">{stats["SAFE"]} Safe</span>')
         if stats["INFO"] > 0:
@@ -438,7 +440,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
             desc_esc = html_escape(r["description"])
             label_esc = html_escape(r["label"])
             status = r["status"]
-            css_class = {"SAFE": "safe", "WARNING": "warning", "CRITICAL": "critical"}.get(status, "info")
+            css_class = {"SAFE": "safe", "WARNING": "warning", "CRITICAL": "critical", "VERIFY": "verify"}.get(status, "info")
             
             items_html.append(f'''
         <div class="check-item {css_class}" data-search="{html_escape(r['label'].lower())} {html_escape(r['description'].lower())}">
@@ -512,6 +514,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
       --warning: #f59e0b;
       --safe: #22c55e;
       --info: #3b82f6;
+      --verify: #a855f7;
     }}
     
     body.dark {{
@@ -629,6 +632,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
     
     .summary-card.critical {{ border-left: 4px solid var(--critical); }}
     .summary-card.warning {{ border-left: 4px solid var(--warning); }}
+    .summary-card.verify {{ border-left: 4px solid var(--verify); }}
     .summary-card.safe {{ border-left: 4px solid var(--safe); }}
     .summary-card.info {{ border-left: 4px solid var(--info); }}
     .summary-card.total {{ border-left: 4px solid var(--accent); }}
@@ -642,6 +646,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
     
     .summary-card.critical .number {{ color: var(--critical); }}
     .summary-card.warning .number {{ color: var(--warning); }}
+    .summary-card.verify .number {{ color: var(--verify); }}
     .summary-card.safe .number {{ color: var(--safe); }}
     .summary-card.info .number {{ color: var(--info); }}
     .summary-card.total .number {{ color: var(--accent); }}
@@ -777,6 +782,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
     
     .cat-badge.critical {{ background: rgba(239,68,68,0.15); color: var(--critical); }}
     .cat-badge.warning {{ background: rgba(245,158,11,0.15); color: var(--warning); }}
+    .cat-badge.verify {{ background: rgba(168,85,247,0.15); color: var(--verify); }}
     .cat-badge.safe {{ background: rgba(34,197,94,0.15); color: var(--safe); }}
     .cat-badge.info {{ background: rgba(59,130,246,0.15); color: var(--info); }}
     
@@ -798,6 +804,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
     
     .check-item.critical {{ border-left-color: var(--critical); }}
     .check-item.warning {{ border-left-color: var(--warning); }}
+    .check-item.verify {{ border-left-color: var(--verify); }}
     .check-item.safe {{ border-left-color: var(--safe); }}
     .check-item.info {{ border-left-color: var(--info); }}
     
@@ -825,6 +832,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
     
     .status-badge.critical {{ background: var(--critical); color: #fff; }}
     .status-badge.warning {{ background: var(--warning); color: #fff; }}
+    .status-badge.verify {{ background: var(--verify); color: #fff; }}
     .status-badge.safe {{ background: var(--safe); color: #fff; }}
     .status-badge.info {{ background: var(--info); color: #fff; }}
     
@@ -897,6 +905,10 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
       <div class="summary-card warning">
         <div class="number">{counts.get("warning", 0)}</div>
         <div class="label">Warnings</div>
+      </div>
+      <div class="summary-card verify">
+        <div class="number">{counts.get("verify", 0)}</div>
+        <div class="label">Verify</div>
       </div>
       <div class="summary-card safe">
         <div class="number">{counts.get("safe", 0)}</div>
@@ -989,10 +1001,10 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
       new Chart(ctx, {{
         type: 'doughnut',
         data: {{
-          labels: ['Critical', 'Warning', 'Safe', 'Info'],
+          labels: ['Critical', 'Warning', 'Verify', 'Safe', 'Info'],
           datasets: [{{
-            data: [{counts.get("critical", 0)}, {counts.get("warning", 0)}, {counts.get("safe", 0)}, {counts.get("info", 0)}],
-            backgroundColor: ['#ef4444', '#f59e0b', '#22c55e', '#3b82f6'],
+            data: [{counts.get("critical", 0)}, {counts.get("warning", 0)}, {counts.get("verify", 0)}, {counts.get("safe", 0)}, {counts.get("info", 0)}],
+            backgroundColor: ['#ef4444', '#f59e0b', '#a855f7', '#22c55e', '#3b82f6'],
             borderWidth: 0
           }}]
         }},
@@ -1023,9 +1035,28 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
 # Check execution
 # -------------------------
 
+def is_empty_or_error(output: str) -> bool:
+    """Check if output is empty, null, or indicates an error/unsupported command"""
+    if not output:
+        return True
+    output_lower = output.lower().strip()
+    # Common indicators of no data / unsupported command
+    error_indicators = [
+        'null', 'not found', 'no such', 'error', 'exception',
+        'permission denied', 'unknown', 'invalid', 'failed',
+        'inaccessible', 'cmd: can\'t find', 'not supported',
+        'service not found', 'does not exist'
+    ]
+    if output_lower in ['', 'null', 'none', '(null)', '(none)', '(empty)']:
+        return True
+    for indicator in error_indicators:
+        if indicator in output_lower and len(output_lower) < 100:
+            return True
+    return False
+
 def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, show_commands: bool = False) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
     rows: List[Dict[str, Any]] = []
-    counts = {"safe": 0, "warning": 0, "critical": 0, "info": 0}
+    counts = {"safe": 0, "warning": 0, "critical": 0, "info": 0, "verify": 0}
     total = len(checks)
     start_time = time.time()
 
@@ -1036,22 +1067,48 @@ def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, s
         safe_pattern = chk.get("safe_pattern", "")
         level = chk.get("level", "info")
         desc = chk.get("description", "")
+        # New: allow checks to specify if empty means safe
+        empty_is_safe = chk.get("empty_is_safe", False)
+        # New: allow checks to require output (empty = verify)
+        requires_output = chk.get("requires_output", True)
 
         raw = device.shell(command) if command else ""
         normalized = normalize_for_match(raw)
         bucket = bucket_from_level(level)
 
         matched = False
+        needs_verification = False
+        
+        # Check if output is empty or error
+        output_empty = is_empty_or_error(raw)
+        
         if safe_pattern:
             try:
                 matched = bool(re.search(safe_pattern, normalized, re.IGNORECASE | re.MULTILINE | re.DOTALL))
             except re.error:
                 matched = safe_pattern.lower() in normalized.lower()
 
+        # Determine status with improved logic
         if matched:
             status = "SAFE"
             counts["safe"] += 1
+        elif output_empty:
+            # Empty output handling
+            if empty_is_safe:
+                # Some checks consider empty/null as safe (e.g., "no bad apps found")
+                status = "SAFE"
+                counts["safe"] += 1
+            elif requires_output and bucket in ("critical", "warning"):
+                # Empty output for critical/warning checks = needs manual verification
+                status = "VERIFY"
+                counts["verify"] += 1
+                needs_verification = True
+            else:
+                # For info-level checks, empty is just info
+                status = "INFO"
+                counts["info"] += 1
         else:
+            # We have actual output that doesn't match safe pattern
             if bucket == "critical":
                 status = "CRITICAL"
                 counts["critical"] += 1
@@ -1081,6 +1138,9 @@ def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, s
                 elif status == "WARNING":
                     status_color = Colors.YELLOW
                     status_symbol = "⚠"
+                elif status == "VERIFY":
+                    status_color = Colors.BRIGHT_MAGENTA
+                    status_symbol = "?"
                 else:
                     status_color = Colors.CYAN
                     status_symbol = "ℹ"
@@ -1108,6 +1168,14 @@ def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, s
             except Exception:
                 pass
 
+        # For VERIFY status, add note to description
+        display_desc = desc
+        display_result = raw
+        if needs_verification:
+            display_desc = desc + " [⚠ Manual verification required - empty/unsupported output]"
+            if not raw.strip():
+                display_result = "(No output - command may not be supported on this device)"
+        
         rows.append({
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
             "category": category,
@@ -1117,8 +1185,9 @@ def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, s
             "status": status,
             "matched": str(matched),
             "command": command,
-            "result": raw,
-            "description": desc,
+            "result": display_result,
+            "description": display_desc,
+            "needs_verification": needs_verification,
         })
     
     print()
@@ -1263,6 +1332,7 @@ Examples:
     print(f"{Colors.GREEN}✓  Safe Checks   : {Colors.BOLD}{counts['safe']}{Colors.RESET}")
     print(f"{Colors.YELLOW}⚠  Warnings      : {Colors.BOLD}{counts['warning']}{Colors.RESET}")
     print(f"{Colors.BRIGHT_RED}✗  Critical      : {Colors.BOLD}{counts['critical']}{Colors.RESET}")
+    print(f"{Colors.BRIGHT_MAGENTA}?  Verify        : {Colors.BOLD}{counts['verify']}{Colors.RESET}")
     print(f"{Colors.CYAN}ℹ  Info          : {Colors.BOLD}{counts['info']}{Colors.RESET}")
     print(f"{Colors.CYAN}{'─' * 70}{Colors.RESET}")
     print(f"{Colors.DIM}📄 TXT Report    : {txt_file}{Colors.RESET}")
