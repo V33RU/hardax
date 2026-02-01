@@ -1,0 +1,60 @@
+{
+  "checks": [
+    {
+      "category": "MDM & ENTERPRISE",
+      "label": "Device Admin Apps",
+      "command": "dumpsys device_policy 2>/dev/null | grep 'Active admin' | wc -l",
+      "safe_pattern": "^[0-2]$",
+      "level": "warning",
+      "description": "Device admin apps have elevated privileges"
+    },
+    {
+      "category": "MDM & ENTERPRISE",
+      "label": "Device Owner Set",
+      "command": "dumpsys device_policy 2>/dev/null | grep 'Device Owner'",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Device owner (MDM) presence"
+    },
+    {
+      "category": "MDM & ENTERPRISE",
+      "label": "Work Profile Present",
+      "command": "pm list users 2>/dev/null | grep -i 'work\\|managed'",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Work profile / managed profile detection"
+    },
+    {
+      "category": "MDM & ENTERPRISE",
+      "label": "Profile Owner Apps",
+      "command": "dumpsys device_policy 2>/dev/null | grep 'Profile Owner' | wc -l",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Profile owner apps managing work profile"
+    },
+    {
+      "category": "MDM & ENTERPRISE",
+      "label": "Unknown MDM Apps",
+      "command": "pm list packages | grep -iE 'mdm|mobileiron|airwatch|intune|jamf|maas360|knox'",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Known MDM solution packages"
+    },
+    {
+      "category": "MDM & ENTERPRISE",
+      "label": "Factory Reset Protection",
+      "command": "settings get global frp_active 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "warning",
+      "description": "Factory Reset Protection should be enabled"
+    },
+    {
+      "category": "MDM & ENTERPRISE",
+      "label": "Device Provisioned",
+      "command": "settings get global device_provisioned",
+      "safe_pattern": "^1$",
+      "level": "info",
+      "description": "Device setup completion status"
+    }
+  ]
+}
