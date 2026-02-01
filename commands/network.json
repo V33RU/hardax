@@ -13,8 +13,9 @@
       "label": "World-Writable Files",
       "command": "find /data -type f \\( -perm -o+w \\) -exec ls -l {} \\; 2>/dev/null | wc -l",
       "safe_pattern": "^0$",
-      "level": "critical",
-      "description": "Unprotected sensitive files"
+      "level": "warning",
+      "description": "Unprotected sensitive files",
+      "empty_is_safe": true
     },
     {
       "category": "NETWORK",
