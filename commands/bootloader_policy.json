@@ -2,14 +2,6 @@
   "checks": [
     {
       "category": "BOOTLOADER & POLICY",
-      "label": "Bootloader Locked",
-      "command": "getprop ro.boot.flash.locked",
-      "safe_pattern": "^(1|true)$",
-      "level": "critical",
-      "description": "Bootloader must be locked"
-    },
-    {
-      "category": "BOOTLOADER & POLICY",
       "label": "OEM Unlock Disabled (Global Setting)",
       "command": "settings get global oem_unlock_allowed 2>/dev/null",
       "safe_pattern": "^0$",
