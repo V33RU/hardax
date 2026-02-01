@@ -40,7 +40,7 @@
 
 ### Prerequisites
 
-- Python 3.7+
+- Python 3
 - ADB (Android Debug Bridge) installed and in PATH
 - USB Debugging enabled on target device
 
