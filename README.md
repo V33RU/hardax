@@ -11,7 +11,7 @@
     Hardening Audit eXaminer for Android & IoT
 ```
 
-##  Overview
+## 🛡️ Overview
 
 **HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditing tool for Android and IoT devices. It systematically checks device configurations against security best practices and generates detailed reports highlighting potential vulnerabilities and misconfigurations.
 
@@ -25,7 +25,7 @@
 - **Dark/Light Theme** toggle in HTML reports
 - **Category Statistics** showing risk breakdown per area
 
-##  Categories Covered
+## 📋 Categories Covered
 
 | Category | Checks | Category | Checks |
 |----------|--------|----------|--------|
@@ -36,11 +36,11 @@
 | SELinux/Policy | 8 | Root Detection | 6 |
 | And many more... | | | |
 
-##  Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Python 3
+- Python 3.7+
 - ADB (Android Debug Bridge) installed and in PATH
 - USB Debugging enabled on target device
 
@@ -71,7 +71,7 @@ python hardax.py --mode ssh --host 192.168.1.100 --ssh-user root --ssh-pass pass
 python hardax.py --json-dir ./commands --show-commands
 ```
 
-##  Reports
+## 📊 Reports
 
 HARDAX generates three types of reports in timestamped folders:
 
@@ -92,7 +92,7 @@ HARDAX generates three types of reports in timestamped folders:
 - Ideal for archival and quick review
 - Contains full audit trail
 
-##  Use Cases
+## 🎯 Use Cases
 
 1. **Pre-Deployment Audits**: Verify device security before production
 2. **Compliance Checks**: Ensure devices meet security baselines
@@ -100,7 +100,7 @@ HARDAX generates three types of reports in timestamped folders:
 4. **Security Research**: Analyze Android/IoT security posture
 5. **Incident Response**: Quickly assess compromised device configuration
 
-##  Directory Structure
+## 📁 Directory Structure
 
 ```
 HARDAX/
@@ -119,7 +119,7 @@ HARDAX/
         └── audit_report.txt
 ```
 
-##  Adding Custom Checks
+## 🔧 Adding Custom Checks
 
 Create a JSON file in the `commands/` directory:
 
@@ -141,7 +141,7 @@ Create a JSON file in the `commands/` directory:
 - `warning` / `medium` → Yellow status when unsafe  
 - `info` / `low` → Blue status (informational)
 
-##  Command Line Options
+## 📖 Command Line Options
 
 | Option | Description |
 |--------|-------------|
@@ -157,7 +157,7 @@ Create a JSON file in the `commands/` directory:
 | `--show-commands` | Display commands during execution |
 | `--progress-numbers` | Show simple X/Y progress |
 
-##  Contributing
+## 🤝 Contributing
 
 Contributions welcome! Areas of interest:
 - Additional security checks
@@ -165,10 +165,14 @@ Contributions welcome! Areas of interest:
 - Report format improvements
 - Bug fixes and optimizations
 
-##  License
+## 📜 License
 
 MIT License - See LICENSE file for details.
 
-##  Disclaimer
+## ⚠️ Disclaimer
 
 HARDAX is intended for authorized security testing only. Always obtain proper authorization before scanning devices you do not own.
+
+---
+
+**HARDAX** - *Security is not optional, it's fundamental.*
