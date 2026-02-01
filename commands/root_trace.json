@@ -6,15 +6,17 @@
       "command": "ls /sbin | grep magisk",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "Indicates root hiding tools like Magisk are installed"
+      "description": "Indicates root hiding tools like Magisk are installed",
+      "empty_is_safe": true
     },
     {
       "category": "ROOT TRACE",
       "label": "su Binary in Common Paths",
       "command": "ls /system/xbin/su /system/bin/su 2>/dev/null",
-      "safe_pattern": "^ls:.*No such file or directory$",
+      "safe_pattern": "^$|No such file",
       "level": "critical",
-      "description": "su binary indicates rooted device"
+      "description": "su binary indicates rooted device",
+      "empty_is_safe": true
     }
   ]
 }
