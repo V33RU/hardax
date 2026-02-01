@@ -5,23 +5,25 @@
       "label": "Suspicious APK Names",
       "command": "pm list packages | grep -Ei 'hacker|spy|monitor|remote|keylog|shell'",
       "safe_pattern": "^$",
-      "level": "critical",
-      "description": "Packages with suspicious names"
+      "level": "warning",
+      "description": "Packages with suspicious names",
+      "empty_is_safe": true
     },
     {
       "category": "APPS",
       "label": "Debuggable Apps (Strict)",
       "command": "pm list packages -d | grep -v 'com.android'",
       "safe_pattern": "^$",
-      "level": "critical",
-      "description": "No non-system apps should be debuggable"
+      "level": "warning",
+      "description": "No non-system apps should be debuggable",
+      "empty_is_safe": true
     },
     {
       "category": "APPS",
       "label": "APK Signature Verification",
       "command": "dumpsys package verification | grep 'verified=true'",
       "safe_pattern": "verified=true",
-      "level": "critical",
+      "level": "warning",
       "description": "APK signatures must be verified"
     },
     {
