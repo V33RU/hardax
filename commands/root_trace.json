@@ -2,17 +2,9 @@
   "checks": [
     {
       "category": "ROOT TRACE",
-      "label": "Magisk Binary Presence",
-      "command": "ls /sbin | grep magisk",
-      "safe_pattern": "^$",
-      "level": "critical",
-      "description": "Indicates root hiding tools like Magisk are installed"
-    },
-    {
-      "category": "ROOT TRACE",
       "label": "su Binary in Common Paths",
-      "command": "ls /system/xbin/su /system/bin/su 2>/dev/null",
-      "safe_pattern": "^ls:.*No such file or directory$",
+      "command": "[ -f /system/xbin/su ] || [ -f /system/bin/su ] && echo FOUND || echo NOTFOUND",
+      "safe_pattern": "^NOTFOUND$",
       "level": "critical",
       "description": "su binary indicates rooted device"
     }
