@@ -1,0 +1,60 @@
+{
+  "checks": [
+    {
+      "category": "DEVELOPER OPTIONS",
+      "label": "Developer Options Enabled",
+      "command": "settings get global development_settings_enabled",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Developer options should be disabled for security"
+    },
+    {
+      "category": "DEVELOPER OPTIONS",
+      "label": "Mock Locations Enabled",
+      "command": "settings get secure mock_location 2>/dev/null",
+      "safe_pattern": "^(0|null)$",
+      "level": "critical",
+      "description": "Mock locations can be used to spoof GPS"
+    },
+    {
+      "category": "DEVELOPER OPTIONS",
+      "label": "Mock Location App",
+      "command": "settings get secure selected_mock_location_app 2>/dev/null",
+      "safe_pattern": "^(null)?$",
+      "level": "critical",
+      "description": "No mock location app should be selected"
+    },
+    {
+      "category": "DEVELOPER OPTIONS",
+      "label": "OEM Unlock Enabled",
+      "command": "settings get global oem_unlock_enabled",
+      "safe_pattern": "^0$",
+      "level": "critical",
+      "description": "OEM unlock allows bootloader unlocking"
+    },
+    {
+      "category": "DEVELOPER OPTIONS",
+      "label": "Stay Awake While Charging",
+      "command": "settings get global stay_on_while_plugged_in",
+      "safe_pattern": "^0$",
+      "level": "info",
+      "description": "Screen staying on exposes device when unattended"
+    },
+    {
+      "category": "DEVELOPER OPTIONS",
+      "label": "Animation Scale (Dev Mode Check)",
+      "command": "settings get global window_animation_scale",
+      "safe_pattern": "^1\\.0$",
+      "level": "info",
+      "description": "Modified animation scale indicates developer mode usage"
+    },
+    {
+      "category": "DEVELOPER OPTIONS",
+      "label": "USB Configuration Locked",
+      "command": "settings get global usb_config_locked 2>/dev/null",
+      "safe_pattern": "^(1|null)$",
+      "level": "info",
+      "description": "USB configuration should be locked in enterprise"
+    }
+  ]
+}
