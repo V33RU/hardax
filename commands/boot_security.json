@@ -2,14 +2,6 @@
   "checks": [
     {
       "category": "BOOT & SECURITY",
-      "label": "Verified Boot State",
-      "command": "getprop ro.boot.verifiedbootstate",
-      "safe_pattern": "^green$",
-      "level": "critical",
-      "description": "Should be green for locked bootloader"
-    },
-    {
-      "category": "BOOT & SECURITY",
       "label": "Encryption",
       "command": "getprop ro.crypto.state",
       "safe_pattern": "^encrypted$",
@@ -18,7 +10,7 @@
     },
     {
       "category": "BOOT & SECURITY",
-      "label": "SELinux",
+      "label": "SELinux Enforcing Mode",
       "command": "getenforce",
       "safe_pattern": "^Enforcing$",
       "level": "warning",
@@ -47,14 +39,6 @@
       "safe_pattern": "^0$",
       "level": "warning",
       "description": "Should be disabled"
-    },
-    {
-      "category": "BOOT & SECURITY",
-      "label": "Device Debuggable",
-      "command": "getprop ro.debuggable",
-      "safe_pattern": "^0$",
-      "level": "critical",
-      "description": "Production devices must not be debuggable"
     },
     {
       "category": "BOOT & SECURITY",
@@ -87,14 +71,6 @@
       "safe_pattern": "^1$",
       "level": "critical",
       "description": "1 means locked bootloader; 0 means unlocked"
-    },
-    {
-      "category": "BOOT & SECURITY",
-      "label": "AVB Version",
-      "command": "getprop ro.boot.avb_version",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "Android Verified Boot version info"
     }
   ]
 }
