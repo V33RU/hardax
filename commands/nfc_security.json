@@ -1,44 +1,6 @@
-{
-  "checks": [
-    {
-      "category": "NFC SECURITY",
-      "label": "NFC Enabled",
-      "command": "settings get global nfc_on",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "NFC should be disabled when not in use to prevent skimming attacks"
-    },
-    {
-      "category": "NFC SECURITY",
-      "label": "Android Beam Enabled",
-      "command": "settings get global android_beam_enabled 2>/dev/null",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "Android Beam can be used for unauthorized data transfer"
-    },
-    {
-      "category": "NFC SECURITY",
-      "label": "NFC Payment Default App",
-      "command": "settings get secure nfc_payment_default_component 2>/dev/null",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "Default NFC payment application"
-    },
-    {
-      "category": "NFC SECURITY",
-      "label": "HCE Payment Apps",
-      "command": "pm list packages | grep -iE 'pay|wallet|gpay|samsung.*pay' | wc -l",
-      "safe_pattern": "^[0-3]$",
-      "level": "info",
-      "description": "Host Card Emulation payment apps installed"
-    },
-    {
-      "category": "NFC SECURITY",
-      "label": "NFC Secure Element",
-      "command": "pm list features | grep android.hardware.nfc.hcef",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "NFC Secure Element support for secure transactions"
-    }
-  ]
-}
+[
+  {"category": "NFC_SECURITY", "label": "NFC Enabled", "command": "settings get global nfc_on", "safe_pattern": ".", "level": "info", "description": "NFC radio status"},
+  {"category": "NFC_SECURITY", "label": "Android Beam", "command": "settings get global android_beam_enabled", "safe_pattern": "0|null", "level": "warning", "description": "Android Beam can be used for data exfiltration"},
+  {"category": "NFC_SECURITY", "label": "NFC Payment Default", "command": "settings get secure nfc_payment_default_component", "safe_pattern": ".", "level": "info", "description": "Default NFC payment application"},
+  {"category": "NFC_SECURITY", "label": "Tap and Pay", "command": "settings get secure tap_and_pay_service_enabled", "safe_pattern": ".", "level": "info", "description": "Tap and pay service status"}
+]

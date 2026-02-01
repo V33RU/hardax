@@ -1,0 +1,6 @@
+[
+  {"category": "INPUT_METHODS", "label": "Default Input Method", "command": "settings get secure default_input_method", "safe_pattern": ".", "level": "info", "description": "Default keyboard/input method"},
+  {"category": "INPUT_METHODS", "label": "Enabled Input Methods", "command": "settings get secure enabled_input_methods", "safe_pattern": ".", "level": "info", "description": "All enabled input methods - third party keyboards can log keystrokes"},
+  {"category": "INPUT_METHODS", "label": "Spell Checker Enabled", "command": "settings get secure spell_checker_enabled", "safe_pattern": ".", "level": "info", "description": "Spell checker may send typed text to cloud"},
+  {"category": "INPUT_METHODS", "label": "Voice Input Service", "command": "settings get secure voice_interaction_service", "safe_pattern": ".", "level": "info", "description": "Voice input service configuration"}
+]

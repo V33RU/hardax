@@ -10,7 +10,7 @@
     },
     {
       "category": "BOOT & SECURITY",
-      "label": "SELinux Enforcing Mode",
+      "label": "SELinux",
       "command": "getenforce",
       "safe_pattern": "^Enforcing$",
       "level": "warning",

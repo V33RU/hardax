@@ -10,6 +10,14 @@
     },
     {
       "category": "CHECKS CIS",
+      "label": "Development Settings Disabled",
+      "command": "settings get global development_settings_enabled 2>/dev/null",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Developer mode should be disabled for production devices"
+    },
+    {
+      "category": "CHECKS CIS",
       "label": "Wi-Fi Direct Disabled (WFD)",
       "command": "pm list packages 2>/dev/null | grep -i wfd",
       "safe_pattern": "^$",

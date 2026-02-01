@@ -1,0 +1,7 @@
+[
+  {"category": "INSTALL_SECURITY", "label": "Unknown Sources Disabled", "command": "settings get secure install_non_market_apps", "safe_pattern": "0|null", "level": "critical", "description": "Installing from unknown sources should be disabled"},
+  {"category": "INSTALL_SECURITY", "label": "Package Verifier Enabled", "command": "settings get global package_verifier_enable", "safe_pattern": "1", "level": "warning", "description": "Package verification should be enabled"},
+  {"category": "INSTALL_SECURITY", "label": "Verify Apps Over USB", "command": "settings get global verifier_verify_adb_installs", "safe_pattern": "1", "level": "warning", "description": "Verify apps installed via ADB"},
+  {"category": "INSTALL_SECURITY", "label": "Play Protect Enabled", "command": "settings get global package_verifier_user_consent", "safe_pattern": "1", "level": "warning", "description": "Google Play Protect consent status"},
+  {"category": "INSTALL_SECURITY", "label": "Install via ADB Blocked", "command": "settings get global install_allow_adb", "safe_pattern": "0|null", "level": "warning", "description": "Block app installation via ADB"}
+]

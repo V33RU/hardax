@@ -20,9 +20,17 @@
       "category": "APPS & RUNTIME",
       "label": "Accessibility Services",
       "command": "settings get secure enabled_accessibility_services",
-      "safe_pattern": "^(null)?$",
+      "safe_pattern": "^$",
       "level": "warning",
       "description": "Keylogging/clickjacking risk"
+    },
+    {
+      "category": "APPS & RUNTIME",
+      "label": "Device Admin Apps",
+      "command": "dumpsys device_policy | grep 'Admin:' | wc -l",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Admins may have control"
     },
     {
       "category": "APPS & RUNTIME",
@@ -59,8 +67,8 @@
     {
       "category": "APPS & RUNTIME",
       "label": "Unapproved APKs in /data/local/tmp",
-      "command": "find /data/local/tmp -name \"*.apk\" 2>/dev/null | wc -l",
-      "safe_pattern": "^0$",
+      "command": "ls /data/local/tmp/*.apk",
+      "safe_pattern": "^ls:.*No such file or directory$",
       "level": "warning",
       "description": "Unauthorized sideloading or testing APKs"
     }

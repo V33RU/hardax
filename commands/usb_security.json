@@ -1,44 +1,6 @@
-{
-  "checks": [
-    {
-      "category": "USB SECURITY",
-      "label": "MTP Access Enabled",
-      "command": "getprop sys.usb.config",
-      "safe_pattern": "^(charging|none)$",
-      "level": "info",
-      "description": "MTP allows file access over USB - review if needed"
-    },
-    {
-      "category": "USB SECURITY",
-      "label": "USB OTG Enabled",
-      "command": "cat /sys/class/android_usb/android0/enable 2>/dev/null || echo 0",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "USB OTG status for external device connections"
-    },
-    {
-      "category": "USB SECURITY",
-      "label": "USB Accessory Mode",
-      "command": "getprop sys.usb.configfs 2>/dev/null",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "USB accessory/host mode configuration"
-    },
-    {
-      "category": "USB SECURITY",
-      "label": "Unauthorized ADB Connections",
-      "command": "cat /data/misc/adb/adb_keys 2>/dev/null | wc -l",
-      "safe_pattern": "^[0-5]$",
-      "level": "warning",
-      "description": "Too many authorized ADB keys may indicate unauthorized access"
-    },
-    {
-      "category": "USB SECURITY",
-      "label": "USB Data Signaling Disabled",
-      "command": "settings get global usb_data_signaling 2>/dev/null",
-      "safe_pattern": "^(1|null)$",
-      "level": "info",
-      "description": "USB data signaling control (Android 13+)"
-    }
-  ]
-}
+[
+  {"category": "USB_SECURITY", "label": "USB Debugging Enabled", "command": "settings get global adb_enabled", "safe_pattern": "0|null", "level": "critical", "description": "USB debugging should be disabled in production"},
+  {"category": "USB_SECURITY", "label": "USB Mass Storage", "command": "getprop sys.usb.config", "safe_pattern": "^(none|mtp|ptp|charging)$", "level": "warning", "description": "Check USB configuration mode"},
+  {"category": "USB_SECURITY", "label": "USB Accessory Mode", "command": "getprop sys.usb.state", "safe_pattern": "^(none|mtp|ptp|charging)$", "level": "info", "description": "Current USB state"},
+  {"category": "USB_SECURITY", "label": "MTP Enabled", "command": "settings get global mtp_enabled", "safe_pattern": ".", "level": "info", "description": "MTP file transfer status"}
+]

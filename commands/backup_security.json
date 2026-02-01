@@ -1,44 +1,6 @@
-{
-  "checks": [
-    {
-      "category": "BACKUP SECURITY",
-      "label": "ADB Backup Enabled",
-      "command": "settings get secure backup_enabled",
-      "safe_pattern": "^(0|null)$",
-      "level": "warning",
-      "description": "ADB backup can extract app data - disable if not needed"
-    },
-    {
-      "category": "BACKUP SECURITY",
-      "label": "Auto Backup Service",
-      "command": "dumpsys backup 2>/dev/null | grep 'Auto-restore'",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "Auto backup service status"
-    },
-    {
-      "category": "BACKUP SECURITY",
-      "label": "Google Backup Transport",
-      "command": "dumpsys backup 2>/dev/null | grep -i 'transport' | head -1",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "Cloud backup transport configuration"
-    },
-    {
-      "category": "BACKUP SECURITY",
-      "label": "Backup Manager Enabled",
-      "command": "pm list packages -d | grep com.android.providers.backup",
-      "safe_pattern": "^$",
-      "level": "info",
-      "description": "Backup provider package status"
-    },
-    {
-      "category": "BACKUP SECURITY",
-      "label": "Local Backup Encryption",
-      "command": "settings get secure backup_local_transport_parameters 2>/dev/null",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "Local backup encryption parameters"
-    }
-  ]
-}
+[
+  {"category": "BACKUP_SECURITY", "label": "ADB Backup Enabled", "command": "settings get secure backup_enabled", "safe_pattern": "0|null", "level": "warning", "description": "ADB backup can extract sensitive data"},
+  {"category": "BACKUP_SECURITY", "label": "Auto Backup Enabled", "command": "settings get secure backup_auto_restore", "safe_pattern": ".", "level": "info", "description": "Auto backup/restore status"},
+  {"category": "BACKUP_SECURITY", "label": "Backup Transport", "command": "settings get secure backup_transport", "safe_pattern": ".", "level": "info", "description": "Backup transport service"},
+  {"category": "BACKUP_SECURITY", "label": "Cloud Backup Account", "command": "settings get secure backup_manager_constants", "safe_pattern": ".", "level": "info", "description": "Backup manager configuration"}
+]

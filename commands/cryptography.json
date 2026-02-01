@@ -1,60 +1,7 @@
-{
-  "checks": [
-    {
-      "category": "CRYPTOGRAPHY",
-      "label": "Hardware-Backed Keystore",
-      "command": "getprop ro.hardware.keystore",
-      "safe_pattern": ".+",
-      "level": "critical",
-      "description": "Hardware-backed keystore should be present for secure key storage"
-    },
-    {
-      "category": "CRYPTOGRAPHY",
-      "label": "Keymaster Version",
-      "command": "getprop ro.hardware.keystore_desede 2>/dev/null || getprop ro.boot.keymaster.version",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "Keymaster HAL version for hardware crypto"
-    },
-    {
-      "category": "CRYPTOGRAPHY",
-      "label": "StrongBox Support",
-      "command": "getprop ro.hardware.strongbox 2>/dev/null",
-      "safe_pattern": ".+",
-      "level": "info",
-      "description": "StrongBox provides tamper-resistant key storage"
-    },
-    {
-      "category": "CRYPTOGRAPHY",
-      "label": "Encryption Type",
-      "command": "getprop ro.crypto.type",
-      "safe_pattern": "^(file|block)$",
-      "level": "info",
-      "description": "File-based encryption (FBE) preferred over full-disk (FDE)"
-    },
-    {
-      "category": "CRYPTOGRAPHY",
-      "label": "Crypto Hardware Acceleration",
-      "command": "cat /proc/crypto | grep -E 'aes|sha' | head -5",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "Hardware crypto acceleration status"
-    },
-    {
-      "category": "CRYPTOGRAPHY",
-      "label": "Key Attestation Support",
-      "command": "pm list features | grep android.hardware.keystore.app_attest_key",
-      "safe_pattern": "keystore.app_attest",
-      "level": "warning",
-      "description": "Key attestation verifies keys are hardware-backed"
-    },
-    {
-      "category": "CRYPTOGRAPHY",
-      "label": "Verified Boot Key Hash",
-      "command": "getprop ro.boot.vbmeta.digest 2>/dev/null | head -c 16",
-      "safe_pattern": ".+",
-      "level": "info",
-      "description": "Verified boot cryptographic hash present"
-    }
-  ]
-}
+[
+  {"category": "CRYPTOGRAPHY", "label": "Device Encryption", "command": "getprop ro.crypto.state", "safe_pattern": "encrypted", "level": "critical", "description": "Device storage should be encrypted"},
+  {"category": "CRYPTOGRAPHY", "label": "Encryption Type", "command": "getprop ro.crypto.type", "safe_pattern": "file|block", "level": "info", "description": "Type of encryption used (file-based or block)"},
+  {"category": "CRYPTOGRAPHY", "label": "Hardware Keystore", "command": "getprop ro.hardware.keystore", "safe_pattern": ".", "level": "info", "description": "Hardware-backed keystore availability"},
+  {"category": "CRYPTOGRAPHY", "label": "Crypto FS State", "command": "getprop vold.decrypt", "safe_pattern": "trigger_restart_framework|null", "level": "info", "description": "Filesystem decryption state"},
+  {"category": "CRYPTOGRAPHY", "label": "StrongBox Support", "command": "getprop ro.hardware.keystore_desede", "safe_pattern": ".", "level": "info", "description": "StrongBox secure element support"}
+]

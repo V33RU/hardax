@@ -1,0 +1,4 @@
+[
+  {"category": "CLIPBOARD_SECURITY", "label": "Clipboard Access Notification", "command": "settings get secure show_clipboard_access_notification", "safe_pattern": "1", "level": "warning", "description": "Should notify when apps access clipboard"},
+  {"category": "CLIPBOARD_SECURITY", "label": "Clipboard Service", "command": "dumpsys clipboard 2>/dev/null | head -10", "safe_pattern": ".", "level": "info", "description": "Clipboard service status"}
+]

@@ -1,0 +1,5 @@
+[
+  {"category": "WEBVIEW_SECURITY", "label": "WebView Provider", "command": "settings get global webview_provider", "safe_pattern": "com.google.android.webview|com.android.webview", "level": "warning", "description": "WebView implementation provider"},
+  {"category": "WEBVIEW_SECURITY", "label": "WebView Version", "command": "dumpsys package com.google.android.webview 2>/dev/null | grep versionName | head -1", "safe_pattern": ".", "level": "info", "description": "WebView version - should be updated"},
+  {"category": "WEBVIEW_SECURITY", "label": "Safe Browsing", "command": "settings get global safe_boot_disallowed", "safe_pattern": ".", "level": "info", "description": "Safe browsing configuration"}
+]

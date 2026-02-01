@@ -1,0 +1,6 @@
+[
+  {"category": "ACCOUNT_SECURITY", "label": "User Accounts Count", "command": "pm list users 2>/dev/null | wc -l", "safe_pattern": "^[12]$", "level": "warning", "description": "Multiple users may have different security levels"},
+  {"category": "ACCOUNT_SECURITY", "label": "Guest Account Exists", "command": "pm list users 2>/dev/null | grep -i guest", "safe_pattern": "^$", "level": "warning", "description": "Guest account may bypass security"},
+  {"category": "ACCOUNT_SECURITY", "label": "Work Profile", "command": "pm list users 2>/dev/null | grep -i work", "safe_pattern": ".", "level": "info", "description": "Work profile status"},
+  {"category": "ACCOUNT_SECURITY", "label": "Sync Accounts", "command": "dumpsys account 2>/dev/null | grep -i 'Account {' | wc -l", "safe_pattern": ".", "level": "info", "description": "Number of synced accounts"}
+]

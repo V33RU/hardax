@@ -6,7 +6,7 @@
       "command": "sh -lc 'netstat -lntp 2>/dev/null || ss -lntp 2>/dev/null || true' | awk '$1 ~ /^tcp/ && $4 ~ /^[0-9.]+:/ { print $0 }'",
       "safe_pattern": "^\\s*$",
       "level": "info",
-      "description": "Lists all IPv4 TCP connections including localhost \u2014 use for full socket audit"
+      "description": "Lists all IPv4 TCP connections including localhost — use for full socket audit"
     },
     {
       "category": "NETWORK-IPV4",
@@ -14,7 +14,7 @@
       "command": "sh -lc 'netstat -lnpt 2>/dev/null || ss -lnpt 2>/dev/null || true' | awk '$1 ~ /^tcp/ && $0 ~ /LISTEN/ && $4 ~ /:((53)|(80)|(25)|(110)|(143)|(465)|(587)|(993)|(995)|(8080)|(8443)|(22))$/ && $4 !~ /^127\\./'",
       "safe_pattern": "^\\s*$",
       "level": "warning",
-      "description": "One or more common TCP ports are externally accessible on IPv4 \u2014 review exposure"
+      "description": "One or more common TCP ports are externally accessible on IPv4 — review exposure"
     },
     {
       "category": "NETWORK-IPV4",
@@ -22,7 +22,7 @@
       "command": "sh -lc 'netstat -lnpt 2>/dev/null || ss -lnpt 2>/dev/null || true' | awk '$1 ~ /^tcp/ && $0 ~ /LISTEN/ && $4 ~ /:((21)|(23)|(25)|(445)|(3306)|(5432)|(5555)|(5900)|(5901)|(3389)|(5555)|(4444)|(8080)|(8443)|(41795))$/ && $4 !~ /^127\\./'",
       "safe_pattern": "^\\s*$",
       "level": "critical",
-      "description": "One or more critical TCP ports (excluding SSH) are open or externally connected (IPv4) \u2014 review exposure"
+      "description": "One or more critical TCP ports (excluding SSH) are open or externally connected (IPv4) — review exposure"
     },
     {
       "category": "NETWORK-IPV4",
@@ -38,7 +38,7 @@
       "command": "sh -lc 'netstat -lnup 2>/dev/null || ss -lnup 2>/dev/null || true' | awk '$1 ~ /^udp/ && $4 ~ /:(123|161|162|5353)$/ && $4 !~ /^127\\./ { print $4 }'",
       "safe_pattern": "^\\s*$",
       "level": "warning",
-      "description": "UDP Ports 123 (NTP), 161 (SNMP), 162 (Trap), or 5353 (mDNS) are exposed on IPv4 \u2014 may leak device or service data"
+      "description": "UDP Ports 123 (NTP), 161 (SNMP), 162 (Trap), or 5353 (mDNS) are exposed on IPv4 — may leak device or service data"
     },
     {
       "category": "NETWORK-IPV4",
@@ -46,7 +46,7 @@
       "command": "sh -lc 'netstat -lnup 2>/dev/null || ss -lnup 2>/dev/null || true' | awk '$1 ~ /^udp/ && $4 ~ /:(69|1900|500|4500|520)$/ && $4 !~ /^127\\./ { print $4 }'",
       "safe_pattern": "^\\s*$",
       "level": "critical",
-      "description": "One or more UDP ports (e.g., 69/TFTP, 1900/SSDP) are exposed on IPv4 \u2014 potentially vulnerable services detected"
+      "description": "One or more UDP ports (e.g., 69/TFTP, 1900/SSDP) are exposed on IPv4 — potentially vulnerable services detected"
     }
   ]
 }

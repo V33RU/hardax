@@ -1,0 +1,6 @@
+[
+  {"category": "TIME_SECURITY", "label": "Auto Time Enabled", "command": "settings get global auto_time", "safe_pattern": "1", "level": "warning", "description": "Auto time sync helps prevent cert/token attacks"},
+  {"category": "TIME_SECURITY", "label": "Auto Timezone", "command": "settings get global auto_time_zone", "safe_pattern": "1", "level": "info", "description": "Automatic timezone detection"},
+  {"category": "TIME_SECURITY", "label": "NTP Server", "command": "settings get global ntp_server", "safe_pattern": ".", "level": "info", "description": "Configured NTP server for time sync"},
+  {"category": "TIME_SECURITY", "label": "Time Zone", "command": "getprop persist.sys.timezone", "safe_pattern": ".", "level": "info", "description": "Current timezone setting"}
+]

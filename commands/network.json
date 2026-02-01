@@ -44,7 +44,7 @@
       "category": "NETWORK",
       "label": "Proxy Configuration",
       "command": "settings get global http_proxy",
-      "safe_pattern": "^(null)?$",
+      "safe_pattern": "^$",
       "level": "warning",
       "description": "Proxy set may indicate MITM or forced redirection"
     },

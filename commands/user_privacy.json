@@ -26,6 +26,14 @@
     },
     {
       "category": "USER & PRIVACY",
+      "label": "Show passwords disabled",
+      "command": "settings get system show_password",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Password characters must not be shown"
+    },
+    {
+      "category": "USER & PRIVACY",
       "label": "Clipboard History",
       "command": "dumpsys clipboard | grep 'Historical'",
       "safe_pattern": "^$",
@@ -60,7 +68,7 @@
       "category": "USER & PRIVACY",
       "label": "Trust Agents Enabled",
       "command": "settings get secure enabled_trust_agents",
-      "safe_pattern": "^(null)?$",
+      "safe_pattern": "^$",
       "level": "warning",
       "description": "May allow unlock bypass via smart lock"
     },

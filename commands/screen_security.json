@@ -1,68 +1,7 @@
-{
-  "checks": [
-    {
-      "category": "SCREEN SECURITY",
-      "label": "Screen Lock Enabled",
-      "command": "settings get secure lockscreen.password_type",
-      "safe_pattern": "^[1-9][0-9]*$",
-      "level": "critical",
-      "description": "Screen lock must be enabled (not 0=none or 65536=swipe)"
-    },
-    {
-      "category": "SCREEN SECURITY",
-      "label": "Lock Screen Timeout",
-      "command": "settings get system screen_off_timeout",
-      "safe_pattern": "^[0-9]{1,5}$",
-      "level": "info",
-      "description": "Screen timeout value in milliseconds"
-    },
-    {
-      "category": "SCREEN SECURITY",
-      "label": "Show Password Characters",
-      "command": "settings get system show_password",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "Password characters should not be shown"
-    },
-    {
-      "category": "SCREEN SECURITY",
-      "label": "Lock Screen Notifications",
-      "command": "settings get secure lock_screen_show_notifications",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "Sensitive notifications visible on lock screen"
-    },
-    {
-      "category": "SCREEN SECURITY",
-      "label": "Overlay Permission Apps",
-      "command": "pm list packages -e 2>/dev/null | xargs -I{} sh -c 'dumpsys package {} 2>/dev/null | grep -q SYSTEM_ALERT_WINDOW && echo {}' | wc -l",
-      "safe_pattern": "^[0-5]$",
-      "level": "warning",
-      "description": "Apps with overlay permission can capture input"
-    },
-    {
-      "category": "SCREEN SECURITY",
-      "label": "Screen Capture Disabled",
-      "command": "settings get secure screencapture_disabled 2>/dev/null",
-      "safe_pattern": "^(1|null)$",
-      "level": "info",
-      "description": "Enterprise policy may disable screenshots"
-    },
-    {
-      "category": "SCREEN SECURITY",
-      "label": "Lockdown on Failed Attempts",
-      "command": "settings get global maximum_time_to_unlock 2>/dev/null",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "Maximum unlock attempts before lockdown"
-    },
-    {
-      "category": "SCREEN SECURITY",
-      "label": "Quick Settings Tiles on Lock",
-      "command": "settings get secure lock_quick_settings 2>/dev/null",
-      "safe_pattern": "^(0|null)$",
-      "level": "info",
-      "description": "Quick settings accessible from lock screen"
-    }
-  ]
-}
+[
+  {"category": "SCREEN_SECURITY", "label": "Screen Lock Enabled", "command": "settings get secure lockscreen.password_type", "safe_pattern": "65536|131072|196608|262144|327680|393216", "level": "critical", "description": "Device should have PIN/Password/Pattern lock enabled"},
+  {"category": "SCREEN_SECURITY", "label": "Lock Screen Timeout", "command": "settings get system screen_off_timeout", "safe_pattern": "^(1[0-9]{4}|[1-9][0-9]{0,3})$", "level": "warning", "description": "Screen timeout should be 30 seconds or less for security"},
+  {"category": "SCREEN_SECURITY", "label": "Show Passwords Disabled", "command": "settings get system show_password", "safe_pattern": "0|null", "level": "warning", "description": "Passwords should not be shown when typing"},
+  {"category": "SCREEN_SECURITY", "label": "Lock Screen Notifications", "command": "settings get secure lock_screen_show_notifications", "safe_pattern": "0", "level": "warning", "description": "Sensitive notifications should be hidden on lock screen"},
+  {"category": "SCREEN_SECURITY", "label": "Smart Lock Disabled", "command": "settings get secure trust_agents_initialized", "safe_pattern": "0|null", "level": "warning", "description": "Smart Lock may reduce security by keeping device unlocked"}
+]

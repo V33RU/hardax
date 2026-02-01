@@ -1,0 +1,6 @@
+[
+  {"category": "NOTIFICATION_SECURITY", "label": "Notification Listeners", "command": "settings get secure enabled_notification_listeners", "safe_pattern": "^$|null", "level": "warning", "description": "Notification listeners can read all notifications including OTPs"},
+  {"category": "NOTIFICATION_SECURITY", "label": "Notification Policy Access", "command": "settings get secure enabled_notification_policy_access_packages", "safe_pattern": ".", "level": "info", "description": "Apps with notification policy access"},
+  {"category": "NOTIFICATION_SECURITY", "label": "Lock Screen Notifications", "command": "settings get secure lock_screen_allow_private_notifications", "safe_pattern": "0", "level": "warning", "description": "Private notifications on lock screen"},
+  {"category": "NOTIFICATION_SECURITY", "label": "Heads Up Notifications", "command": "settings get global heads_up_notifications_enabled", "safe_pattern": ".", "level": "info", "description": "Heads up notification display"}
+]

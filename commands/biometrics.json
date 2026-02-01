@@ -1,60 +1,6 @@
-{
-  "checks": [
-    {
-      "category": "BIOMETRICS",
-      "label": "Fingerprint Hardware",
-      "command": "pm list features | grep android.hardware.fingerprint",
-      "safe_pattern": "fingerprint",
-      "level": "info",
-      "description": "Fingerprint hardware availability"
-    },
-    {
-      "category": "BIOMETRICS",
-      "label": "Fingerprint Enrolled",
-      "command": "dumpsys fingerprint 2>/dev/null | grep -i 'enrolled' | head -1",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "Fingerprint enrollment status"
-    },
-    {
-      "category": "BIOMETRICS",
-      "label": "Face Unlock Enabled",
-      "command": "settings get secure face_unlock_enabled 2>/dev/null",
-      "safe_pattern": "^(0|null)$",
-      "level": "warning",
-      "description": "Face unlock may be less secure than fingerprint/PIN"
-    },
-    {
-      "category": "BIOMETRICS",
-      "label": "Auto-Lock After Biometric",
-      "command": "settings get secure lock_screen_lock_after_timeout",
-      "safe_pattern": "^[0-9]{1,5}$",
-      "level": "info",
-      "description": "Time before requiring re-authentication after biometric unlock"
-    },
-    {
-      "category": "BIOMETRICS",
-      "label": "Smart Lock (Trust Agents)",
-      "command": "settings get secure trust_agents_initialized",
-      "safe_pattern": "^(0|null)$",
-      "level": "warning",
-      "description": "Smart Lock reduces security by keeping device unlocked"
-    },
-    {
-      "category": "BIOMETRICS",
-      "label": "Biometric Strong Auth Required",
-      "command": "settings get secure biometric_strong_auth_timeout_sec 2>/dev/null",
-      "safe_pattern": "^[0-9]+$",
-      "level": "info",
-      "description": "Timeout requiring strong authentication (PIN/password)"
-    },
-    {
-      "category": "BIOMETRICS",
-      "label": "Lockdown Mode Available",
-      "command": "settings get secure lockdown_in_power_menu 2>/dev/null",
-      "safe_pattern": "^1$",
-      "level": "info",
-      "description": "Lockdown mode should be enabled in power menu"
-    }
-  ]
-}
+[
+  {"category": "BIOMETRICS", "label": "Fingerprint Enrolled", "command": "settings get secure fingerprint_enrolled_fingers", "safe_pattern": ".", "level": "info", "description": "Check if fingerprint authentication is enrolled"},
+  {"category": "BIOMETRICS", "label": "Face Unlock Status", "command": "settings get secure face_unlock_method", "safe_pattern": "0|null", "level": "warning", "description": "Face unlock may be less secure than fingerprint"},
+  {"category": "BIOMETRICS", "label": "Auto-Lock After Biometric", "command": "settings get secure lock_screen_lock_after_timeout", "safe_pattern": ".", "level": "info", "description": "Auto-lock timeout after biometric failure"},
+  {"category": "BIOMETRICS", "label": "Biometric Keyguard Enabled", "command": "settings get secure biometric_keyguard_enabled", "safe_pattern": "1", "level": "warning", "description": "Biometric keyguard should be enabled for secure unlock"}
+]

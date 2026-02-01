@@ -3,8 +3,8 @@
     {
       "category": "DEBUGGING",
       "label": "System Debug Binaries",
-      "command": "[ -f /system/bin/gdbserver ] || [ -f /system/bin/strace ] && echo FOUND || echo NOTFOUND",
-      "safe_pattern": "^NOTFOUND$",
+      "command": "ls /system/bin/gdbserver /system/bin/strace 2>/dev/null",
+      "safe_pattern": "^ls:.*No such file or directory$",
       "level": "warning",
       "description": "Presence of debug tools increases attack surface"
     },

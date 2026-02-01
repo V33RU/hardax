@@ -42,9 +42,9 @@
     },
     {
       "category": "BLUETOOTH",
-      "label": "BT MAC Randomization",
+      "label": "MAC Randomization",
       "command": "settings get secure bluetooth_address | grep -E '([0-9A-F]{2}:){5}[0-9A-F]{2}'",
-      "safe_pattern": "^(null)?$",
+      "safe_pattern": "^$",
       "level": "warning",
       "description": "Static MAC addresses should be avoided (SC-8(1))"
     },
@@ -182,7 +182,7 @@
       "command": "dumpsys bluetooth_manager | grep -E 'OBEX|PAN|SAP'",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Legacy profiles can expose device to known CVEs\u2014disable if not needed."
+      "description": "Legacy profiles can expose device to known CVEs—disable if not needed."
     },
     {
       "category": "BLUETOOTH",
