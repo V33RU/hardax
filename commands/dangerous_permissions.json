@@ -1,0 +1,68 @@
+{
+  "checks": [
+    {
+      "category": "DANGEROUS PERMISSIONS",
+      "label": "Apps with All Permissions",
+      "command": "pm list packages -3 2>/dev/null | cut -d: -f2 | while read pkg; do perms=$(dumpsys package $pkg 2>/dev/null | grep -c 'android.permission'); if [ \"$perms\" -gt 20 ]; then echo $pkg; fi; done | wc -l",
+      "safe_pattern": "^[0-3]$",
+      "level": "warning",
+      "description": "Apps with excessive permissions"
+    },
+    {
+      "category": "DANGEROUS PERMISSIONS",
+      "label": "SMS Permission Apps",
+      "command": "pm list packages -p 2>/dev/null | grep -l 'READ_SMS\\|SEND_SMS\\|RECEIVE_SMS' | wc -l || echo 0",
+      "safe_pattern": "^[0-5]$",
+      "level": "warning",
+      "description": "Apps with SMS access can intercept OTPs"
+    },
+    {
+      "category": "DANGEROUS PERMISSIONS",
+      "label": "Call Log Access Apps",
+      "command": "dumpsys package 2>/dev/null | grep -B5 'READ_CALL_LOG' | grep 'Package \\[' | wc -l",
+      "safe_pattern": "^[0-5]$",
+      "level": "warning",
+      "description": "Apps with call log access"
+    },
+    {
+      "category": "DANGEROUS PERMISSIONS",
+      "label": "Location Always Apps",
+      "command": "dumpsys package 2>/dev/null | grep -B5 'ACCESS_BACKGROUND_LOCATION' | grep 'Package \\[' | wc -l",
+      "safe_pattern": "^[0-3]$",
+      "level": "warning",
+      "description": "Apps with background location access"
+    },
+    {
+      "category": "DANGEROUS PERMISSIONS",
+      "label": "Camera Background Access",
+      "command": "dumpsys package 2>/dev/null | grep -B5 'CAMERA' | grep -A5 'Package \\[' | grep -c 'background'",
+      "safe_pattern": "^0$",
+      "level": "critical",
+      "description": "Apps with background camera access"
+    },
+    {
+      "category": "DANGEROUS PERMISSIONS",
+      "label": "Usage Stats Access",
+      "command": "appops query-op --user 0 USAGE_ACCESS allow 2>/dev/null | wc -l",
+      "safe_pattern": "^[0-3]$",
+      "level": "warning",
+      "description": "Apps that can see app usage patterns"
+    },
+    {
+      "category": "DANGEROUS PERMISSIONS",
+      "label": "Install Unknown Apps",
+      "command": "pm list packages -3 2>/dev/null | cut -d: -f2 | xargs -I{} sh -c 'appops get {} REQUEST_INSTALL_PACKAGES 2>/dev/null | grep -q allow && echo {}' | wc -l",
+      "safe_pattern": "^[0-2]$",
+      "level": "warning",
+      "description": "Apps allowed to install other apps"
+    },
+    {
+      "category": "DANGEROUS PERMISSIONS",
+      "label": "Notification Listeners",
+      "command": "settings get secure enabled_notification_listeners",
+      "safe_pattern": "^(null)?$",
+      "level": "warning",
+      "description": "Notification listeners can read all notifications including OTPs"
+    }
+  ]
+}
