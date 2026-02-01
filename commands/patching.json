@@ -2,14 +2,6 @@
   "checks": [
     {
       "category": "PATCHING",
-      "label": "Security Patch Age",
-      "command": "getprop ro.build.version.security_patch",
-      "safe_pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
-      "level": "warning",
-      "description": "Compare patch date to current date (flag >90 days as critical manually)"
-    },
-    {
-      "category": "PATCHING",
       "label": "OTA Update Path",
       "command": "getprop ro.build.version.incremental",
       "safe_pattern": ".*",
