@@ -26,30 +26,6 @@
     },
     {
       "category": "AVB",
-      "label": "vbmeta Digest Present (cmdline)",
-      "command": "grep -q 'androidboot.vbmeta.digest=' /proc/cmdline && echo present || echo absent",
-      "safe_pattern": "^present$",
-      "level": "info",
-      "description": "vbmeta digest present in kernel cmdline"
-    },
-    {
-      "category": "AVB",
-      "label": "Verified Boot State (cmdline)",
-      "command": "grep -o 'androidboot.verifiedbootstate=[^ ]*' /proc/cmdline | cut -d= -f2",
-      "safe_pattern": "^green$",
-      "level": "high",
-      "description": "Kernel cmdline indicates green state"
-    },
-    {
-      "category": "AVB",
-      "label": "vbmeta Device State (cmdline)",
-      "command": "grep -o 'androidboot.vbmeta.device_state=[^ ]*' /proc/cmdline | cut -d= -f2",
-      "safe_pattern": "^locked$",
-      "level": "high",
-      "description": "Kernel cmdline shows vbmeta locked"
-    },
-    {
-      "category": "AVB",
       "label": "avbctl Present",
       "command": "command -v avbctl >/dev/null 2>&1 && echo present || echo absent",
       "safe_pattern": "^present$",
