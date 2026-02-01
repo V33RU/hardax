@@ -3,16 +3,16 @@
     {
       "category": "TEE/TPM",
       "label": "TEE Driver Presence",
-      "command": "ls /dev/tee* /dev/teepriv* 2>/dev/null",
-      "safe_pattern": "^ls:.*No such file or directory$",
+      "command": "[ -e /dev/tee0 ] || [ -e /dev/trusty-ipc-dev0 ] && echo PRESENT || echo ABSENT",
+      "safe_pattern": "^PRESENT$",
       "level": "warning",
       "description": "TEE driver (Trusted Execution Environment) should exist on modern secure devices"
     },
     {
       "category": "TEE/TPM",
       "label": "TPM Keystore Presence",
-      "command": "ls /system/lib64/hw/keystore.* 2>/dev/null",
-      "safe_pattern": "^ls:.*No such file or directory$",
+      "command": "[ -d /data/misc/keystore ] && echo PRESENT || echo ABSENT",
+      "safe_pattern": "^PRESENT$",
       "level": "info",
       "description": "Checks for hardware-backed keystore modules"
     },
