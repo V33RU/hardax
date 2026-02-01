@@ -3,10 +3,10 @@
     {
       "category": "ADB SECURITY",
       "label": "ADB Keys Present",
-      "command": "ls /data/misc/adb/adb_keys",
-      "safe_pattern": "^ls:.*No such file or directory$",
+      "command": "[ -d /data/misc/adb ] && ls /data/misc/adb/*.pub 2>/dev/null | wc -l || echo 0",
+      "safe_pattern": "^[1-9][0-9]*$",
       "level": "warning",
-      "description": "Presence of adb_keys may indicate previously trusted host"
+      "description": "ADB authorized keys should exist for trusted connections"
     }
   ]
 }
