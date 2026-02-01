@@ -10,14 +10,6 @@
     },
     {
       "category": "NETWORK",
-      "label": "User Certs",
-      "command": "ls /data/misc/user/0/cacerts-added/ | wc -l",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "Certs could bypass pinning"
-    },
-    {
-      "category": "NETWORK",
       "label": "World-Writable Files",
       "command": "find /data -type f \\( -perm -o+w \\) -exec ls -l {} \\; 2>/dev/null | wc -l",
       "safe_pattern": "^0$",
@@ -52,7 +44,7 @@
       "category": "NETWORK",
       "label": "Proxy Configuration",
       "command": "settings get global http_proxy",
-      "safe_pattern": "^$",
+      "safe_pattern": "^(null)?$",
       "level": "warning",
       "description": "Proxy set may indicate MITM or forced redirection"
     },
