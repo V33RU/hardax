@@ -1,0 +1,44 @@
+{
+  "checks": [
+    {
+      "category": "VOICE ASSISTANT",
+      "label": "Voice Match/OK Google",
+      "command": "settings get secure voice_interaction_service",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Voice assistant service configuration"
+    },
+    {
+      "category": "VOICE ASSISTANT",
+      "label": "Always-On Listening (Hotword)",
+      "command": "dumpsys voiceinteraction 2>/dev/null | grep -i 'hotword\\|always.on' | head -1",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Always-on voice listening is a privacy concern"
+    },
+    {
+      "category": "VOICE ASSISTANT",
+      "label": "Voice Unlock Enabled",
+      "command": "settings get secure lock_screen_allow_voice_unlock 2>/dev/null",
+      "safe_pattern": "^(0|null)$",
+      "level": "critical",
+      "description": "Voice unlock is less secure than PIN/fingerprint"
+    },
+    {
+      "category": "VOICE ASSISTANT",
+      "label": "Assistant on Lock Screen",
+      "command": "settings get secure assistant_on_lock_screen 2>/dev/null",
+      "safe_pattern": "^(0|null)$",
+      "level": "warning",
+      "description": "Assistant on lock screen can leak information"
+    },
+    {
+      "category": "VOICE ASSISTANT",
+      "label": "Voice Recording History",
+      "command": "settings get secure assist_screenshot_enabled 2>/dev/null",
+      "safe_pattern": "^(0|null)$",
+      "level": "info",
+      "description": "Assistant screenshot capture for context"
+    }
+  ]
+}
