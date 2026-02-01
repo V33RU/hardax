@@ -8,12 +8,12 @@
  | |  | |/ ____ \| | \ \| |__| / ____ / . \ 
  |_|  |_/_/    \_\_|  \_\_____/_/    \_/ \_\
 
-    Hardening Audit eXaminer for Android OS based IoT devices
+    Hardening Audit eXaminer for Android & IoT
 ```
 
 ## 🛡️ Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditing tool for Android OS based IoT devices. It systematically checks device configurations against security best practices and generates detailed reports highlighting potential vulnerabilities and misconfigurations.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditing tool for Android and IoT devices. It systematically checks device configurations against security best practices and generates detailed reports highlighting potential vulnerabilities and misconfigurations.
 
 ### Key Features
 
