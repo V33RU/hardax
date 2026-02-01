@@ -87,14 +87,6 @@
       "safe_pattern": "^1$",
       "level": "medium",
       "description": "Restricting dmesg access prevents unprivileged users from reading kernel logs."
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Audit Logs Enabled (duplicate)",
-      "command": "cat /proc/sys/kernel/printk",
-      "safe_pattern": ".*",
-      "level": "warning",
-      "description": "Non-zero printk values may indicate logging."
     }
   ]
 }
