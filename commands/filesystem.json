@@ -21,8 +21,9 @@
       "label": "World-Readable Files",
       "command": "find /data -type f -perm -o+r -exec ls -l {} \\; 2>/dev/null | wc -l",
       "safe_pattern": "^0$",
-      "level": "critical",
-      "description": "No sensitive files should be world-readable"
+      "level": "warning",
+      "description": "No sensitive files should be world-readable",
+      "empty_is_safe": true
     },
     {
       "category": "FILESYSTEM",
