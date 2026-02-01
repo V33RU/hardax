@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 HARDAX - Hardening Audit eXaminer
-Android & IoT Security Configuration Auditor
+Android OS based IoT Devices Security Configuration Auditor
 
 Modes:
     ADB (default)      -> runs commands via `adb shell`
@@ -29,7 +29,7 @@ import sys
 import time
 from typing import List, Dict, Any, Tuple, Optional
 
-__version__ = "2.0.0"
+__version__ = "1.0.0"
 
 # -------------------------
 # ANSI Color Codes
@@ -242,7 +242,7 @@ def print_banner(id_line: Optional[str]) -> None:
     print(art)
     print(f"{Colors.CYAN}{'═' * 60}{Colors.RESET}")
     print(f"{Colors.BOLD}{Colors.BRIGHT_WHITE}    HARDAX - Hardening Audit eXaminer{Colors.RESET}")
-    print(f"{Colors.DIM}    Android & IoT Security Configuration Auditor v{__version__}{Colors.RESET}")
+    print(f"{Colors.DIM}    Android OS based IoT Devices Security Configuration Auditor v{__version__}{Colors.RESET}")
     print(f"{Colors.CYAN}{'═' * 60}{Colors.RESET}\n")
     
     if id_line:
@@ -942,7 +942,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
     
     <footer>
       <p><strong>HARDAX</strong> - Hardening Audit eXaminer | Report generated: {time.strftime("%Y-%m-%d %H:%M:%S")}</p>
-      <p>Android & IoT Security Configuration Auditor</p>
+      <p>Android OS based IoT Devices Security Configuration Auditor</p>
     </footer>
   </div>
   
