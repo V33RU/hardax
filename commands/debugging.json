@@ -3,10 +3,18 @@
     {
       "category": "DEBUGGING",
       "label": "System Debug Binaries",
-      "command": "ls /system/bin/gdbserver /system/bin/strace 2>/dev/null",
-      "safe_pattern": "^ls:.*No such file or directory$",
+      "command": "[ -f /system/bin/gdbserver ] || [ -f /system/bin/strace ] && echo FOUND || echo NOTFOUND",
+      "safe_pattern": "^NOTFOUND$",
       "level": "warning",
       "description": "Presence of debug tools increases attack surface"
+    },
+    {
+      "category": "DEBUGGING",
+      "label": "Kernel DebugFS Enabled",
+      "command": "cat /sys/kernel/debug/debug_enabled 2>/dev/null",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Kernel debugfs enabled exposes sensitive kernel interfaces"
     }
   ]
 }
