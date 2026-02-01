@@ -5,7 +5,7 @@
       "label": "Screen Lock",
       "command": "dumpsys keyguard | grep 'secure=true'",
       "safe_pattern": "secure=true",
-      "level": "critical",
+      "level": "warning",
       "description": "Screen lock must be enabled"
     },
     {
