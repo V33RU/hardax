@@ -1,0 +1,76 @@
+{
+  "checks": [
+    {
+      "category": "HARDWARE INFO",
+      "label": "Baseband Version",
+      "command": "getprop gsm.version.baseband",
+      "safe_pattern": ".+",
+      "level": "info",
+      "description": "Modem/baseband firmware version"
+    },
+    {
+      "category": "HARDWARE INFO",
+      "label": "Bootloader Version",
+      "command": "getprop ro.bootloader",
+      "safe_pattern": ".+",
+      "level": "info",
+      "description": "Bootloader version for firmware tracking"
+    },
+    {
+      "category": "HARDWARE INFO",
+      "label": "Vendor Security Patch",
+      "command": "getprop ro.vendor.build.security_patch",
+      "safe_pattern": "^202[4-9]-",
+      "level": "warning",
+      "description": "Vendor security patch level (separate from OS patch)"
+    },
+    {
+      "category": "HARDWARE INFO",
+      "label": "Boot Image Security Patch",
+      "command": "getprop ro.build.version.security_patch_boot 2>/dev/null || echo 'N/A'",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Boot image security patch level"
+    },
+    {
+      "category": "HARDWARE INFO",
+      "label": "Hardware Security Level",
+      "command": "getprop ro.hardware.security_level 2>/dev/null",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Hardware security implementation level"
+    },
+    {
+      "category": "HARDWARE INFO",
+      "label": "First API Level",
+      "command": "getprop ro.product.first_api_level",
+      "safe_pattern": "^[2-3][0-9]$",
+      "level": "info",
+      "description": "Original API level shipped (affects security requirements)"
+    },
+    {
+      "category": "HARDWARE INFO",
+      "label": "Treble Support",
+      "command": "getprop ro.treble.enabled",
+      "safe_pattern": "^true$",
+      "level": "info",
+      "description": "Treble enables faster security updates"
+    },
+    {
+      "category": "HARDWARE INFO",
+      "label": "A/B Partitions (Seamless Updates)",
+      "command": "getprop ro.build.ab_update",
+      "safe_pattern": "^true$",
+      "level": "info",
+      "description": "A/B partitions enable seamless security updates"
+    },
+    {
+      "category": "HARDWARE INFO",
+      "label": "GKI (Generic Kernel Image)",
+      "command": "uname -r | grep -E 'android[0-9]+-[0-9]+\\.[0-9]+'",
+      "safe_pattern": "android",
+      "level": "info",
+      "description": "GKI enables mainline kernel security updates"
+    }
+  ]
+}
