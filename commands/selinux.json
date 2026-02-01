@@ -1,12 +1,44 @@
 {
   "checks": [
     {
-      "category": "SELinux",
-      "label": "SELinux Denials",
-      "command": "dmesg | grep 'avc:  denied'",
-      "safe_pattern": "^$",
+      "category": "SELINUX",
+      "label": "SELinux Status",
+      "command": "getenforce 2>/dev/null || getprop ro.boot.selinux",
+      "safe_pattern": "^Enforcing$",
+      "level": "critical",
+      "description": "SELinux must be in Enforcing mode for proper security"
+    },
+    {
+      "category": "SELINUX",
+      "label": "SELinux Policy Version",
+      "command": "cat /sys/fs/selinux/policyvers 2>/dev/null",
+      "safe_pattern": "^[2-9][0-9]$|^[1-9][0-9]{2,}$",
+      "level": "info",
+      "description": "SELinux policy version (higher is better, 30+ recommended)"
+    },
+    {
+      "category": "SELINUX",
+      "label": "SELinux Deny Unknown",
+      "command": "cat /sys/fs/selinux/deny_unknown 2>/dev/null",
+      "safe_pattern": "^1$",
       "level": "warning",
-      "description": "Check for SELinux policy violations"
+      "description": "Unknown access should be denied by default"
+    },
+    {
+      "category": "SELINUX",
+      "label": "SELinux Permissive Domains",
+      "command": "dmesg 2>/dev/null | grep -c 'permissive=' || echo 0",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "No domains should be running in permissive mode"
+    },
+    {
+      "category": "SELINUX",
+      "label": "SELinux Boot Parameter",
+      "command": "cat /proc/cmdline | grep -o 'selinux=[01]' || echo 'selinux=1'",
+      "safe_pattern": "selinux=1",
+      "level": "critical",
+      "description": "SELinux should not be disabled via boot parameter"
     }
   ]
 }
