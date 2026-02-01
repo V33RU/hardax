@@ -2,7 +2,7 @@
   "checks": [
     {
       "category": "ADB TRUST",
-      "label": "ADB Over Network Port",
+      "label": "ADB TCP Port Exposed",
       "command": "getprop service.adb.tcp.port",
       "safe_pattern": "^$",
       "level": "safe",
