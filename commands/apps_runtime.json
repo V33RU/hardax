@@ -20,22 +20,6 @@
     },
     {
       "category": "APPS & RUNTIME",
-      "label": "Accessibility Services",
-      "command": "settings get secure enabled_accessibility_services",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "Keylogging/clickjacking risk"
-    },
-    {
-      "category": "APPS & RUNTIME",
-      "label": "Device Admin Apps",
-      "command": "dumpsys device_policy | grep 'Admin:' | wc -l",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "Admins may have control"
-    },
-    {
-      "category": "APPS & RUNTIME",
       "label": "Running Services Count",
       "command": "dumpsys activity services | grep -E 'package|process' | wc -l",
       "safe_pattern": ".*",
