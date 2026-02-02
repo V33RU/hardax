@@ -503,27 +503,18 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {{
-      --bg-primary: #f8fafc;
-      --bg-secondary: #ffffff;
-      --bg-tertiary: #f1f5f9;
-      --text-primary: #1e293b;
-      --text-secondary: #64748b;
-      --border-color: #e2e8f0;
+      --bg-primary: #0a0a0a;
+      --bg-secondary: #141414;
+      --bg-tertiary: #1f1f1f;
+      --text-primary: #e5e5e5;
+      --text-secondary: #a3a3a3;
+      --border-color: #2a2a2a;
       --accent: #3b82f6;
       --critical: #ef4444;
       --warning: #f59e0b;
       --safe: #22c55e;
       --info: #3b82f6;
       --verify: #a855f7;
-    }}
-    
-    body.dark {{
-      --bg-primary: #0f172a;
-      --bg-secondary: #1e293b;
-      --bg-tertiary: #334155;
-      --text-primary: #f1f5f9;
-      --text-secondary: #94a3b8;
-      --border-color: #334155;
     }}
     
     * {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -533,7 +524,6 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
       background: var(--bg-primary);
       color: var(--text-primary);
       line-height: 1.6;
-      transition: background 0.3s, color 0.3s;
     }}
     
     .container {{ max-width: 1400px; margin: 0 auto; padding: 20px; }}
@@ -867,8 +857,6 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
       word-break: break-word;
     }}
     
-    body.dark pre {{ background: #0f172a; }}
-    
     /* Footer */
     footer {{
       text-align: center;
@@ -893,7 +881,6 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
         <input type="text" class="search-box" id="searchInput" placeholder="🔍 Search checks...">
         <button class="btn" onclick="expandAll()">Expand All</button>
         <button class="btn" onclick="collapseAll()">Collapse All</button>
-        <button class="btn" onclick="toggleTheme()">🌙 Theme</button>
       </div>
     </div>
     
@@ -947,17 +934,6 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
   </div>
   
   <script>
-    // Theme toggle
-    function toggleTheme() {{
-      document.body.classList.toggle('dark');
-      localStorage.setItem('hardax-theme', document.body.classList.contains('dark') ? 'dark' : 'light');
-    }}
-    
-    // Load saved theme
-    if (localStorage.getItem('hardax-theme') === 'dark') {{
-      document.body.classList.add('dark');
-    }}
-    
     // Category toggle
     function toggleCategory(catId) {{
       const section = document.getElementById(catId);
