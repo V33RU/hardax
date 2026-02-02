@@ -1,29 +1,43 @@
 # HARDAX - Hardening Audit eXaminer
 
 ```
-  _    _          _____  _____      __   __
- | |  | |   /\   |  __ \|  __ \   /\ \ / /
- | |__| |  /  \  | |__) | |  | | /  \\ V / 
- |  __  | / /\ \ |  _  /| |  | |/ /\ \> <  
- | |  | |/ ____ \| | \ \| |__| / ____ / . \ 
- |_|  |_/_/    \_\_|  \_\_____/_/    \_/ \_\
-
-    Hardening Audit eXaminer for Android & IoT
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  ██   ██  █████  ██████  ██████   █████  ██   ██               ┃
+┃  ██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██                ┃
+┃  ███████ ███████ ██████  ██   ██ ███████   ███                 ┃
+┃  ██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██                ┃
+┃  ██   ██ ██   ██ ██   ██ ██████  ██   ██ ██   ██               ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃  Hardening Audit eXaminer v1.0.0                               ┃
+┃  Android OS based IoT Devices Security Configuration Auditor   ┃
+┃  [273 Checks] [63 Categories]                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
 ## 🛡️ Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditing tool for Android and IoT devices. It systematically checks device configurations against security best practices and generates detailed reports highlighting potential vulnerabilities and misconfigurations.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditing tool for Android OS based IoT devices. It systematically checks device configurations against security best practices and generates detailed reports highlighting potential vulnerabilities and misconfigurations.
 
 ### Key Features
 
-- **257 Security Checks** across 52 categories
+- **273 Security Checks** across 63 categories
 - **ADB & SSH Modes** for flexible connectivity
 - **Beautiful CLI** with real-time progress and colored output
 - **Modern HTML Reports** with collapsible sections and search
 - **CSV & TXT Reports** for integration and archival
-- **Dark/Light Theme** toggle in HTML reports
+- **Dark Theme** optimized for security professionals
 - **Category Statistics** showing risk breakdown per area
+- **Smart Status Detection** - VERIFY status for empty/unsupported outputs
+
+## 📊 Status Types
+
+| Status | Color | Meaning |
+|--------|-------|---------|
+| ✓ SAFE | Green | Check passed, secure configuration |
+| ⚠ WARNING | Yellow | Potential issue, review recommended |
+| ✗ CRITICAL | Red | Security issue detected |
+| ? VERIFY | Purple | Empty output - manual verification needed |
+| ℹ INFO | Blue | Informational, no security impact |
 
 ## 📋 Categories Covered
 
@@ -34,6 +48,7 @@
 | Privacy Settings | 18 | App Permissions | 14 |
 | Encryption | 10 | Kernel Hardening | 12 |
 | SELinux/Policy | 8 | Root Detection | 6 |
+| WiFi Security | 7 | USB Security | 4 |
 | And many more... | | | |
 
 ## 🚀 Quick Start
@@ -80,7 +95,7 @@ HARDAX generates three types of reports in timestamped folders:
 - **Search Functionality**: Filter checks by keyword
 - **Category Statistics**: Quick overview of issues per category
 - **Interactive Chart**: Visual breakdown of results
-- **Dark/Light Theme**: Toggle for different viewing preferences
+- **Dark Theme**: Optimized for readability
 
 ### CSV Report
 - Machine-readable format
@@ -105,11 +120,11 @@ HARDAX generates three types of reports in timestamped folders:
 ```
 HARDAX/
 ├── hardax.py           # Main scanner script
-├── commands/           # Security check definitions
+├── commands/           # Security check definitions (64 JSON files)
 │   ├── bluetooth.json
 │   ├── boot_security.json
 │   ├── network.json
-│   └── ... (38 JSON files)
+│   └── ...
 ├── README.md
 └── hardax_output/      # Generated reports
     ├── html_report_YYYYMMDD_HHMMSS/
@@ -131,7 +146,8 @@ Create a JSON file in the `commands/` directory:
     "command": "getprop ro.custom.setting",
     "safe_pattern": "expected_safe_value",
     "level": "critical",
-    "description": "What this check verifies"
+    "description": "What this check verifies",
+    "empty_is_safe": false
   }
 ]
 ```
@@ -140,6 +156,9 @@ Create a JSON file in the `commands/` directory:
 - `critical` / `high` → Red status when unsafe
 - `warning` / `medium` → Yellow status when unsafe  
 - `info` / `low` → Blue status (informational)
+
+### Special Flags
+- `empty_is_safe`: Set to `true` if empty output means safe (e.g., no malware found)
 
 ## 📖 Command Line Options
 
@@ -175,4 +194,4 @@ HARDAX is intended for authorized security testing only. Always obtain proper au
 
 ---
 
-**HARDAX** - *Security is not optional, it's fundamental.*
+**HARDAX** - *Hardening Audit eXaminer*
