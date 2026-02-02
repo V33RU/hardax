@@ -241,7 +241,7 @@ def print_banner(id_line: Optional[str]) -> None:
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ┃  {Colors.BOLD}Hardening Audit eXaminer{Colors.RESET}{Colors.BRIGHT_CYAN} v{__version__}                               ┃
 ┃  {Colors.DIM}Android OS based IoT Devices Security Configuration Auditor{Colors.BRIGHT_CYAN}   ┃
-┃  {Colors.YELLOW}[273 Checks]{Colors.RESET} {Colors.GREEN}[63 Categories]{Colors.BRIGHT_CYAN}                                   ┃
+┃  {Colors.YELLOW}[264 Checks]{Colors.RESET} {Colors.GREEN}[62 Categories]{Colors.BRIGHT_CYAN}                                   ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛{Colors.RESET}
 """)
     
