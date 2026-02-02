@@ -10,7 +10,7 @@
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ┃  Hardening Audit eXaminer v1.0.0                               ┃
 ┃  Android OS based IoT Devices Security Configuration Auditor   ┃
-┃  [273 Checks] [63 Categories]                                  ┃
+┃  [264 Checks] [62 Categories]                                  ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
@@ -20,7 +20,7 @@
 
 ### Key Features
 
-- **273 Security Checks** across 63 categories
+- **264 Security Checks** across 62 categories
 - **ADB & SSH Modes** for flexible connectivity
 - **Beautiful CLI** with real-time progress and colored output
 - **Modern HTML Reports** with collapsible sections and search
