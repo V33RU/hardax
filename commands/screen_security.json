@@ -1,7 +1,42 @@
 [
-  {"category": "SCREEN_SECURITY", "label": "Screen Lock Enabled", "command": "settings get secure lockscreen.password_type", "safe_pattern": "65536|131072|196608|262144|327680|393216", "level": "critical", "description": "Device should have PIN/Password/Pattern lock enabled"},
-  {"category": "SCREEN_SECURITY", "label": "Lock Screen Timeout", "command": "settings get system screen_off_timeout", "safe_pattern": "^(1[0-9]{4}|[1-9][0-9]{0,3})$", "level": "warning", "description": "Screen timeout should be 30 seconds or less for security"},
-  {"category": "SCREEN_SECURITY", "label": "Show Passwords Disabled", "command": "settings get system show_password", "safe_pattern": "0|null", "level": "warning", "description": "Passwords should not be shown when typing"},
-  {"category": "SCREEN_SECURITY", "label": "Lock Screen Notifications", "command": "settings get secure lock_screen_show_notifications", "safe_pattern": "0", "level": "warning", "description": "Sensitive notifications should be hidden on lock screen"},
-  {"category": "SCREEN_SECURITY", "label": "Smart Lock Disabled", "command": "settings get secure trust_agents_initialized", "safe_pattern": "0|null", "level": "warning", "description": "Smart Lock may reduce security by keeping device unlocked"}
+  {
+    "category": "SCREEN_SECURITY",
+    "label": "Screen Lock Enabled",
+    "command": "settings get secure lockscreen.password_type",
+    "safe_pattern": "65536|131072|196608|262144|327680|393216",
+    "level": "critical",
+    "description": "Device should have PIN/Password/Pattern lock enabled"
+  },
+  {
+    "category": "SCREEN_SECURITY",
+    "label": "Lock Screen Timeout",
+    "command": "settings get system screen_off_timeout",
+    "safe_pattern": "^(1[0-9]{4}|[1-9][0-9]{0,3})$",
+    "level": "warning",
+    "description": "Screen timeout should be 30 seconds or less for security"
+  },
+  {
+    "category": "SCREEN_SECURITY",
+    "label": "Show Passwords Disabled",
+    "command": "settings get system show_password",
+    "safe_pattern": "0|null",
+    "level": "warning",
+    "description": "Passwords should not be shown when typing"
+  },
+  {
+    "category": "SCREEN_SECURITY",
+    "label": "Lock Screen Notification Visibility",
+    "command": "settings get secure lock_screen_show_notifications",
+    "safe_pattern": "0",
+    "level": "warning",
+    "description": "Sensitive notifications should be hidden on lock screen"
+  },
+  {
+    "category": "SCREEN_SECURITY",
+    "label": "Smart Lock Disabled",
+    "command": "settings get secure trust_agents_initialized",
+    "safe_pattern": "0|null",
+    "level": "warning",
+    "description": "Smart Lock may reduce security by keeping device unlocked"
+  }
 ]
