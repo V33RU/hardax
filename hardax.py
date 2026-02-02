@@ -231,19 +231,19 @@ class SSHDevice(Device):
 
 def print_banner(id_line: Optional[str]) -> None:
     """Print beautiful ASCII art banner with colors"""
-    art = f"""{Colors.BRIGHT_CYAN}
-  _    _          _____  _____      __   __
- | |  | |   /\\   |  __ \\|  __ \\   /\\ \\ / /
- | |__| |  /  \\  | |__) | |  | | /  \\\\ V / 
- |  __  | / /\\ \\ |  _  /| |  | |/ /\\ \\> <  
- | |  | |/ ____ \\| | \\ \\| |__| / ____ / . \\ 
- |_|  |_/_/    \\_\\_|  \\_\\_____/_/    \\_/ \\_\\{Colors.RESET}
-"""
-    print(art)
-    print(f"{Colors.CYAN}{'═' * 60}{Colors.RESET}")
-    print(f"{Colors.BOLD}{Colors.BRIGHT_WHITE}    HARDAX - Hardening Audit eXaminer{Colors.RESET}")
-    print(f"{Colors.DIM}    Android OS based IoT Devices Security Configuration Auditor v{__version__}{Colors.RESET}")
-    print(f"{Colors.CYAN}{'═' * 60}{Colors.RESET}\n")
+    print(f"""
+{Colors.BRIGHT_CYAN}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  {Colors.BRIGHT_WHITE}██   ██  █████  ██████  ██████   █████  ██   ██{Colors.BRIGHT_CYAN}               ┃
+┃  {Colors.BRIGHT_WHITE}██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██{Colors.BRIGHT_CYAN}                ┃
+┃  {Colors.BRIGHT_WHITE}███████ ███████ ██████  ██   ██ ███████   ███{Colors.BRIGHT_CYAN}                 ┃
+┃  {Colors.BRIGHT_WHITE}██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██{Colors.BRIGHT_CYAN}                ┃
+┃  {Colors.BRIGHT_WHITE}██   ██ ██   ██ ██   ██ ██████  ██   ██ ██   ██{Colors.BRIGHT_CYAN}               ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃  {Colors.BOLD}Hardening Audit eXaminer{Colors.RESET}{Colors.BRIGHT_CYAN} v{__version__}                               ┃
+┃  {Colors.DIM}Android OS based IoT Devices Security Configuration Auditor{Colors.BRIGHT_CYAN}   ┃
+┃  {Colors.YELLOW}[273 Checks]{Colors.RESET} {Colors.GREEN}[63 Categories]{Colors.BRIGHT_CYAN}                                   ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛{Colors.RESET}
+""")
     
     if id_line:
         print(f"{Colors.BRIGHT_WHITE}📱 Target Device: {Colors.BOLD}{Colors.BRIGHT_CYAN}{id_line}{Colors.RESET}\n")
