@@ -1,25 +1,20 @@
 # HARDAX - Hardening Audit eXaminer
 
 ```
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃  ██   ██  █████  ██████  ██████   █████  ██   ██               ┃
 ┃  ██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██                ┃
 ┃  ███████ ███████ ██████  ██   ██ ███████   ███                 ┃
 ┃  ██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██                ┃
 ┃  ██   ██ ██   ██ ██   ██ ██████  ██   ██ ██   ██               ┃
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ┃  Hardening Audit eXaminer v1.0.0                               ┃
 ┃  Android OS based IoT Devices Security Configuration Auditor   ┃
-<<<<<<< HEAD
 ┃  [264 Checks] [62 Categories]                                  ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-=======
-┃  [273 Checks] [63 Categories]                                  ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
->>>>>>> 9dde90c8b2f0cbb1df2f5bdc32e70a978648bd20
 ```
 
-##  Overview
+## 🛡️ Overview
 
 **HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditing tool for Android OS based IoT devices. It systematically checks device configurations against security best practices and generates detailed reports highlighting potential vulnerabilities and misconfigurations.
 
@@ -34,7 +29,7 @@
 - **Category Statistics** showing risk breakdown per area
 - **Smart Status Detection** - VERIFY status for empty/unsupported outputs
 
-##  Status Types
+## 📊 Status Types
 
 | Status | Color | Meaning |
 |--------|-------|---------|
@@ -56,7 +51,7 @@
 | WiFi Security | 7 | USB Security | 4 |
 | And many more... | | | |
 
-##  Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
@@ -91,7 +86,7 @@ python hardax.py --mode ssh --host 192.168.1.100 --ssh-user root --ssh-pass pass
 python hardax.py --json-dir ./commands --show-commands
 ```
 
-##  Reports
+## 📊 Reports
 
 HARDAX generates three types of reports in timestamped folders:
 
@@ -112,7 +107,7 @@ HARDAX generates three types of reports in timestamped folders:
 - Ideal for archival and quick review
 - Contains full audit trail
 
-##  Use Cases
+## 🎯 Use Cases
 
 1. **Pre-Deployment Audits**: Verify device security before production
 2. **Compliance Checks**: Ensure devices meet security baselines
@@ -120,7 +115,7 @@ HARDAX generates three types of reports in timestamped folders:
 4. **Security Research**: Analyze Android/IoT security posture
 5. **Incident Response**: Quickly assess compromised device configuration
 
-##  Directory Structure
+## 📁 Directory Structure
 
 ```
 HARDAX/
@@ -165,7 +160,7 @@ Create a JSON file in the `commands/` directory:
 ### Special Flags
 - `empty_is_safe`: Set to `true` if empty output means safe (e.g., no malware found)
 
-##  Command Line Options
+## 📖 Command Line Options
 
 | Option | Description |
 |--------|-------------|
@@ -181,10 +176,22 @@ Create a JSON file in the `commands/` directory:
 | `--show-commands` | Display commands during execution |
 | `--progress-numbers` | Show simple X/Y progress |
 
-##  Contributing
+## 🤝 Contributing
 
 Contributions welcome! Areas of interest:
 - Additional security checks
 - Support for more device types
 - Report format improvements
 - Bug fixes and optimizations
+
+## 📜 License
+
+MIT License - See LICENSE file for details.
+
+## ⚠️ Disclaimer
+
+HARDAX is intended for authorized security testing only. Always obtain proper authorization before scanning devices you do not own.
+
+---
+
+**HARDAX** - *Hardening Audit eXaminer*
