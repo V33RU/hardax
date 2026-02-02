@@ -1,6 +1,26 @@
 [
-  {"category": "POWER_SECURITY", "label": "Battery Saver Mode", "command": "settings get global low_power", "safe_pattern": ".", "level": "info", "description": "Battery saver status"},
-  {"category": "POWER_SECURITY", "label": "Doze Mode Enabled", "command": "dumpsys deviceidle 2>/dev/null | grep -i 'enabled' | head -3", "safe_pattern": ".", "level": "info", "description": "Doze mode for battery optimization"},
-  {"category": "POWER_SECURITY", "label": "Doze Whitelist Apps", "command": "dumpsys deviceidle 2>/dev/null | grep -i 'whitelist' | head -10", "safe_pattern": ".", "level": "info", "description": "Apps excluded from doze mode"},
-  {"category": "POWER_SECURITY", "label": "Keep Screen On", "command": "settings get global stay_on_while_plugged_in", "safe_pattern": "0|null", "level": "info", "description": "Screen stays on while charging"}
+  {
+    "category": "POWER_SECURITY",
+    "label": "Battery Saver Mode",
+    "command": "settings get global low_power",
+    "safe_pattern": ".",
+    "level": "info",
+    "description": "Battery saver status"
+  },
+  {
+    "category": "POWER_SECURITY",
+    "label": "Doze Mode Enabled",
+    "command": "dumpsys deviceidle 2>/dev/null | grep -i 'enabled' | head -3",
+    "safe_pattern": ".",
+    "level": "info",
+    "description": "Doze mode for battery optimization"
+  },
+  {
+    "category": "POWER_SECURITY",
+    "label": "Doze Whitelist Apps",
+    "command": "dumpsys deviceidle 2>/dev/null | grep -i 'whitelist' | head -10",
+    "safe_pattern": ".",
+    "level": "info",
+    "description": "Apps excluded from doze mode"
+  }
 ]
