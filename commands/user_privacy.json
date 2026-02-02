@@ -18,22 +18,6 @@
     },
     {
       "category": "USER & PRIVACY",
-      "label": "Location Services",
-      "command": "settings get secure location_mode",
-      "safe_pattern": "^3$",
-      "level": "safe",
-      "description": "Mode 3 means high-accuracy enabled"
-    },
-    {
-      "category": "USER & PRIVACY",
-      "label": "Show passwords disabled",
-      "command": "settings get system show_password",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "Password characters must not be shown"
-    },
-    {
-      "category": "USER & PRIVACY",
       "label": "Clipboard History",
       "command": "dumpsys clipboard | grep 'Historical'",
       "safe_pattern": "^$",
