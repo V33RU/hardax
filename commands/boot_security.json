@@ -2,14 +2,6 @@
   "checks": [
     {
       "category": "BOOT & SECURITY",
-      "label": "Encryption",
-      "command": "getprop ro.crypto.state",
-      "safe_pattern": "^encrypted$",
-      "level": "critical",
-      "description": "Storage should be encrypted"
-    },
-    {
-      "category": "BOOT & SECURITY",
       "label": "SELinux",
       "command": "getenforce",
       "safe_pattern": "^Enforcing$",
@@ -23,22 +15,6 @@
       "safe_pattern": "^0$",
       "level": "critical",
       "description": "Should be disabled to prevent unlock"
-    },
-    {
-      "category": "BOOT & SECURITY",
-      "label": "USB Debugging",
-      "command": "settings get global adb_enabled",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "Disable unless needed"
-    },
-    {
-      "category": "BOOT & SECURITY",
-      "label": "Unknown Sources",
-      "command": "settings get secure install_non_market_apps",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "Should be disabled"
     },
     {
       "category": "BOOT & SECURITY",
