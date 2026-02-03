@@ -2,25 +2,25 @@
 
 ```
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  ██   ██  █████  ██████  ██████   █████  ██   ██                ┃
-┃  ██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██                 ┃
-┃  ███████ ███████ ██████  ██   ██ ███████   ███                  ┃
-┃  ██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██                 ┃
-┃  ██   ██ ██   ██ ██   ██ ██████  ██   ██ ██   ██                ┃
+┃  ██   ██  █████  ██████  ██████   █████  ██   ██               ┃
+┃  ██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██                ┃
+┃  ███████ ███████ ██████  ██   ██ ███████   ███                 ┃
+┃  ██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██                ┃
+┃  ██   ██ ██   ██ ██   ██ ██████  ██   ██ ██   ██               ┃
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃  Hardening Audit eXaminer v1.0.0                                ┃
-┃  Android OS based IoT Devices Security Configuration Auditor    ┃
-┃  [264 Checks] [62 Categories]                                   ┃
+┃  Hardening Audit eXaminer v1.0.0                               ┃
+┃  Android OS based IoT Devices Security Configuration Auditor   ┃
+┃  [263 Checks] [62 Categories]                                  ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
-##  Overview
+## 🛡️ Overview
 
 **HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditing tool for Android OS based IoT devices. It systematically checks device configurations against security best practices and generates detailed reports highlighting potential vulnerabilities and misconfigurations.
 
 ### Key Features
 
-- **264 Security Checks** across 62 categories
+- **263 Security Checks** across 62 categories
 - **ADB & SSH Modes** for flexible connectivity
 - **Beautiful CLI** with real-time progress and colored output
 - **Modern HTML Reports** with collapsible sections and search
@@ -29,7 +29,7 @@
 - **Category Statistics** showing risk breakdown per area
 - **Smart Status Detection** - VERIFY status for empty/unsupported outputs
 
-##  Status Types
+## 📊 Status Types
 
 | Status | Color | Meaning |
 |--------|-------|---------|
@@ -39,7 +39,7 @@
 | ? VERIFY | Purple | Empty output - manual verification needed |
 | ℹ INFO | Blue | Informational, no security impact |
 
-##  Categories Covered
+## 📋 Categories Covered
 
 | Category | Checks | Category | Checks |
 |----------|--------|----------|--------|
@@ -51,7 +51,7 @@
 | WiFi Security | 7 | USB Security | 4 |
 | And many more... | | | |
 
-##  Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
@@ -86,7 +86,7 @@ python hardax.py --mode ssh --host 192.168.1.100 --ssh-user root --ssh-pass pass
 python hardax.py --json-dir ./commands --show-commands
 ```
 
-##  Reports
+## 📊 Reports
 
 HARDAX generates three types of reports in timestamped folders:
 
@@ -107,7 +107,7 @@ HARDAX generates three types of reports in timestamped folders:
 - Ideal for archival and quick review
 - Contains full audit trail
 
-##  Use Cases
+## 🎯 Use Cases
 
 1. **Pre-Deployment Audits**: Verify device security before production
 2. **Compliance Checks**: Ensure devices meet security baselines
@@ -115,7 +115,7 @@ HARDAX generates three types of reports in timestamped folders:
 4. **Security Research**: Analyze Android/IoT security posture
 5. **Incident Response**: Quickly assess compromised device configuration
 
-##  Directory Structure
+## 📁 Directory Structure
 
 ```
 HARDAX/
@@ -183,3 +183,15 @@ Contributions welcome! Areas of interest:
 - Support for more device types
 - Report format improvements
 - Bug fixes and optimizations
+
+## 📜 License
+
+MIT License - See LICENSE file for details.
+
+## ⚠️ Disclaimer
+
+HARDAX is intended for authorized security testing only. Always obtain proper authorization before scanning devices you do not own.
+
+---
+
+**HARDAX** - *Hardening Audit eXaminer*
