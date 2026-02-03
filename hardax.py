@@ -241,7 +241,7 @@ def print_banner(id_line: Optional[str]) -> None:
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ┃  {Colors.BOLD}Hardening Audit eXaminer{Colors.RESET}{Colors.BRIGHT_CYAN} v{__version__}                               ┃
 ┃  {Colors.DIM}Android OS based IoT Devices Security Configuration Auditor{Colors.BRIGHT_CYAN}   ┃
-┃  {Colors.YELLOW}[264 Checks]{Colors.RESET} {Colors.GREEN}[62 Categories]{Colors.BRIGHT_CYAN}                                   ┃
+┃  {Colors.YELLOW}[263 Checks]{Colors.RESET} {Colors.GREEN}[62 Categories]{Colors.BRIGHT_CYAN}                                   ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛{Colors.RESET}
 """)
     
@@ -1011,19 +1011,26 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
 # Check execution
 # -------------------------
 
+def is_null_response(output: str) -> bool:
+    """Check if output is specifically 'null' - needs manual verification"""
+    if not output:
+        return False
+    output_lower = output.lower().strip()
+    return output_lower in ['null', 'none', '(null)', '(none)']
+
 def is_empty_or_error(output: str) -> bool:
-    """Check if output is empty, null, or indicates an error/unsupported command"""
+    """Check if output is empty or indicates an error/unsupported command"""
     if not output:
         return True
     output_lower = output.lower().strip()
     # Common indicators of no data / unsupported command
     error_indicators = [
-        'null', 'not found', 'no such', 'error', 'exception',
+        'not found', 'no such', 'error', 'exception',
         'permission denied', 'unknown', 'invalid', 'failed',
         'inaccessible', 'cmd: can\'t find', 'not supported',
-        'service not found', 'does not exist'
+        'service not found', 'does not exist', 'no output'
     ]
-    if output_lower in ['', 'null', 'none', '(null)', '(none)', '(empty)']:
+    if output_lower in ['', '(empty)']:
         return True
     for indicator in error_indicators:
         if indicator in output_lower and len(output_lower) < 100:
@@ -1047,6 +1054,8 @@ def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, s
         empty_is_safe = chk.get("empty_is_safe", False)
         # New: allow checks to require output (empty = verify)
         requires_output = chk.get("requires_output", True)
+        # New: allow checks to specify if null means safe
+        null_is_safe = chk.get("null_is_safe", False)
 
         raw = device.shell(command) if command else ""
         normalized = normalize_for_match(raw)
@@ -1055,8 +1064,9 @@ def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, s
         matched = False
         needs_verification = False
         
-        # Check if output is empty or error
+        # Check if output is empty, error, or null
         output_empty = is_empty_or_error(raw)
+        output_is_null = is_null_response(raw)
         
         if safe_pattern:
             try:
@@ -1065,13 +1075,24 @@ def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, s
                 matched = safe_pattern.lower() in normalized.lower()
 
         # Determine status with improved logic
-        if matched:
+        if output_is_null:
+            # NULL output - check if null is explicitly allowed in safe_pattern
+            null_in_pattern = safe_pattern and 'null' in safe_pattern.lower()
+            if null_is_safe or null_in_pattern:
+                status = "SAFE"
+                counts["safe"] += 1
+            else:
+                # NULL without explicit allowance = needs manual verification
+                status = "VERIFY"
+                counts["verify"] += 1
+                needs_verification = True
+        elif matched:
             status = "SAFE"
             counts["safe"] += 1
         elif output_empty:
             # Empty output handling
             if empty_is_safe:
-                # Some checks consider empty/null as safe (e.g., "no bad apps found")
+                # Some checks consider empty as safe (e.g., "no bad apps found")
                 status = "SAFE"
                 counts["safe"] += 1
             elif requires_output and bucket in ("critical", "warning"):
@@ -1148,9 +1169,13 @@ def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, s
         display_desc = desc
         display_result = raw
         if needs_verification:
-            display_desc = desc + " [⚠ Manual verification required - empty/unsupported output]"
-            if not raw.strip():
-                display_result = "(No output - command may not be supported on this device)"
+            if output_is_null:
+                display_desc = desc + " [⚠ Manual verification required - value is NULL]"
+                display_result = "null (Setting may not exist or is not configured)"
+            else:
+                display_desc = desc + " [⚠ Manual verification required - empty/unsupported output]"
+                if not raw.strip():
+                    display_result = "(No output - command may not be supported on this device)"
         
         rows.append({
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
