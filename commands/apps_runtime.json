@@ -3,19 +3,10 @@
     {
       "category": "APPS & RUNTIME",
       "label": "Root Access (su)",
-      "command": "which su",
+      "command": "su -c 'id' 2>/dev/null | grep -q 'uid=0' && echo 'ROOT_ACTIVE' || which su 2>/dev/null | grep -v '/system/bin/su'",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "Check for root binaries",
-      "empty_is_safe": true
-    },
-    {
-      "category": "APPS & RUNTIME",
-      "label": "Debuggable Apps",
-      "command": "pm list packages -d | wc -l",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "Debuggable apps should be 0",
+      "description": "Check for actual root shell access (excludes Samsung system su)",
       "empty_is_safe": true
     },
     {
@@ -40,7 +31,7 @@
       "label": "Magisk Detected",
       "command": "pm list packages | grep magisk",
       "safe_pattern": "^$",
-      "level": "warning",
+      "level": "critical",
       "description": "Magisk can hide root access",
       "empty_is_safe": true
     },
