@@ -6,7 +6,7 @@
       "command": "su -c 'id' 2>/dev/null | grep -q 'uid=0' && echo 'ROOT_ACTIVE' || which su 2>/dev/null | grep -v '/system/bin/su'",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "Check for actual root shell access (excludes Samsung system su)",
+      "description": "Check for actual root shell access",
       "empty_is_safe": true
     },
     {
