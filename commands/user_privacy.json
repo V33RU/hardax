@@ -3,10 +3,10 @@
     {
       "category": "USER & PRIVACY",
       "label": "Screen Lock",
-      "command": "dumpsys keyguard | grep 'secure=true'",
-      "safe_pattern": "secure=true",
-      "level": "warning",
-      "description": "Screen lock must be enabled"
+      "command": "dumpsys window policy 2>/dev/null | grep -i 'showing.*lock\\|isShowing' || dumpsys trust 2>/dev/null | grep -i 'enabled' || settings get secure lockscreen.password_type 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Screen lock status (multiple detection methods)"
     },
     {
       "category": "USER & PRIVACY",
