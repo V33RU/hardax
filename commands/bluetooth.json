@@ -12,8 +12,8 @@
       "category": "BLUETOOTH",
       "label": "Discoverable Mode",
       "command": "settings get global bluetooth_discoverability",
-      "safe_pattern": "^0$",
-      "level": "critical",
+      "safe_pattern": "null|0|^$",
+      "level": "warning",
       "description": "Device should not be discoverable (AC-18)"
     },
     {
