@@ -3,7 +3,7 @@
     {
       "category": "APPS",
       "label": "Suspicious APK Names",
-      "command": "pm list packages | grep -Ei 'hacker|spy|monitor|remote|keylog|shell'",
+      "command": "pm list packages | grep -Ei 'hacker|spy|monitor|remote|keylog|shell' | grep -v 'com.android.shell'",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Packages with suspicious names",
@@ -12,10 +12,10 @@
     {
       "category": "APPS",
       "label": "Debuggable Apps (Strict)",
-      "command": "pm list packages -d | grep -v 'com.android'",
+      "command": "for pkg in $(pm list packages -3 2>/dev/null | cut -d: -f2 | head -20); do dumpsys package $pkg 2>/dev/null | grep -q 'DEBUGGABLE' && echo $pkg; done",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "No non-system apps should be debuggable",
+      "description": "Third-party apps with debuggable flag enabled",
       "empty_is_safe": true
     },
     {
