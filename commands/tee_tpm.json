@@ -1,28 +1,26 @@
-{
-  "checks": [
-    {
-      "category": "TEE/TPM",
-      "label": "TEE Driver Presence",
-      "command": "ls /dev/tee* /dev/teepriv* 2>/dev/null",
-      "safe_pattern": "^ls:.*No such file or directory$",
-      "level": "warning",
-      "description": "TEE driver (Trusted Execution Environment) should exist on modern secure devices"
-    },
-    {
-      "category": "TEE/TPM",
-      "label": "TPM Keystore Presence",
-      "command": "ls /system/lib64/hw/keystore.* 2>/dev/null",
-      "safe_pattern": "^ls:.*No such file or directory$",
-      "level": "info",
-      "description": "Checks for hardware-backed keystore modules"
-    },
-    {
-      "category": "TEE/TPM",
-      "label": "TEE Vendor Prop",
-      "command": "getprop | grep -i tee",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "Shows any TEE-related properties"
-    }
-  ]
-}
+[
+  {
+    "category": "TEE/TPM",
+    "label": "TEE Driver Presence",
+    "command": "ls /dev/tee* /dev/trusty* 2>/dev/null",
+    "safe_pattern": "/dev/tee\\|/dev/trusty",
+    "level": "info",
+    "description": "TEE driver (Trusted Execution Environment) presence check"
+  },
+  {
+    "category": "TEE/TPM",
+    "label": "TPM Keystore Presence",
+    "command": "ls /system/lib64/hw/keystore.* 2>/dev/null",
+    "safe_pattern": "^ls:.*No such file or directory$",
+    "level": "info",
+    "description": "Checks for hardware-backed keystore modules"
+  },
+  {
+    "category": "TEE/TPM",
+    "label": "TEE Vendor Prop",
+    "command": "getprop | grep -i tee",
+    "safe_pattern": ".*",
+    "level": "info",
+    "description": "Shows any TEE-related properties"
+  }
+]
