@@ -1,12 +1,11 @@
-{
-  "checks": [
-    {
-      "category": "INPUT SECURITY",
-      "label": "No 3rd party keyboards installed",
-      "command": "ime list -a",
-      "safe_pattern": "no 3rd party",
-      "level": "warning",
-      "description": "Only system keyboards must be installed"
-    }
-  ]
-}
+[
+  {
+    "category": "INPUT SECURITY",
+    "label": "No 3rd party keyboards installed",
+    "command": "pm list packages -3 2>/dev/null | grep -i 'keyboard\\|input\\|ime' | grep -v 'com.android\\|com.google\\|com.samsung'",
+    "safe_pattern": "^$",
+    "level": "warning",
+    "description": "Third-party keyboards can log keystrokes",
+    "empty_is_safe": true
+  }
+]
