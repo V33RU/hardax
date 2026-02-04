@@ -6,7 +6,7 @@
       "command": "su -c 'id' 2>/dev/null | grep -q 'uid=0' && echo 'ROOT_ACTIVE' || which su 2>/dev/null | grep -v '/system/bin/su'",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "Check for actual root shell access",
+      "description": "Check for actual root shell access (excludes Samsung system su)",
       "empty_is_safe": true
     },
     {
@@ -47,10 +47,11 @@
     {
       "category": "APPS & RUNTIME",
       "label": "Unapproved APKs in /data/local/tmp",
-      "command": "ls /data/local/tmp/*.apk",
+      "command": "ls /data/local/tmp/*.apk 2>/dev/null",
       "safe_pattern": "^ls:.*No such file or directory$",
       "level": "warning",
-      "description": "Unauthorized sideloading or testing APKs"
+      "description": "Unauthorized sideloading or testing APKs",
+      "empty_is_safe": true
     }
   ]
 }
