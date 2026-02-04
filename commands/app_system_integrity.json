@@ -14,12 +14,13 @@
       "command": "pm list packages | grep -E 'org.mobsf|com.offsec.nethunter|de.robv.android.xposed'",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Pentest frameworks or hacking tools found"
+      "description": "Pentest frameworks or hacking tools found",
+      "empty_is_safe": true
     },
     {
       "category": "APP & SYSTEM INTEGRITY",
       "label": "Custom CAs Installed",
-      "command": "ls /data/misc/user/0/cacerts-added/ | wc -l",
+      "command": "ls /data/misc/user/0/cacerts-added/ 2>/dev/null | wc -l",
       "safe_pattern": "^0$",
       "level": "warning",
       "description": "Custom certs may bypass pinning"
