@@ -1,16 +1,16 @@
-# HARDAX v1.0.0
+# HARDAX v1.1.0
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.0-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.1.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.6+-green.svg" alt="Python">
-  <img src="https://img.shields.io/badge/checks-400-orange.svg" alt="Checks">
-  <img src="https://img.shields.io/badge/categories-14-purple.svg" alt="Categories">
+  <img src="https://img.shields.io/badge/checks-428-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/categories-15-purple.svg" alt="Categories">
   <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
 </p>
 
 <p align="center">
   <b>Hardening Audit eXaminer for Android-based Devices</b><br>
-  <i>Comprehensive Security Configuration Auditor</i>
+  <i>Comprehensive Security Configuration Auditor for IoT & POS Terminals</i>
 </p>
 
 ```
@@ -36,29 +36,32 @@
 - [Usage](#-usage)
 - [Security Categories](#-security-categories)
 - [Status Levels](#-status-levels)
+- [Report Formats](#-report-formats)
 - [Tool Flow](#-tool-flow)
 - [Extending HARDAX](#-extending-hardax)
 - [Future Roadmap](#-future-roadmap)
 
 ---
 
-## ️ Overview
+## 🛡 Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs 400+ security checks across 14 categories to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs 428 security checks across 15 categories to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
 - **IoT Security Teams** - Auditing Android-based IoT devices
+- **POS Security Auditors** - PCI-DSS compliance verification for payment terminals
 - **Enterprise Security** - MDM compliance verification
 - **Developers** - Pre-release security validation
 
 ---
 
-## Features
+##  Features
 
 | Feature | Description |
 |---------|-------------|
-| **400 Security Checks** | Comprehensive coverage across 14 security categories |
+| **428 Security Checks** | Comprehensive coverage across 15 security categories |
+| **POS/Payment Terminal Support** | 28 PCI-DSS focused checks for payment devices |
 | **No Root Required** | Runs entirely via ADB shell commands |
 | **Dual Connection Modes** | ADB (USB) and SSH (Network) support |
 | **5 Status Levels** | SAFE, WARNING, CRITICAL, VERIFY, INFO |
@@ -76,6 +79,7 @@ HARDAX works with any Android-based device accessible via ADB or SSH:
 
 | Device Type | Examples |
 |-------------|----------|
+| **POS Terminals** | PAX, Verifone, Ingenico, Sunmi, Newland, Clover, Square |
 | **Smartphones & Tablets** | Samsung, Pixel, OnePlus, Xiaomi, etc. |
 | **IoT Devices** | Android Things, AOSP-based smart devices |
 | **Android Automotive** | Infotainment systems, head units |
@@ -86,7 +90,7 @@ HARDAX works with any Android-based device accessible via ADB or SSH:
 
 ---
 
-##  Installation
+## 🚀 Installation
 
 ### Prerequisites
 
@@ -116,7 +120,7 @@ pip install paramiko
 
 ---
 
-## Usage
+## 📖 Usage
 
 ### Basic Usage (ADB)
 
@@ -124,14 +128,15 @@ pip install paramiko
 # Auto-detect connected device
 python3 hardax.py
 
+# Show commands being executed
+python3 hardax.py --show-commands
+
+
 # Specify device by serial
 python3 hardax.py --serial DEVICE_SERIAL
 
-# use entire directory
+# To run all commands run by default
 python3 hardax.py --json-dir commands/
-
-# Show commands being executed
-python3 hardax.py --show-commands
 
 # Custom output directory
 python3 hardax.py --out ./my_reports
@@ -165,9 +170,9 @@ Options:
 
 ---
 
-##  Security Categories
+## 📊 Security Categories
 
-HARDAX organizes 400 checks into 14 security categories:
+HARDAX organizes 428 checks into 15 security categories:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
@@ -176,6 +181,7 @@ HARDAX organizes 400 checks into 14 security categories:
 | **PRIVACY** | 52 | Biometrics, screen lock, location, sensors, clipboard, audio |
 | **APPS** | 48 | Permissions, runtime, installation, dangerous permissions |
 | **BLUETOOTH** | 29 | BLE/Classic security, pairing modes, profiles, MAC randomization |
+| **POS_SECURITY** | 28 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper detection |
 | **BOOT_SECURITY** | 21 | Verified boot, AVB, dm-verity, bootloader, integrity |
 | **STORAGE** | 21 | Filesystem, backup, encryption, partitions |
 | **DEVICE_MANAGEMENT** | 14 | MDM, accounts, developer options |
@@ -200,18 +206,10 @@ HARDAX classifies findings into 5 status levels:
 | **VERIFY** | 🟣 Purple | ? | Manual verification required (null/empty output) |
 | **INFO** | 🔵 Blue | ℹ | Informational - no action needed |
 
-### VERIFY Status Explained
-
-The VERIFY status is triggered when:
-- Command returns `null`, `NULL`, `none`, or `(null)`
-- Setting may not exist on the device
-- Manual verification is recommended
-
-This prevents false positives on devices where certain settings don't exist.
 
 ---
 
-## Tool Flow
+##  Tool Flow
 
 ```mermaid
 flowchart TD
@@ -246,7 +244,7 @@ flowchart TD
 
 ---
 
-## 🔧 Extending HARDAX
+##  Extending HARDAX
 
 ### Adding Custom Checks
 
@@ -268,30 +266,9 @@ Create or modify JSON files in the `commands/` directory:
 }
 ```
 
-### Check Fields
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `category` | ✅ | Category name (e.g., NETWORK, SYSTEM) |
-| `label` | ✅ | Human-readable check name |
-| `command` | ✅ | Shell command to execute |
-| `level` | ✅ | Severity: `info`, `warning`, `critical` |
-| `safe_pattern` | ❌ | Regex pattern indicating safe output |
-| `empty_is_safe` | ❌ | If `true`, empty output = SAFE |
-| `null_is_safe` | ❌ | If `true`, null output = SAFE |
-| `description` | ❌ | Detailed description of the check |
-
-### Pattern Matching
-
-```
-safe_pattern: "^Enforcing$"     → Output must be exactly "Enforcing"
-safe_pattern: "^(0|disabled)$"  → Output must be "0" or "disabled"
-safe_pattern: "^$"              → Empty output is safe (use with empty_is_safe)
-```
-
 ---
 
-## 🗺️ Future Roadmap
+##  Future Roadmap
 
 - [ ] `--category` flag to run specific categories
 - [ ] `--severity` flag to filter by level
@@ -309,32 +286,3 @@ safe_pattern: "^$"              → Empty output is safe (use with empty_is_safe
 - [ ] Plugin architecture
 - [ ] APK analysis integration
 - [ ] Firmware extraction support
-
-### Future Integrations
-
-| Integration | Description |
-|-------------|-------------|
-| **CI/CD** | GitHub Actions, Jenkins, GitLab CI |
-| **SIEM** | Splunk, ELK Stack, QRadar export |
-| **Notifications** | Slack, Teams, Email alerts |
-| **MDM** | Integration with enterprise MDM solutions |
-| **Vulnerability DBs** | CVE correlation for findings |
-
----
-
-### Adding New Checks
-
-1. Fork the repository
-2. Add checks to appropriate JSON file in `commands/`
-3. Test on real device
-4. Submit PR with description
-
----
-
-## 🙏 Acknowledgments
-
-- Android Open Source Project (AOSP)
-- CIS Benchmarks for Android
-- OWASP Mobile Security Testing Guide
-
-
