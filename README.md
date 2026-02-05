@@ -73,7 +73,7 @@ HARDAX is designed for:
 
 ---
 
-##  Supported Devices
+## Supported Devices
 
 HARDAX works with any Android-based device accessible via ADB or SSH:
 
@@ -90,7 +90,11 @@ HARDAX works with any Android-based device accessible via ADB or SSH:
 
 ---
 
+<<<<<<< HEAD
 ## 🚀 Installation
+=======
+## Installation
+>>>>>>> 8892798a710b62a897b3be793e73d16389e6467f
 
 ### Prerequisites
 
@@ -170,7 +174,11 @@ Options:
 
 ---
 
+<<<<<<< HEAD
 ## 📊 Security Categories
+=======
+## Security Categories
+>>>>>>> 8892798a710b62a897b3be793e73d16389e6467f
 
 HARDAX organizes 428 checks into 15 security categories:
 
@@ -194,7 +202,7 @@ HARDAX organizes 428 checks into 15 security categories:
 
 ---
 
-##  Status Levels
+## Status Levels
 
 HARDAX classifies findings into 5 status levels:
 
@@ -244,7 +252,11 @@ flowchart TD
 
 ---
 
+<<<<<<< HEAD
 ##  Extending HARDAX
+=======
+## Extending HARDAX
+>>>>>>> 8892798a710b62a897b3be793e73d16389e6467f
 
 ### Adding Custom Checks
 
