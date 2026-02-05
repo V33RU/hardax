@@ -1,6 +1,0 @@
-[
-  {"category": "VPN_SECURITY", "label": "VPN Legacy Mode", "command": "settings get global vpn_legacy_mode", "safe_pattern": ".", "level": "info", "description": "Legacy VPN mode status"},
-  {"category": "VPN_SECURITY", "label": "Always-On VPN", "command": "settings get secure always_on_vpn_app", "safe_pattern": ".", "level": "info", "description": "Always-on VPN app if configured"},
-  {"category": "VPN_SECURITY", "label": "VPN Lockdown", "command": "settings get secure always_on_vpn_lockdown", "safe_pattern": ".", "level": "info", "description": "VPN lockdown mode prevents traffic without VPN"},
-  {"category": "VPN_SECURITY", "label": "Active VPN Connections", "command": "dumpsys connectivity 2>/dev/null | grep -i vpn | head -5", "safe_pattern": ".", "level": "info", "description": "Current VPN connection status"}
-]

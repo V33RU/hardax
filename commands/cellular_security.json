@@ -1,7 +1,0 @@
-[
-  {"category": "CELLULAR_SECURITY", "label": "Airplane Mode", "command": "settings get global airplane_mode_on", "safe_pattern": ".", "level": "info", "description": "Airplane mode status"},
-  {"category": "CELLULAR_SECURITY", "label": "Mobile Data Enabled", "command": "settings get global mobile_data", "safe_pattern": ".", "level": "info", "description": "Mobile data status"},
-  {"category": "CELLULAR_SECURITY", "label": "Data Roaming", "command": "settings get global data_roaming", "safe_pattern": "0|null", "level": "warning", "description": "Data roaming can incur costs and security risks"},
-  {"category": "CELLULAR_SECURITY", "label": "Preferred Network Mode", "command": "settings get global preferred_network_mode", "safe_pattern": ".", "level": "info", "description": "Preferred cellular network mode"},
-  {"category": "CELLULAR_SECURITY", "label": "VoLTE Enabled", "command": "settings get global volte_feature_disabled", "safe_pattern": ".", "level": "info", "description": "Voice over LTE status"}
-]

@@ -1,6 +1,0 @@
-[
-  {"category": "LOCATION_SERVICES", "label": "Location Services Mode", "command": "settings get secure location_mode", "safe_pattern": "0", "level": "info", "description": "Location services mode (0=off, 3=high accuracy)"},
-  {"category": "LOCATION_SERVICES", "label": "GPS Enabled", "command": "settings get secure location_providers_allowed", "safe_pattern": ".", "level": "info", "description": "Allowed location providers"},
-  {"category": "LOCATION_SERVICES", "label": "Location History", "command": "settings get secure location_history_enabled", "safe_pattern": "0|null", "level": "warning", "description": "Location history can be privacy concern"},
-  {"category": "LOCATION_SERVICES", "label": "Network Location Provider", "command": "settings get secure network_location_opt_in", "safe_pattern": ".", "level": "info", "description": "Network-based location opt-in status"}
-]

@@ -1,6 +1,0 @@
-[
-  {"category": "BACKUP_SECURITY", "label": "ADB Backup Enabled", "command": "settings get secure backup_enabled", "safe_pattern": "0|null", "level": "warning", "description": "ADB backup can extract sensitive data"},
-  {"category": "BACKUP_SECURITY", "label": "Auto Backup Enabled", "command": "settings get secure backup_auto_restore", "safe_pattern": ".", "level": "info", "description": "Auto backup/restore status"},
-  {"category": "BACKUP_SECURITY", "label": "Backup Transport", "command": "settings get secure backup_transport", "safe_pattern": ".", "level": "info", "description": "Backup transport service"},
-  {"category": "BACKUP_SECURITY", "label": "Cloud Backup Account", "command": "settings get secure backup_manager_constants", "safe_pattern": ".", "level": "info", "description": "Backup manager configuration"}
-]

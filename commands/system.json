@@ -2,6 +2,408 @@
   "checks": [
     {
       "category": "SYSTEM",
+      "label": "Play Protect",
+      "command": "settings get secure package_verifier_enable 2>/dev/null",
+      "safe_pattern": "^(1|null)$",
+      "level": "warning",
+      "description": "Play Protect should be enabled"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Security Patch Level",
+      "command": "PATCH_DATE=$(getprop ro.build.version.security_patch 2>/dev/null); if [ -z \"$PATCH_DATE\" ]; then echo 'UNKNOWN'; exit 1; fi; PATCH_EPOCH=$(date -d \"$PATCH_DATE\" +%s 2>/dev/null || echo 0); CURRENT_EPOCH=$(date +%s); DAYS_OLD=$(( ($CURRENT_EPOCH - $PATCH_EPOCH) / 86400 )); if [ $DAYS_OLD -lt 90 ]; then echo \"RECENT: $PATCH_DATE ($DAYS_OLD days old)\"; else echo \"OUTDATED: $PATCH_DATE ($DAYS_OLD days old)\"; fi",
+      "safe_pattern": "^RECENT:",
+      "level": "critical",
+      "description": "Security patch must be less than 90 days old"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Keyguard Timeout",
+      "command": "settings get secure lock_screen_lock_after_timeout 2>/dev/null",
+      "safe_pattern": ".+",
+      "level": "info",
+      "description": "Time delay before screen locks"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Third-Party App Stores",
+      "command": "pm list packages 2>/dev/null | grep -E 'amazon|aptoide|getjar'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Avoid non-Google app stores",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "User-installed Apps",
+      "command": "pm list packages -3 2>/dev/null | wc -l",
+      "safe_pattern": ".+",
+      "level": "info",
+      "description": "Check how many user apps installed"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Unusual Files in /sdcard/",
+      "command": "ls /sdcard/ 2>/dev/null | grep -Ei '(key|creds|dump|log|backup)'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Sensitive files in user-accessible storage",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Wi-Fi SSID",
+      "command": "dumpsys netstats 2>/dev/null | grep -i 'iface=wlan0'",
+      "safe_pattern": ".+",
+      "level": "info",
+      "description": "Shows current Wi-Fi network"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Zygote Process Check",
+      "command": "ps 2>/dev/null | grep zygote",
+      "safe_pattern": "zygote",
+      "level": "critical",
+      "description": "Zygote process is core to Android app lifecycle"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "USB File Transfer Disabled",
+      "command": "settings get global usb_mass_storage_enabled 2>/dev/null",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Should be disabled to block unauthorized USB file access"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Development Settings Disabled",
+      "command": "settings get global development_settings_enabled 2>/dev/null",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Developer mode should be disabled for production devices"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Wi-Fi Direct Disabled (WFD)",
+      "command": "pm list packages 2>/dev/null | grep -i wfd",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Wi-Fi Direct (WFD) package should be removed if unused",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Auto System Update Enabled",
+      "command": "settings get global auto_update_system 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "info",
+      "description": "Auto updates improve patch consistency"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Credential Storage Cleared",
+      "command": "ls /data/misc/keystore/user_0 2>&1",
+      "safe_pattern": "No such file or directory",
+      "level": "info",
+      "description": "No residual user credential files"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Kernel Hardening (PAN/UAO)",
+      "command": "zcat /proc/config.gz | grep -E 'CONFIG_ARM64_PAN=|CONFIG_ARM64_UAO='",
+      "safe_pattern": "CONFIG_ARM64_PAN=y.*CONFIG_ARM64_UAO=y",
+      "level": "critical",
+      "description": "Privileged Access Never (PAN) and User Access Override (UAO) should be enabled for memory protection"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Kernel Pointer Leaking",
+      "command": "cat /proc/sys/kernel/kptr_restrict",
+      "safe_pattern": "^2$",
+      "level": "warning",
+      "description": "Kernel pointers should not be exposed (2 = full restriction)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "World-Writable Directories",
+      "command": "find /system /vendor -type d -perm -0002 2>/dev/null | head -10",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "World-writable directories in system",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "SUID Binaries",
+      "command": "find /system /vendor -type f -perm -4000 2>/dev/null | head -10",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "SUID binaries - review for privilege escalation"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Exposed Unix Sockets",
+      "command": "find /dev /data /var -type s 2>/dev/null | head -10",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Unix sockets - potential IPC attack vectors"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Debugfs Mounted",
+      "command": "mount | grep debugfs",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Debugfs mounted - kernel debug info exposed",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Kernel Modules Loadable",
+      "command": "cat /proc/sys/kernel/modules_disabled 2>/dev/null",
+      "safe_pattern": "1",
+      "level": "warning",
+      "description": "Kernel module loading should be disabled (1)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Core Dumps Enabled",
+      "command": "cat /proc/sys/kernel/core_pattern 2>/dev/null",
+      "safe_pattern": "^$|\\|",
+      "level": "info",
+      "description": "Core dump configuration"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Symbolic Link Following",
+      "command": "cat /proc/sys/fs/protected_symlinks 2>/dev/null",
+      "safe_pattern": "1",
+      "level": "warning",
+      "description": "Symlink protection should be enabled (1)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Hardlink Protection",
+      "command": "cat /proc/sys/fs/protected_hardlinks 2>/dev/null",
+      "safe_pattern": "1",
+      "level": "warning",
+      "description": "Hardlink protection should be enabled (1)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Executable Stack",
+      "command": "cat /proc/sys/kernel/exec-shield 2>/dev/null || cat /proc/sys/kernel/randomize_va_space 2>/dev/null",
+      "safe_pattern": "1|2",
+      "level": "warning",
+      "description": "ASLR should be enabled"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Ptrace Scope",
+      "command": "cat /proc/sys/kernel/yama/ptrace_scope 2>/dev/null",
+      "safe_pattern": "[123]",
+      "level": "warning",
+      "description": "Ptrace restrictions (1+ recommended)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Recent Kernel Crashes",
+      "command": "dmesg | grep -iE 'fatal|panic|oops|BUG:' | tail -n 5",
+      "safe_pattern": "^$",
+      "level": "info",
+      "description": "Recent kernel panics or fatal errors",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Application Crash Log",
+      "command": "logcat -d -b crash | head -n 10",
+      "safe_pattern": "^$",
+      "level": "info",
+      "description": "Recent app crash logs (look for repeated exceptions)",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "SELinux AVC Denials",
+      "command": "dmesg | grep 'avc:  denied'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Check for any denied SELinux actions",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Stack Canaries",
+      "command": "zcat /proc/config.gz | grep CONFIG_CC_STACKPROTECTOR_STRONG",
+      "safe_pattern": "CONFIG_CC_STACKPROTECTOR_STRONG=y",
+      "level": "critical",
+      "description": "Stack canaries should be enabled to prevent buffer overflows"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "ROP Mitigation (PAC)",
+      "command": "zcat /proc/config.gz | grep CONFIG_ARM64_PTR_AUTH",
+      "safe_pattern": "CONFIG_ARM64_PTR_AUTH=y",
+      "level": "critical",
+      "description": "Pointer Authentication (PAC) should be enabled to prevent ROP attacks"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Memory Tagging (MTE)",
+      "command": "zcat /proc/config.gz | grep CONFIG_ARM64_MTE",
+      "safe_pattern": "CONFIG_ARM64_MTE=y",
+      "level": "critical",
+      "description": "Memory Tagging Extension (MTE) should be enabled for JIT hardening"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Processes Running as Root",
+      "command": "ps -A -o USER,NAME 2>/dev/null | grep '^root' | grep -vE 'init|kthread|ueventd|vold|lmkd|servicemanager|hwservicemanager|logd|healthd|adbd|debuggerd' | wc -l",
+      "safe_pattern": "^[0-5]$",
+      "level": "warning",
+      "description": "Minimize processes running as root"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "World-Readable Proc Entries",
+      "command": "ls -la /proc/*/cmdline 2>/dev/null | grep 'r--r--r--' | wc -l",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Process info readable - normal but review sensitive processes"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Custom Native Daemons",
+      "command": "ps -A 2>/dev/null | grep -vE 'zygote|system_server|surfaceflinger|android|google|com\\.|app_process|dalvikvm' | grep -E '^root|^system' | awk '{print $NF}' | sort | uniq | head -10",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Non-Android native processes - review for IoT services"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Listening on All Interfaces",
+      "command": "netstat -tlnp 2>/dev/null | grep '0.0.0.0:' | grep -v '127.0.0.1' || ss -tlnp 2>/dev/null | grep '0.0.0.0:' | head -10",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Services listening on all interfaces - exposed to network",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Memory Protection (ASLR)",
+      "command": "cat /proc/sys/kernel/randomize_va_space 2>/dev/null",
+      "safe_pattern": "2",
+      "level": "critical",
+      "description": "ASLR should be fully enabled (value=2)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Stack Protection Status",
+      "command": "cat /proc/sys/kernel/stack_protected 2>/dev/null || echo 'check_binary'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Stack protection status"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Kernel Pointer Exposure",
+      "command": "cat /proc/sys/kernel/kptr_restrict 2>/dev/null",
+      "safe_pattern": "[12]",
+      "level": "warning",
+      "description": "Kernel pointers should be restricted (1 or 2)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "dmesg Restrictions",
+      "command": "cat /proc/sys/kernel/dmesg_restrict 2>/dev/null",
+      "safe_pattern": "1",
+      "level": "warning",
+      "description": "dmesg should be restricted to prevent kernel info leak"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "OTA Update Path",
+      "command": "getprop ro.build.version.incremental",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "OTA incremental version for build tracking"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Writable Paths in $PATH",
+      "command": "echo $PATH | tr ':' '\\n' | awk 'NF' | xargs -I{} sh -c '[ -w \"{}\" ] && echo \"{}\"'",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Writable dirs in PATH can lead to privilege escalation",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Disable-Verity Property Not Set",
+      "command": "getprop persist.sys.disable_verity",
+      "safe_pattern": "^$|^0$",
+      "level": "critical",
+      "description": "Disable-verity must not be enabled on locked devices"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Battery Saver Mode",
+      "command": "settings get global low_power",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Battery saver status"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Doze Mode Enabled",
+      "command": "dumpsys deviceidle 2>/dev/null | grep -i 'enabled' | head -3",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Doze mode for battery optimization"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Doze Whitelist Apps",
+      "command": "dumpsys deviceidle 2>/dev/null | grep -i 'whitelist' | head -10",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Apps excluded from doze mode"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Top 5 Running Processes",
+      "command": "ps | head -n 5",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Initial list of active processes"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "bootctl Present",
+      "command": "command -v bootctl >/dev/null 2>&1 && echo present || echo absent",
+      "safe_pattern": "^present$",
+      "level": "info",
+      "description": "bootctl available to query slot state"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Current Slot",
+      "command": "bootctl get-current-slot 2>/dev/null | sed -E 's/.*: *//'",
+      "safe_pattern": "^(a|b|0|1)$",
+      "level": "info",
+      "description": "Device reports current boot slot (a/b or 0/1)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Stock Recovery (No TWRP in PATH)",
+      "command": "command -v twrp >/dev/null 2>&1 && echo found || echo notfound",
+      "safe_pattern": "^notfound$",
+      "level": "warning",
+      "description": "No custom recovery binary should be present"
+    },
+    {
+      "category": "SYSTEM",
       "label": "Kernel Version",
       "command": "uname -r",
       "safe_pattern": ".*",
@@ -45,7 +447,7 @@
       "label": "Core Dumps Disabled",
       "command": "cat /proc/sys/kernel/core_pattern",
       "safe_pattern": "^\\|/dev/null$",
-      "level": "high",
+      "level": "warning",
       "description": "Core dumps should be disabled to prevent sensitive data leakage."
     },
     {
@@ -53,7 +455,7 @@
       "label": "SECCOMP Enabled",
       "command": "zcat /proc/config.gz | grep CONFIG_SECCOMP=",
       "safe_pattern": "CONFIG_SECCOMP=Y",
-      "level": "high",
+      "level": "warning",
       "description": "SECCOMP must be enabled to restrict system calls."
     },
     {
@@ -61,7 +463,7 @@
       "label": "Kernel Modules Loading Restricted",
       "command": "cat /proc/sys/kernel/modules_disabled",
       "safe_pattern": "^1$",
-      "level": "high",
+      "level": "warning",
       "description": "Kernel module loading should be disabled after boot to prevent unauthorized module insertion."
     },
     {
@@ -69,7 +471,7 @@
       "label": "Protected Symlinks Enabled",
       "command": "cat /proc/sys/fs/protected_symlinks",
       "safe_pattern": "^1$",
-      "level": "medium",
+      "level": "warning",
       "description": "Symlink protection should be enabled to prevent symlink-based privilege escalation."
     },
     {
@@ -77,7 +479,7 @@
       "label": "Protected Hardlinks Enabled",
       "command": "cat /proc/sys/fs/protected_hardlinks",
       "safe_pattern": "^1$",
-      "level": "medium",
+      "level": "warning",
       "description": "Hardlink protection should be enabled to prevent unauthorized file access."
     },
     {
@@ -85,8 +487,308 @@
       "label": "dmesg Restriction Enabled",
       "command": "cat /proc/sys/kernel/dmesg_restrict",
       "safe_pattern": "^1$",
-      "level": "medium",
+      "level": "warning",
       "description": "Restricting dmesg access prevents unprivileged users from reading kernel logs."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Android Automotive OS Detected",
+      "command": "getprop ro.build.characteristics 2>/dev/null | grep -i automotive || pm list features 2>/dev/null | grep -i 'android.hardware.type.automotive'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Device is Android Automotive platform"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Vehicle HAL Service",
+      "command": "service list 2>/dev/null | grep -i 'vehicle\\|car\\|vhal'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Vehicle Hardware Abstraction Layer service status"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Car Service Running",
+      "command": "dumpsys activity services 2>/dev/null | grep -i 'CarService\\|android.car' | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Android Car Service status"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Automotive Build Flavor",
+      "command": "getprop ro.build.flavor 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Build flavor - check if automotive variant"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Debug Build Type",
+      "command": "getprop ro.build.type 2>/dev/null",
+      "safe_pattern": "^user$",
+      "level": "critical",
+      "description": "Must be 'user' build. 'userdebug' or 'eng' allow debugging"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Test Keys Used",
+      "command": "getprop ro.build.tags 2>/dev/null",
+      "safe_pattern": "release-keys",
+      "level": "critical",
+      "description": "Must use release-keys. test-keys means unsigned/development build"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Debuggable Flag",
+      "command": "getprop ro.debuggable 2>/dev/null",
+      "safe_pattern": "^0$",
+      "level": "critical",
+      "description": "ro.debuggable=1 allows ptrace, debugging - must be 0"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "ADB Secure Mode",
+      "command": "getprop ro.adb.secure 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "critical",
+      "description": "ro.adb.secure=1 requires RSA authentication for ADB"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "ADB Root Access",
+      "command": "id 2>/dev/null",
+      "safe_pattern": "uid=[1-9]|shell",
+      "level": "critical",
+      "description": "ADB shell should NOT run as root (uid=0)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "SELinux Mode",
+      "command": "getenforce 2>/dev/null",
+      "safe_pattern": "^Enforcing$",
+      "level": "critical",
+      "description": "SELinux must be Enforcing - Permissive allows policy bypass"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Verified Boot State (Build Property)",
+      "command": "getprop ro.boot.verifiedbootstate 2>/dev/null",
+      "safe_pattern": "^green$",
+      "level": "critical",
+      "description": "Verified boot should be 'green' (fully verified chain)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Device Locked",
+      "command": "getprop ro.boot.flash.locked 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "critical",
+      "description": "Bootloader should be locked (flash.locked=1)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "dm-verity Mode",
+      "command": "getprop ro.boot.veritymode 2>/dev/null",
+      "safe_pattern": "^enforcing$",
+      "level": "critical",
+      "description": "dm-verity must be enforcing to protect system partitions"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Security Patch Age",
+      "command": "getprop ro.build.version.security_patch 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Security patch date - check if outdated"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Default Build Fingerprint",
+      "command": "getprop ro.build.fingerprint 2>/dev/null | grep -iE 'generic|test|debug|eng|sample'",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Generic/test build fingerprint indicates development firmware",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Manufacturer Default Unchanged",
+      "command": "getprop ro.product.model 2>/dev/null | grep -iE 'generic|test|sample|development'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Device model indicates test/development unit",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Root Shell Available",
+      "command": "id 2>/dev/null | grep 'uid=0'",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "ADB shell runs as root - full device access!",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Factory Reset Protection",
+      "command": "getprop ro.frp.pst 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Factory Reset Protection partition configured"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Rollback Protection Index",
+      "command": "getprop ro.boot.vbmeta.device_state 2>/dev/null",
+      "safe_pattern": "locked",
+      "level": "critical",
+      "description": "Device state should be locked for rollback protection"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Debug Properties Set",
+      "command": "getprop | grep -iE 'debug|verbose|log.*level' | grep -v ':\\s*$' | head -5",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Debug properties enabled - may leak sensitive info",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Software Bill of Materials (SBOM)",
+      "command": "pm list packages -f 2>/dev/null | wc -l",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Total packages - FDA requires SBOM for premarket submissions"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Third-Party Libraries",
+      "command": "find /system /vendor -name '*.so' 2>/dev/null | wc -l",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Shared libraries count - document for SBOM/vulnerability tracking"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Build Timestamp",
+      "command": "getprop ro.build.date 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Firmware build date - document for configuration management"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "ADB Enabled (CRITICAL for Medical)",
+      "command": "settings get global adb_enabled 2>/dev/null",
+      "safe_pattern": "^0$|^null$",
+      "level": "critical",
+      "description": "ADB MUST be disabled on medical devices - allows unauthorized access to PHI"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Screen Lock Enforced",
+      "command": "settings get secure lockscreen.password_type 2>/dev/null",
+      "safe_pattern": "[1-9]",
+      "level": "critical",
+      "description": "Screen lock MUST be enabled to protect PHI access"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Lock Timeout (Max 15 min for Medical)",
+      "command": "settings get system screen_off_timeout 2>/dev/null",
+      "safe_pattern": "^[0-9]{1,6}$",
+      "level": "warning",
+      "description": "Screen timeout should be <=15 minutes (900000ms) for medical devices"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Unknown Sources Blocked",
+      "command": "settings get secure install_non_market_apps 2>/dev/null",
+      "safe_pattern": "^0$|^null$",
+      "level": "critical",
+      "description": "Sideloading MUST be disabled - only approved apps on medical devices"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "TEE Driver Presence",
+      "command": "ls /dev/tee* /dev/trusty* 2>/dev/null",
+      "safe_pattern": "/dev/tee\\|/dev/trusty",
+      "level": "info",
+      "description": "TEE driver (Trusted Execution Environment) presence check"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "TPM Keystore Presence",
+      "command": "ls /system/lib64/hw/keystore.* 2>/dev/null",
+      "safe_pattern": "^ls:.*No such file or directory$",
+      "level": "info",
+      "description": "Checks for hardware-backed keystore modules"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "TEE Vendor Prop",
+      "command": "getprop | grep -i tee",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Shows any TEE-related properties"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Auto Time Enabled",
+      "command": "settings get global auto_time",
+      "safe_pattern": "1",
+      "level": "warning",
+      "description": "Auto time sync helps prevent cert/token attacks"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Auto Timezone",
+      "command": "settings get global auto_time_zone",
+      "safe_pattern": "1",
+      "level": "info",
+      "description": "Automatic timezone detection"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "NTP Server",
+      "command": "settings get global ntp_server",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Configured NTP server for time sync"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Time Zone",
+      "command": "getprop persist.sys.timezone",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Current timezone setting"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "WebView Provider",
+      "command": "settings get global webview_provider",
+      "safe_pattern": "com.google.android.webview|com.android.webview",
+      "level": "warning",
+      "description": "WebView implementation provider"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "WebView Version",
+      "command": "dumpsys package com.google.android.webview 2>/dev/null | grep versionName | head -1",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "WebView version - should be updated"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Safe Browsing",
+      "command": "settings get global safe_boot_disallowed",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Safe browsing configuration"
     }
   ]
 }

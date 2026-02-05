@@ -46,7 +46,8 @@
       "command": "settings get secure bluetooth_address | grep -E '([0-9A-F]{2}:){5}[0-9A-F]{2}'",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Static MAC addresses should be avoided (SC-8(1))"
+      "description": "Static MAC addresses should be avoided (SC-8(1))",
+      "empty_is_safe": true
     },
     {
       "category": "BLUETOOTH",
@@ -70,7 +71,8 @@
       "command": "dumpsys bluetooth_manager | grep 'Profile:' | grep -vE 'A2DP|HFP|HSP'",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Disable unused profiles (CM-7)"
+      "description": "Disable unused profiles (CM-7)",
+      "empty_is_safe": true
     },
     {
       "category": "BLUETOOTH",
@@ -94,7 +96,8 @@
       "command": "dumpsys bluetooth_manager | grep -i 'Just Works'",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Just Works insecure pairing method should not be enabled (IA-2)"
+      "description": "Just Works insecure pairing method should not be enabled (IA-2)",
+      "empty_is_safe": true
     },
     {
       "category": "BLUETOOTH",
@@ -110,7 +113,8 @@
       "command": "dumpsys bluetooth_manager | grep -i 'Debug.*true'",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Bluetooth debugging interfaces must be disabled in production (CM-6)"
+      "description": "Bluetooth debugging interfaces must be disabled in production (CM-6)",
+      "empty_is_safe": true
     },
     {
       "category": "BLUETOOTH",
@@ -182,7 +186,8 @@
       "command": "dumpsys bluetooth_manager | grep -E 'OBEX|PAN|SAP'",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Legacy profiles can expose device to known CVEs\u2014disable if not needed."
+      "description": "Legacy profiles can expose device to known CVEs\u2014disable if not needed.",
+      "empty_is_safe": true
     },
     {
       "category": "BLUETOOTH",
@@ -206,7 +211,8 @@
       "command": "logcat -d -b crash | grep -i bluetooth | tail -n 5",
       "safe_pattern": "^$",
       "level": "info",
-      "description": "Recent crashes in Bluetooth stack may indicate exploits or instability."
+      "description": "Recent crashes in Bluetooth stack may indicate exploits or instability.",
+      "empty_is_safe": true
     },
     {
       "category": "BLUETOOTH",
@@ -230,7 +236,8 @@
       "command": "getprop | grep -i bluetooth | grep -i debug",
       "safe_pattern": "^$",
       "level": "info",
-      "description": "Debug properties for Bluetooth should not be set on production."
+      "description": "Debug properties for Bluetooth should not be set on production.",
+      "empty_is_safe": true
     }
   ]
 }

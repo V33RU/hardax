@@ -1,6 +1,0 @@
-[
-  {"category": "RUNTIME_PERMISSIONS", "label": "Permission Controller Version", "command": "dumpsys package com.google.android.permissioncontroller 2>/dev/null | grep versionName | head -1", "safe_pattern": ".", "level": "info", "description": "Permission controller app version"},
-  {"category": "RUNTIME_PERMISSIONS", "label": "Auto Revoke Unused Permissions", "command": "settings get global auto_revoke_permissions_mode", "safe_pattern": ".", "level": "info", "description": "Auto-revoke permissions for unused apps"},
-  {"category": "RUNTIME_PERMISSIONS", "label": "Background Location Apps", "command": "appops query-op --uid android.permission.ACCESS_BACKGROUND_LOCATION 2>/dev/null | head -10", "safe_pattern": ".", "level": "warning", "description": "Apps with background location access"},
-  {"category": "RUNTIME_PERMISSIONS", "label": "Camera Apps Running", "command": "dumpsys camera 2>/dev/null | grep -i 'client' | head -5", "safe_pattern": ".", "level": "info", "description": "Apps currently using camera"}
-]

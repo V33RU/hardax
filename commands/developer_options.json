@@ -1,7 +1,0 @@
-[
-  {"category": "DEVELOPER_OPTIONS", "label": "Developer Options Disabled", "command": "settings get global development_settings_enabled", "safe_pattern": "0|null", "level": "warning", "description": "Developer options should be disabled in production"},
-  {"category": "DEVELOPER_OPTIONS", "label": "Stay Awake Disabled", "command": "settings get global stay_on_while_plugged_in", "safe_pattern": "0|null", "level": "info", "description": "Stay awake while charging can be a security risk"},
-  {"category": "DEVELOPER_OPTIONS", "label": "Mock Location Disabled", "command": "settings get secure mock_location", "safe_pattern": "0|null", "level": "warning", "description": "Mock locations should be disabled"},
-  {"category": "DEVELOPER_OPTIONS", "label": "OEM Unlocking Disabled", "command": "settings get global oem_unlock_enabled", "safe_pattern": "0|null", "level": "critical", "description": "OEM unlocking allows bootloader unlock - should be disabled"},
-  {"category": "DEVELOPER_OPTIONS", "label": "Bluetooth HCI Snoop Log", "command": "settings get global bluetooth_hci_log", "safe_pattern": "0|null", "level": "warning", "description": "BT HCI snoop log captures all Bluetooth traffic"}
-]

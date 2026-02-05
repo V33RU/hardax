@@ -1,6 +1,0 @@
-[
-  {"category": "DISPLAY_SECURITY", "label": "Screen Brightness Mode", "command": "settings get system screen_brightness_mode", "safe_pattern": ".", "level": "info", "description": "Auto-brightness status"},
-  {"category": "DISPLAY_SECURITY", "label": "Adaptive Brightness", "command": "settings get system screen_auto_brightness_adj", "safe_pattern": ".", "level": "info", "description": "Adaptive brightness setting"},
-  {"category": "DISPLAY_SECURITY", "label": "Always On Display", "command": "settings get secure doze_always_on", "safe_pattern": "0|null", "level": "info", "description": "Always on display may show sensitive info"},
-  {"category": "DISPLAY_SECURITY", "label": "Screenshot Prevention", "command": "settings get secure screensaver_enabled", "safe_pattern": ".", "level": "info", "description": "Screensaver/daydream configuration"}
-]

@@ -1,5 +1,0 @@
-[
-  {"category": "SENSOR_SECURITY", "label": "Sensors Privacy Mode", "command": "settings get secure sensors_off", "safe_pattern": ".", "level": "info", "description": "Sensor privacy mode status"},
-  {"category": "SENSOR_SECURITY", "label": "Step Counter", "command": "dumpsys sensorservice 2>/dev/null | grep -i 'step' | head -3", "safe_pattern": ".", "level": "info", "description": "Step counter sensor status"},
-  {"category": "SENSOR_SECURITY", "label": "Active Sensors", "command": "dumpsys sensorservice 2>/dev/null | grep -i 'active' | head -10", "safe_pattern": ".", "level": "info", "description": "Currently active sensors"}
-]

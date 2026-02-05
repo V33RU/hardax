@@ -1,7 +1,0 @@
-[
-  {"category": "DANGEROUS_PERMISSIONS", "label": "Camera Permission Apps", "command": "pm list packages -p android.permission.CAMERA 2>/dev/null | head -20", "safe_pattern": ".", "level": "info", "description": "Apps with camera permission"},
-  {"category": "DANGEROUS_PERMISSIONS", "label": "Microphone Permission Apps", "command": "pm list packages -p android.permission.RECORD_AUDIO 2>/dev/null | head -20", "safe_pattern": ".", "level": "info", "description": "Apps with microphone permission"},
-  {"category": "DANGEROUS_PERMISSIONS", "label": "Location Permission Apps", "command": "pm list packages -p android.permission.ACCESS_FINE_LOCATION 2>/dev/null | head -20", "safe_pattern": ".", "level": "info", "description": "Apps with fine location permission"},
-  {"category": "DANGEROUS_PERMISSIONS", "label": "SMS Permission Apps", "command": "pm list packages -p android.permission.SEND_SMS 2>/dev/null | head -20", "safe_pattern": ".", "level": "warning", "description": "Apps with SMS sending permission"},
-  {"category": "DANGEROUS_PERMISSIONS", "label": "Contacts Permission Apps", "command": "pm list packages -p android.permission.READ_CONTACTS 2>/dev/null | head -20", "safe_pattern": ".", "level": "info", "description": "Apps with contacts read permission"}
-]

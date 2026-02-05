@@ -1,6 +1,36 @@
-[
-  {"category": "NFC_SECURITY", "label": "NFC Enabled", "command": "settings get global nfc_on", "safe_pattern": ".", "level": "info", "description": "NFC radio status"},
-  {"category": "NFC_SECURITY", "label": "Android Beam", "command": "settings get global android_beam_enabled", "safe_pattern": "0|null", "level": "warning", "description": "Android Beam can be used for data exfiltration"},
-  {"category": "NFC_SECURITY", "label": "NFC Payment Default", "command": "settings get secure nfc_payment_default_component", "safe_pattern": ".", "level": "info", "description": "Default NFC payment application"},
-  {"category": "NFC_SECURITY", "label": "Tap and Pay", "command": "settings get secure tap_and_pay_service_enabled", "safe_pattern": ".", "level": "info", "description": "Tap and pay service status"}
-]
+{
+  "checks": [
+    {
+      "category": "NFC_SECURITY",
+      "label": "NFC Enabled",
+      "command": "settings get global nfc_on",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "NFC radio status"
+    },
+    {
+      "category": "NFC_SECURITY",
+      "label": "Android Beam",
+      "command": "settings get global android_beam_enabled",
+      "safe_pattern": "0|null",
+      "level": "warning",
+      "description": "Android Beam can be used for data exfiltration"
+    },
+    {
+      "category": "NFC_SECURITY",
+      "label": "NFC Payment Default",
+      "command": "settings get secure nfc_payment_default_component",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Default NFC payment application"
+    },
+    {
+      "category": "NFC_SECURITY",
+      "label": "Tap and Pay",
+      "command": "settings get secure tap_and_pay_service_enabled",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Tap and pay service status"
+    }
+  ]
+}

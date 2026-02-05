@@ -1,7 +1,0 @@
-[
-  {"category": "MDM_ENTERPRISE", "label": "Device Admin Apps", "command": "dumpsys device_policy 2>/dev/null | grep -i admin | head -10", "safe_pattern": ".", "level": "info", "description": "Device administrator applications"},
-  {"category": "MDM_ENTERPRISE", "label": "Device Owner", "command": "dumpsys device_policy 2>/dev/null | grep -i 'device owner'", "safe_pattern": ".", "level": "info", "description": "Enterprise device owner status"},
-  {"category": "MDM_ENTERPRISE", "label": "Profile Owner", "command": "dumpsys device_policy 2>/dev/null | grep -i 'profile owner'", "safe_pattern": ".", "level": "info", "description": "Work profile owner status"},
-  {"category": "MDM_ENTERPRISE", "label": "Enterprise Encryption", "command": "dumpsys device_policy 2>/dev/null | grep -i 'encryption'", "safe_pattern": ".", "level": "info", "description": "Enterprise encryption policy"},
-  {"category": "MDM_ENTERPRISE", "label": "Password Policy", "command": "dumpsys device_policy 2>/dev/null | grep -i 'password'", "safe_pattern": ".", "level": "info", "description": "Password quality requirements"}
-]

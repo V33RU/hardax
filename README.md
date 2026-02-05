@@ -1,186 +1,340 @@
-# HARDAX - Hardening Audit eXaminer
+# HARDAX v1.0.0
+
+<p align="center">
+  <img src="https://img.shields.io/badge/version-1.0.0-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/python-3.6+-green.svg" alt="Python">
+  <img src="https://img.shields.io/badge/checks-400-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/categories-14-purple.svg" alt="Categories">
+  <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
+</p>
+
+<p align="center">
+  <b>Hardening Audit eXaminer for Android-based Devices</b><br>
+  <i>Comprehensive Security Configuration Auditor</i>
+</p>
 
 ```
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  ██   ██  █████  ██████  ██████   █████  ██   ██               ┃
-┃  ██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██                ┃
-┃  ███████ ███████ ██████  ██   ██ ███████   ███                 ┃
-┃  ██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██                ┃
-┃  ██   ██ ██   ██ ██   ██ ██████  ██   ██ ██   ██               ┃
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃  Hardening Audit eXaminer v1.0.0                               ┃
-┃  Android OS based IoT Devices Security Configuration Auditor   ┃
-┃  [263 Checks] [62 Categories]                                  ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  ██╗  ██╗ █████╗ ██████╗ ██████╗  █████╗ ██╗  ██╗  ┃
+┃  ██║  ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚██╗██╔╝  ┃
+┃  ███████║███████║██████╔╝██║  ██║███████║ ╚███╔╝   ┃
+┃  ██╔══██║██╔══██║██╔══██╗██║  ██║██╔══██║ ██╔██    ┃
+┃  ██║  ██║██║  ██║██║  ██║██████╔╝██║  ██║██╔╝ ██╗  ┃
+┃  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝  ┃
+┃  [400 Checks] [14 Categories] [3 Report Formats]   ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
-##  Overview
+---
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditing tool for Android OS based IoT devices. It systematically checks device configurations against security best practices and generates detailed reports highlighting potential vulnerabilities and misconfigurations.
+## 📋 Table of Contents
 
-### Key Features
+- [Overview](#-overview)
+- [Features](#-features)
+- [Supported Devices](#-supported-devices)
+- [Installation](#-installation)
+- [Usage](#-usage)
+- [Security Categories](#-security-categories)
+- [Status Levels](#-status-levels)
+- [Tool Flow](#-tool-flow)
+- [Extending HARDAX](#-extending-hardax)
+- [Future Roadmap](#-future-roadmap)
 
-- **263 Security Checks** across 62 categories
-- **ADB & SSH Modes** for flexible connectivity
-- **Beautiful CLI** with real-time progress and colored output
-- **Modern HTML Reports** with collapsible sections and search
-- **CSV & TXT Reports** for integration and archival
-- **Dark Theme** optimized for security professionals
-- **Category Statistics** showing risk breakdown per area
-- **Smart Status Detection** - VERIFY status for empty/unsupported outputs
+---
 
-##  Status Types
+## ️ Overview
 
-| Status | Color | Meaning |
-|--------|-------|---------|
-| ✓ SAFE | Green | Check passed, secure configuration |
-| ⚠ WARNING | Yellow | Potential issue, review recommended |
-| ✗ CRITICAL | Red | Security issue detected |
-| ? VERIFY | Purple | Empty output - manual verification needed |
-| ℹ INFO | Blue | Informational, no security impact |
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs 400+ security checks across 14 categories to identify misconfigurations, vulnerabilities, and security weaknesses.
 
-##  Categories Covered
+HARDAX is designed for:
+- **Security Researchers** - Penetration testing and vulnerability assessment
+- **IoT Security Teams** - Auditing Android-based IoT devices
+- **Enterprise Security** - MDM compliance verification
+- **Developers** - Pre-release security validation
 
-| Category | Checks | Category | Checks |
-|----------|--------|----------|--------|
-| Bluetooth Security | 29 | Network Security | 15 |
-| Boot Security | 12 | ADB/Debug Settings | 8 |
-| Privacy Settings | 18 | App Permissions | 14 |
-| Encryption | 10 | Kernel Hardening | 12 |
-| SELinux/Policy | 8 | Root Detection | 6 |
-| WiFi Security | 7 | USB Security | 4 |
-| And many more... | | | |
+---
 
-##  Quick Start
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| **400 Security Checks** | Comprehensive coverage across 14 security categories |
+| **No Root Required** | Runs entirely via ADB shell commands |
+| **Dual Connection Modes** | ADB (USB) and SSH (Network) support |
+| **5 Status Levels** | SAFE, WARNING, CRITICAL, VERIFY, INFO |
+| **3 Report Formats** | TXT, CSV, HTML with interactive dashboard |
+| **False Positive Prevention** | Smart null/empty handling with VERIFY status |
+| **Extensible JSON Checks** | Easy to add custom security checks |
+| **Beautiful CLI Output** | Color-coded real-time progress display |
+| **Device Info Collection** | Automatic device fingerprinting |
+
+---
+
+##  Supported Devices
+
+HARDAX works with any Android-based device accessible via ADB or SSH:
+
+| Device Type | Examples |
+|-------------|----------|
+| **Smartphones & Tablets** | Samsung, Pixel, OnePlus, Xiaomi, etc. |
+| **IoT Devices** | Android Things, AOSP-based smart devices |
+| **Android Automotive** | Infotainment systems, head units |
+| **Medical Devices** | Android-based clinical devices |
+| **Industrial Android** | Rugged tablets, handheld scanners |
+| **Android TV** | Smart TVs, set-top boxes |
+| **Wearables** | Wear OS devices |
+
+---
+
+##  Installation
 
 ### Prerequisites
 
-- Python 3.7+
+- Python 3.6 or higher
 - ADB (Android Debug Bridge) installed and in PATH
 - USB Debugging enabled on target device
 
-### Installation
+### Quick Start
 
 ```bash
-# Clone or download HARDAX
-git clone https://github.com/yourusername/hardax.git
+# Clone the repository
+git clone https://github.com/iotsrg/hardax.git
 cd hardax
 
-# No additional dependencies for ADB mode
-# For SSH mode: pip install paramiko
+# Connect your device via USB
+adb devices
+
+# Run HARDAX
+python3 hardax.py
 ```
 
-### Basic Usage
+### For SSH Mode (Optional)
 
 ```bash
-# Scan connected Android device (auto-detects)
-python hardax.py --json-dir ./commands
-
-# Scan specific device
-python hardax.py --json-dir ./commands --serial DEVICE_SERIAL
-
-# Scan via SSH (for IoT/embedded devices)
-python hardax.py --mode ssh --host 192.168.1.100 --ssh-user root --ssh-pass password
-
-# Show commands as they execute
-python hardax.py --json-dir ./commands --show-commands
+pip install paramiko
 ```
 
-## 📊 Reports
+---
 
-HARDAX generates three types of reports in timestamped folders:
+## Usage
 
-### HTML Report (Recommended)
-- **Collapsible Categories**: Click to expand/collapse each security category
-- **Search Functionality**: Filter checks by keyword
-- **Category Statistics**: Quick overview of issues per category
-- **Interactive Chart**: Visual breakdown of results
-- **Dark Theme**: Optimized for readability
+### Basic Usage (ADB)
 
-### CSV Report
-- Machine-readable format
-- Easy to import into Excel, databases, or other tools
-- Contains all check details
+```bash
+# Auto-detect connected device
+python3 hardax.py
 
-### TXT Report
-- Plain text format
-- Ideal for archival and quick review
-- Contains full audit trail
+# Specify device by serial
+python3 hardax.py --serial DEVICE_SERIAL
 
-## 🎯 Use Cases
+# use entire directory
+python3 hardax.py --json-dir commands/
 
-1. **Pre-Deployment Audits**: Verify device security before production
-2. **Compliance Checks**: Ensure devices meet security baselines
-3. **Penetration Testing**: Identify attack surface and misconfigurations
-4. **Security Research**: Analyze Android/IoT security posture
-5. **Incident Response**: Quickly assess compromised device configuration
+# Show commands being executed
+python3 hardax.py --show-commands
 
-##  Directory Structure
-
-```
-HARDAX/
-├── hardax.py           # Main scanner script
-├── commands/           # Security check definitions (64 JSON files)
-│   ├── bluetooth.json
-│   ├── boot_security.json
-│   ├── network.json
-│   └── ...
-├── README.md
-└── hardax_output/      # Generated reports
-    ├── html_report_YYYYMMDD_HHMMSS/
-    │   ├── audit_report.html
-    │   └── audit_report.csv
-    └── txt_report_YYYYMMDD_HHMMSS/
-        └── audit_report.txt
+# Custom output directory
+python3 hardax.py --out ./my_reports
 ```
 
-##  Adding Custom Checks
+### SSH Mode (Network)
 
-Create a JSON file in the `commands/` directory:
+```bash
+python3 hardax.py --mode ssh --host 192.168.1.100 --ssh-user root --ssh-pass password
+```
+
+### All Options
+
+```
+usage: hardax.py [OPTIONS]
+
+Options:
+  --version             Show version
+  --mode {adb,ssh}      Connection mode (default: adb)
+  --serial SERIAL       ADB device serial number
+  --host HOST           SSH hostname/IP
+  --port PORT           SSH port (default: 22)
+  --ssh-user USER       SSH username
+  --ssh-pass PASS       SSH password
+  --json FILE           Path to single JSON checks file
+  --json-dir DIR        Directory with JSON check files
+  --out DIR             Output directory (default: hardax_output)
+  --progress-numbers    Show numeric progress counter
+  --show-commands       Display each command being executed
+```
+
+---
+
+##  Security Categories
+
+HARDAX organizes 400 checks into 14 security categories:
+
+| Category | Checks | Description |
+|----------|--------|-------------|
+| **SYSTEM** | 97 | Kernel, memory, TEE, time, power, build properties, CIS benchmarks |
+| **NETWORK** | 70 | Ports, WiFi, cellular, VPN, MQTT, CoAP, CAN bus, HL7, DICOM |
+| **PRIVACY** | 52 | Biometrics, screen lock, location, sensors, clipboard, audio |
+| **APPS** | 48 | Permissions, runtime, installation, dangerous permissions |
+| **BLUETOOTH** | 29 | BLE/Classic security, pairing modes, profiles, MAC randomization |
+| **BOOT_SECURITY** | 21 | Verified boot, AVB, dm-verity, bootloader, integrity |
+| **STORAGE** | 21 | Filesystem, backup, encryption, partitions |
+| **DEVICE_MANAGEMENT** | 14 | MDM, accounts, developer options |
+| **USB_SECURITY** | 14 | USB debugging, interfaces, serial ports, gadget mode |
+| **CRYPTOGRAPHY** | 12 | Encryption, keys, credentials, API keys, certificates |
+| **INPUT** | 9 | Keyboards, accessibility, input methods |
+| **MALWARE** | 5 | Root detection, Frida, suspicious files |
+| **ADB_SECURITY** | 4 | ADB keys, network ADB, debugging |
+| **NFC_SECURITY** | 4 | NFC, Android Beam, tap-to-pay |
+
+---
+
+##  Status Levels
+
+HARDAX classifies findings into 5 status levels:
+
+| Status | Color | Symbol | Description |
+|--------|-------|--------|-------------|
+| **SAFE** | 🟢 Green | ✓ | Secure configuration detected |
+| **WARNING** | 🟡 Yellow | ⚠ | Potential risk - review recommended |
+| **CRITICAL** | 🔴 Red | ✗ | Security issue - immediate action required |
+| **VERIFY** | 🟣 Purple | ? | Manual verification required (null/empty output) |
+| **INFO** | 🔵 Blue | ℹ | Informational - no action needed |
+
+### VERIFY Status Explained
+
+The VERIFY status is triggered when:
+- Command returns `null`, `NULL`, `none`, or `(null)`
+- Setting may not exist on the device
+- Manual verification is recommended
+
+This prevents false positives on devices where certain settings don't exist.
+
+---
+
+## Tool Flow
+
+```mermaid
+flowchart TD
+    A([Start HARDAX]) --> B{Mode?}
+    B -->|ADB| C[USB Connection]
+    B -->|SSH| D[Network Connection]
+    C --> E[Detect Device]
+    D --> E
+    E --> F{Found?}
+    F -->|No| G([Exit])
+    F -->|Yes| H[Get Device Info]
+    H --> I[Load 14 JSON Files]
+    I --> J[400 Security Checks]
+    J --> K[For Each Check]
+    K --> L[Run Command]
+    L --> M[Capture Output]
+    M --> N{Evaluate}
+    N -->|Empty + safe| O[✅ SAFE]
+    N -->|Match pattern| O
+    N -->|Null value| P[🟣 VERIFY]
+    N -->|No match| Q{Level?}
+    Q -->|critical| R[🔴 CRITICAL]
+    Q -->|warning| S[🟡 WARNING]
+    Q -->|info| T[🔵 INFO]
+    O & P & R & S & T --> U[Store Result]
+    U --> V{More?}
+    V -->|Yes| K
+    V -->|No| W[Generate Reports]
+    W --> X[TXT + CSV + HTML]
+    X --> Y([Done])
+```
+
+---
+
+## 🔧 Extending HARDAX
+
+### Adding Custom Checks
+
+Create or modify JSON files in the `commands/` directory:
 
 ```json
-[
-  {
-    "category": "CUSTOM_CATEGORY",
-    "label": "Check Name",
-    "command": "getprop ro.custom.setting",
-    "safe_pattern": "expected_safe_value",
-    "level": "critical",
-    "description": "What this check verifies",
-    "empty_is_safe": false
-  }
-]
+{
+  "checks": [
+    {
+      "category": "NETWORK",
+      "label": "Custom Port Check",
+      "command": "netstat -tlnp 2>/dev/null | grep ':8080'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Check if port 8080 is open",
+      "empty_is_safe": true
+    }
+  ]
+}
 ```
 
-### Check Levels
-- `critical` / `high` → Red status when unsafe
-- `warning` / `medium` → Yellow status when unsafe  
-- `info` / `low` → Blue status (informational)
+### Check Fields
 
-### Special Flags
-- `empty_is_safe`: Set to `true` if empty output means safe (e.g., no malware found)
+| Field | Required | Description |
+|-------|----------|-------------|
+| `category` | ✅ | Category name (e.g., NETWORK, SYSTEM) |
+| `label` | ✅ | Human-readable check name |
+| `command` | ✅ | Shell command to execute |
+| `level` | ✅ | Severity: `info`, `warning`, `critical` |
+| `safe_pattern` | ❌ | Regex pattern indicating safe output |
+| `empty_is_safe` | ❌ | If `true`, empty output = SAFE |
+| `null_is_safe` | ❌ | If `true`, null output = SAFE |
+| `description` | ❌ | Detailed description of the check |
 
-##  Command Line Options
+### Pattern Matching
 
-| Option | Description |
-|--------|-------------|
-| `--mode` | Connection mode: `adb` (default) or `ssh` |
-| `--json` | Path to single JSON checks file |
-| `--json-dir` | Directory containing JSON check files |
-| `--serial` | ADB device serial number |
-| `--host` | SSH hostname/IP |
-| `--port` | SSH port (default: 22) |
-| `--ssh-user` | SSH username |
-| `--ssh-pass` | SSH password |
-| `--out` | Output directory (default: `hardax_output`) |
-| `--show-commands` | Display commands during execution |
-| `--progress-numbers` | Show simple X/Y progress |
+```
+safe_pattern: "^Enforcing$"     → Output must be exactly "Enforcing"
+safe_pattern: "^(0|disabled)$"  → Output must be "0" or "disabled"
+safe_pattern: "^$"              → Empty output is safe (use with empty_is_safe)
+```
 
-## Contributing
+---
 
-Contributions welcome! Areas of interest:
-- Additional security checks
-- Support for more device types
-- Report format improvements
-- Bug fixes and optimizations
+## 🗺️ Future Roadmap
+
+- [ ] `--category` flag to run specific categories
+- [ ] `--severity` flag to filter by level
+- [ ] `--format json` for JSON output
+- [ ] Exit codes for CI/CD integration
+- [ ] Save baseline configuration
+- [ ] Diff reports between scans
+- [ ] Device profiles (IoT/Automotive/Medical presets)
+- [ ] CIS Android Benchmark mapping
+- [ ] OWASP MASVS/MSTG mapping
+- [ ] NIST guidelines mapping
+- [ ] Remediation suggestions
+- [ ] Multi-device parallel scanning
+- [ ] Web dashboard (Flask/FastAPI)
+- [ ] Plugin architecture
+- [ ] APK analysis integration
+- [ ] Firmware extraction support
+
+### Future Integrations
+
+| Integration | Description |
+|-------------|-------------|
+| **CI/CD** | GitHub Actions, Jenkins, GitLab CI |
+| **SIEM** | Splunk, ELK Stack, QRadar export |
+| **Notifications** | Slack, Teams, Email alerts |
+| **MDM** | Integration with enterprise MDM solutions |
+| **Vulnerability DBs** | CVE correlation for findings |
+
+---
+
+### Adding New Checks
+
+1. Fork the repository
+2. Add checks to appropriate JSON file in `commands/`
+3. Test on real device
+4. Submit PR with description
+
+---
+
+## 🙏 Acknowledgments
+
+- Android Open Source Project (AOSP)
+- CIS Benchmarks for Android
+- OWASP Mobile Security Testing Guide
+
 

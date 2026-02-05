@@ -1,5 +1,0 @@
-[
-  {"category": "AUDIO_SECURITY", "label": "Microphone Mute", "command": "settings get global microphone_mute", "safe_pattern": ".", "level": "info", "description": "Hardware microphone mute status"},
-  {"category": "AUDIO_SECURITY", "label": "Camera Mute", "command": "settings get global camera_mute", "safe_pattern": ".", "level": "info", "description": "Hardware camera mute status"},
-  {"category": "AUDIO_SECURITY", "label": "Voice Recording Apps", "command": "dumpsys media.audio_policy 2>/dev/null | grep -i 'recording' | head -5", "safe_pattern": ".", "level": "info", "description": "Apps using audio recording"}
-]

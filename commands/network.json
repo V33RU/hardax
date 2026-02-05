@@ -2,6 +2,46 @@
   "checks": [
     {
       "category": "NETWORK",
+      "label": "Airplane Mode",
+      "command": "settings get global airplane_mode_on",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Airplane mode status"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Mobile Data Enabled",
+      "command": "settings get global mobile_data",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Mobile data status"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Data Roaming",
+      "command": "settings get global data_roaming",
+      "safe_pattern": "0|null",
+      "level": "warning",
+      "description": "Data roaming can incur costs and security risks"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Preferred Network Mode",
+      "command": "settings get global preferred_network_mode",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Preferred cellular network mode"
+    },
+    {
+      "category": "NETWORK",
+      "label": "VoLTE Enabled",
+      "command": "settings get global volte_feature_disabled",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Voice over LTE status"
+    },
+    {
+      "category": "NETWORK",
       "label": "DNS Servers",
       "command": "getprop net.dns1",
       "safe_pattern": ".*",
@@ -47,7 +87,8 @@
       "command": "settings get global http_proxy",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Proxy set may indicate MITM or forced redirection"
+      "description": "Proxy set may indicate MITM or forced redirection",
+      "empty_is_safe": true
     },
     {
       "category": "NETWORK",
@@ -56,6 +97,488 @@
       "safe_pattern": "^1$",
       "level": "warning",
       "description": "Should be 1 (default); 0 disables captive portal checks"
+    },
+    {
+      "category": "NETWORK",
+      "label": "CAN Bus Interface Exposed",
+      "command": "ls /dev/can* /sys/class/net/can* /sys/class/net/vcan* 2>/dev/null",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "CAN bus interface accessible from Android - CRITICAL if exposed!",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "OBD-II Service Running",
+      "command": "ps -A 2>/dev/null | grep -iE 'obd|elm327|canbus|socketcan'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "OBD-II diagnostic service detected",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "Vehicle Diagnostic Permissions",
+      "command": "dumpsys package 2>/dev/null | grep -E 'android.car.permission.CAR_DIAGNOSTICS|android.car.permission.CAR_ENGINE' | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Apps with vehicle diagnostic permissions"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Vehicle Control Permissions",
+      "command": "dumpsys package 2>/dev/null | grep -E 'CAR_CONTROL|CAR_SPEED|CAR_ENERGY|CAR_POWERTRAIN' | head -5",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Apps with vehicle control permissions - review carefully!",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "Telematics Service",
+      "command": "ps -A 2>/dev/null | grep -iE 'telematics|tcu|tbox|connectivity'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Telematics/connectivity service running"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Cellular Modem for Telematics",
+      "command": "getprop gsm.version.baseband 2>/dev/null; getprop ro.telephony.default_network 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Cellular connectivity for telematics/OTA"
+    },
+    {
+      "category": "NETWORK",
+      "label": "GPS/Location Always On",
+      "command": "settings get secure location_mode 2>/dev/null",
+      "safe_pattern": "0",
+      "level": "warning",
+      "description": "Location tracking enabled - privacy concern for vehicles"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Driving Mode Restrictions",
+      "command": "settings get global car_dock_sound 2>/dev/null; dumpsys car_service 2>/dev/null | grep -i 'driving\\|restriction' | head -3",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Driving mode and UX restrictions status"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Vehicle Network Interfaces",
+      "command": "ip link show 2>/dev/null | grep -iE 'can|eth|vlan|vehicle'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Network interfaces including vehicle networks"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Ethernet to Vehicle Gateway",
+      "command": "ip addr show 2>/dev/null | grep -A2 'eth0\\|eth1' | grep inet",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Ethernet connection - may connect to vehicle gateway"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Bluetooth OBD Adapters",
+      "command": "dumpsys bluetooth_manager 2>/dev/null | grep -iE 'OBD\\|ELM\\|OBDII\\|Vgate\\|Carista' | head -3",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Bluetooth OBD-II adapters paired - can access vehicle data",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "WiFi Direct for CarPlay/Android Auto",
+      "command": "dumpsys wifi 2>/dev/null | grep -i 'p2p\\|direct\\|carplay\\|androidauto' | head -3",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "WiFi Direct status for phone projection"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Firebase Config Present",
+      "command": "find /data -name 'google-services.json' 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Firebase configuration - check security rules"
+    },
+    {
+      "category": "NETWORK",
+      "label": "AWS SDK/Config",
+      "command": "find /data /system -type f \\( -name '*.json' -o -name '*.conf' \\) -exec grep -l -i 'aws_access_key\\|aws_secret\\|amazonaws.com' {} \\; 2>/dev/null | head -5",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "AWS credentials or config found",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "Azure IoT Config",
+      "command": "find /data /system -type f -exec grep -l -i 'azure-devices.net\\|iothub\\|SharedAccessKey' {} \\; 2>/dev/null | head -5",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Azure IoT Hub configuration found",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "MQTT Broker Config",
+      "command": "find /data /system /vendor -type f \\( -name '*.conf' -o -name '*.json' \\) -exec grep -l -iE 'mqtt://|mqtts://|broker.*1883|mosquitto' {} \\; 2>/dev/null | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "MQTT broker configuration files"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Telemetry Endpoints",
+      "command": "find /system /vendor -type f \\( -name '*.json' -o -name '*.xml' \\) -exec grep -l -iE 'telemetry|analytics|tracking|metrics' {} \\; 2>/dev/null | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Telemetry/analytics endpoints configured"
+    },
+    {
+      "category": "NETWORK",
+      "label": "OTA Update URL",
+      "command": "find /system /vendor -type f -exec grep -l -iE 'ota.*update|firmware.*url|update.*server' {} \\; 2>/dev/null | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "OTA update configuration - verify HTTPS and signing"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Remote Management Ports",
+      "command": "netstat -tlnp 2>/dev/null | grep -E ':8080|:8443|:9090|:3000|:4000' || ss -tlnp 2>/dev/null | grep -E ':8080|:8443|:9090|:3000|:4000'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Management/API ports exposed",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "Open TCP Ports",
+      "command": "netstat -tlnp 2>/dev/null || ss -tlnp 2>/dev/null",
+      "safe_pattern": "^$",
+      "level": "info",
+      "description": "All listening TCP ports - review for unnecessary services",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "Open UDP Ports",
+      "command": "netstat -ulnp 2>/dev/null || ss -ulnp 2>/dev/null",
+      "safe_pattern": "^$",
+      "level": "info",
+      "description": "All listening UDP ports - review for unnecessary services",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "HTTP Server Running",
+      "command": "netstat -tlnp 2>/dev/null | grep -E ':80\\b|:8080\\b|:443\\b|:8443\\b' || ss -tlnp 2>/dev/null | grep -E ':80\\b|:8080\\b|:443\\b|:8443\\b'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Web server exposed - potential attack surface",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "Telnet Service (Insecure)",
+      "command": "netstat -tlnp 2>/dev/null | grep ':23\\b' || ss -tlnp 2>/dev/null | grep ':23\\b'",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Telnet transmits credentials in plaintext - CRITICAL RISK",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "FTP Service (Insecure)",
+      "command": "netstat -tlnp 2>/dev/null | grep ':21\\b' || ss -tlnp 2>/dev/null | grep ':21\\b'",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "FTP transmits credentials in plaintext - CRITICAL RISK",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "SSH Service",
+      "command": "netstat -tlnp 2>/dev/null | grep ':22\\b' || ss -tlnp 2>/dev/null | grep ':22\\b'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "SSH exposed - ensure strong authentication",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "ADB Network Port (5555)",
+      "command": "netstat -tlnp 2>/dev/null | grep ':5555\\b' || ss -tlnp 2>/dev/null | grep ':5555\\b'",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "ADB over network - allows remote shell access!",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "MQTT Broker (1883/8883)",
+      "command": "netstat -tlnp 2>/dev/null | grep -E ':1883\\b|:8883\\b' || ss -tlnp 2>/dev/null | grep -E ':1883\\b|:8883\\b'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "MQTT broker exposed - check authentication",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "CoAP Service (5683/5684)",
+      "command": "netstat -ulnp 2>/dev/null | grep -E ':5683\\b|:5684\\b' || ss -ulnp 2>/dev/null | grep -E ':5683\\b|:5684\\b'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "CoAP service exposed - IoT protocol",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "UPnP Service (1900)",
+      "command": "netstat -ulnp 2>/dev/null | grep ':1900\\b' || ss -ulnp 2>/dev/null | grep ':1900\\b'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "UPnP can expose device to network attacks",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "Network Interfaces",
+      "command": "ip addr show 2>/dev/null | grep -E 'inet |inet6 ' | grep -v '127.0.0.1\\|::1'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Active network interfaces and IPs"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Default Gateway",
+      "command": "ip route show default 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Network gateway configuration"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Network Services Exposed",
+      "command": "netstat -tlnp 2>/dev/null | grep -v '127.0.0.1' || ss -tlnp 2>/dev/null | grep -v '127.0.0.1'",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Network services exposed - each must be documented and secured",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
+      "label": "HL7/FHIR Ports (2575, 8080)",
+      "command": "netstat -tlnp 2>/dev/null | grep -E ':2575|:8080|:8443' || ss -tlnp 2>/dev/null | grep -E ':2575|:8080|:8443'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "HL7/FHIR API ports - verify TLS and authentication"
+    },
+    {
+      "category": "NETWORK",
+      "label": "DICOM Ports (104, 11112)",
+      "command": "netstat -tlnp 2>/dev/null | grep -E ':104\\b|:11112' || ss -tlnp 2>/dev/null | grep -E ':104\\b|:11112'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "DICOM imaging ports - verify security configuration"
+    },
+    {
+      "category": "NETWORK",
+      "label": "WiFi Security Protocol",
+      "command": "dumpsys wifi 2>/dev/null | grep -iE 'security|wpa|wep|open' | head -3",
+      "safe_pattern": "WPA2|WPA3",
+      "level": "warning",
+      "description": "Must use WPA2/WPA3 - WEP/Open networks prohibited for PHI"
+    },
+    {
+      "category": "NETWORK",
+      "label": "All Active TCP Connections (IPv4)",
+      "command": "sh -lc 'netstat -lntp 2>/dev/null || ss -lntp 2>/dev/null || true' | awk '$1 ~ /^tcp/ && $4 ~ /^[0-9.]+:/ { print $0 }'",
+      "safe_pattern": "^\\s*$",
+      "level": "info",
+      "description": "Lists all IPv4 TCP connections including localhost \u2014 use for full socket audit"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Common TCP Ports Exposed (IPv4, Warning)",
+      "command": "sh -lc 'netstat -lnpt 2>/dev/null || ss -lnpt 2>/dev/null || true' | awk '$1 ~ /^tcp/ && $0 ~ /LISTEN/ && $4 ~ /:((53)|(80)|(25)|(110)|(143)|(465)|(587)|(993)|(995)|(8080)|(8443)|(22))$/ && $4 !~ /^127\\./'",
+      "safe_pattern": "^\\s*$",
+      "level": "warning",
+      "description": "One or more common TCP ports are externally accessible on IPv4 \u2014 review exposure"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Expanded Critical TCP Ports (excluding SSH) Listening or External (IPv4)",
+      "command": "sh -lc 'netstat -lnpt 2>/dev/null || ss -lnpt 2>/dev/null || true' | awk '$1 ~ /^tcp/ && $0 ~ /LISTEN/ && $4 ~ /:((21)|(23)|(25)|(445)|(3306)|(5432)|(5555)|(5900)|(5901)|(3389)|(5555)|(4444)|(8080)|(8443)|(41795))$/ && $4 !~ /^127\\./'",
+      "safe_pattern": "^\\s*$",
+      "level": "critical",
+      "description": "One or more critical TCP ports (excluding SSH) are open or externally connected (IPv4) \u2014 review exposure"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Open UDP Ports (IPv4, excluding localhost)",
+      "command": "sh -lc 'netstat -lnup 2>/dev/null || ss -lnup 2>/dev/null || true' | awk '$1 ~ /^udp/ && $4 !~ /^127\\./'",
+      "safe_pattern": "^\\s*$",
+      "level": "info",
+      "description": "Open UDP ports (IPv4) found that are not restricted to localhost"
+    },
+    {
+      "category": "NETWORK",
+      "label": "UDP Ports 123, 161, 162, 5353 Open (IPv4)",
+      "command": "sh -lc 'netstat -lnup 2>/dev/null || ss -lnup 2>/dev/null || true' | awk '$1 ~ /^udp/ && $4 ~ /:(123|161|162|5353)$/ && $4 !~ /^127\\./ { print $4 }'",
+      "safe_pattern": "^\\s*$",
+      "level": "warning",
+      "description": "UDP Ports 123 (NTP), 161 (SNMP), 162 (Trap), or 5353 (mDNS) are exposed on IPv4 \u2014 may leak device or service data"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Potentially Vulnerable UDP Ports (IPv4)",
+      "command": "sh -lc 'netstat -lnup 2>/dev/null || ss -lnup 2>/dev/null || true' | awk '$1 ~ /^udp/ && $4 ~ /:(69|1900|500|4500|520)$/ && $4 !~ /^127\\./ { print $4 }'",
+      "safe_pattern": "^\\s*$",
+      "level": "critical",
+      "description": "One or more UDP ports (e.g., 69/TFTP, 1900/SSDP) are exposed on IPv4 \u2014 potentially vulnerable services detected"
+    },
+    {
+      "category": "NETWORK",
+      "label": "All Active TCP Connections (IPv6, excluding ::1)",
+      "command": "sh -lc 'netstat -ntp 2>/dev/null || ss -ntp 2>/dev/null || true' | awk '$1 ~ /^tcp6/ && $4 !~ /::1/ { print $0 }'",
+      "safe_pattern": "^\\s*$",
+      "level": "info",
+      "description": "Displays all active IPv6 TCP connections (including LISTEN/ESTABLISHED) that are not bound to loopback (::1)"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Common TCP Ports Exposed (IPv6, Warning)",
+      "command": "sh -lc 'netstat -lnpt 2>/dev/null || ss -lnpt 2>/dev/null || true' | awk '$1 ~ /^tcp6/ && $0 ~ /LISTEN/ && $4 ~ /:((53)|(80)|(25)|(110)|(143)|(465)|(587)|(993)|(995)|(8080)|(8443)|(22))$/ && $4 !~ /::1/'",
+      "safe_pattern": "^\\s*$",
+      "level": "warning",
+      "description": "One or more common TCP ports are externally accessible on IPv6 \u2014 review exposure"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Expanded Critical TCP Ports (excluding SSH) Listening or External (IPv6)",
+      "command": "sh -lc 'netstat -lnpt 2>/dev/null || ss -lnpt 2>/dev/null || true' | awk '$1 ~ /^tcp6/ && $0 ~ /LISTEN/ && $4 ~ /:((21)|(23)|(25)|(445)|(3306)|(5432)|(5900)|(5901)|(3389)|(5555)|(4444)|(8080)|(8443)|(41795))$/ && $4 !~ /::1/'",
+      "safe_pattern": "^\\s*$",
+      "level": "critical",
+      "description": "One or more critical TCP ports (excluding SSH) are open or externally connected (IPv6) \u2014 review exposure"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Open UDP Ports (IPv6, excluding localhost)",
+      "command": "sh -lc 'netstat -lnup 2>/dev/null || ss -lnup 2>/dev/null || true' | awk '$1 ~ /^udp6/ && $4 !~ /::1/'",
+      "safe_pattern": "^\\s*$",
+      "level": "info",
+      "description": "Open UDP ports (IPv6) found that are not restricted to localhost (::1)"
+    },
+    {
+      "category": "NETWORK",
+      "label": "UDP Ports 123, 161, 162, 5353 Open (IPv6)",
+      "command": "sh -lc 'netstat -lnup 2>/dev/null || ss -lnup 2>/dev/null || true' | awk '$1 ~ /^udp6/ && $4 ~ /:(123|161|162|5353)$/ && $4 !~ /::1/ { print $4 }'",
+      "safe_pattern": "^\\s*$",
+      "level": "warning",
+      "description": "UDP Ports 123 (NTP), 161 (SNMP), 162 (Trap), or 5353 (mDNS) are exposed on IPv6 \u2014 may leak device or service data"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Potentially Vulnerable UDP Ports (IPv6)",
+      "command": "sh -lc 'netstat -lnup 2>/dev/null || ss -lnup 2>/dev/null || true' | awk '$1 ~ /^udp6/ && $4 ~ /:(69|1900|500|4500|520)$/ && $4 !~ /::1/ { print $4 }'",
+      "safe_pattern": "^\\s*$",
+      "level": "critical",
+      "description": "One or more UDP ports (e.g., 69/TFTP, 1900/SSDP) are exposed on IPv6 \u2014 potentially vulnerable services detected"
+    },
+    {
+      "category": "NETWORK",
+      "label": "VPN Legacy Mode",
+      "command": "settings get global vpn_legacy_mode",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Legacy VPN mode status"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Always-On VPN",
+      "command": "settings get secure always_on_vpn_app",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Always-on VPN app if configured"
+    },
+    {
+      "category": "NETWORK",
+      "label": "VPN Lockdown",
+      "command": "settings get secure always_on_vpn_lockdown",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "VPN lockdown mode prevents traffic without VPN"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Active VPN Connections",
+      "command": "dumpsys connectivity 2>/dev/null | grep -i vpn | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Current VPN connection status"
+    },
+    {
+      "category": "NETWORK",
+      "label": "WiFi Enabled",
+      "command": "settings get global wifi_on",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "WiFi enabled status"
+    },
+    {
+      "category": "NETWORK",
+      "label": "WiFi Networks Saved",
+      "command": "cmd wifi list-networks 2>/dev/null | wc -l",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Number of saved WiFi networks"
+    },
+    {
+      "category": "NETWORK",
+      "label": "WiFi MAC Randomization",
+      "command": "settings get global wifi_connected_mac_randomization_enabled",
+      "safe_pattern": "1",
+      "level": "warning",
+      "description": "MAC randomization protects privacy"
+    },
+    {
+      "category": "NETWORK",
+      "label": "WiFi Scan Always Available",
+      "command": "settings get global wifi_scan_always_enabled",
+      "safe_pattern": "0|null",
+      "level": "warning",
+      "description": "WiFi scanning when WiFi off can leak location"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Open Network Notification",
+      "command": "settings get global wifi_networks_available_notification_on",
+      "safe_pattern": "0",
+      "level": "info",
+      "description": "Notifications for open networks"
+    },
+    {
+      "category": "NETWORK",
+      "label": "WiFi Watchdog",
+      "command": "settings get global wifi_watchdog_on",
+      "safe_pattern": "1",
+      "level": "info",
+      "description": "WiFi watchdog monitors connection quality"
+    },
+    {
+      "category": "NETWORK",
+      "label": "WiFi Captive Portal Detection",
+      "command": "settings get global captive_portal_detection_enabled",
+      "safe_pattern": "1",
+      "level": "info",
+      "description": "Captive portal detection for public WiFi"
     }
   ]
 }

@@ -2,6 +2,39 @@
   "checks": [
     {
       "category": "APPS",
+      "label": "AppOps: private-data access",
+      "command": "dumpsys appops | grep -E 'READ_EXTERNAL_STORAGE|ACCESS_FINE_LOCATION'",
+      "safe_pattern": "mode=ignore",
+      "level": "info",
+      "description": "Monitor unexpected accesses to sensitive data"
+    },
+    {
+      "category": "APPS",
+      "label": "Security Tools Detected",
+      "command": "pm list packages | grep -E 'org.mobsf|com.offsec.nethunter|de.robv.android.xposed'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Pentest frameworks or hacking tools found",
+      "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
+      "label": "Custom CAs Installed",
+      "command": "ls /data/misc/user/0/cacerts-added/ 2>/dev/null | wc -l",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Custom certs may bypass pinning"
+    },
+    {
+      "category": "APPS",
+      "label": "APK Signature Path Check",
+      "command": "pm list packages -f | grep .apk | head -n 1",
+      "safe_pattern": "package:",
+      "level": "info",
+      "description": "Checks for valid APK path info"
+    },
+    {
+      "category": "APPS",
       "label": "Suspicious APK Names",
       "command": "pm list packages | grep -Ei 'hacker|spy|monitor|remote|keylog|shell' | grep -v 'com.android.shell'",
       "safe_pattern": "^$",
@@ -32,7 +65,337 @@
       "command": "pm list packages | grep -E 'dexopt|dynamic'",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Apps should not use dynamic code loading (security risk)"
+      "description": "Apps should not use dynamic code loading (security risk)",
+      "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
+      "label": "Installed Automotive Apps",
+      "command": "pm list packages 2>/dev/null | grep -iE 'car|auto|vehicle|obd|drive|navigation' | head -15",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Automotive-related applications installed"
+    },
+    {
+      "category": "APPS",
+      "label": "OEM Vehicle Apps",
+      "command": "pm list packages 2>/dev/null | grep -iE 'toyota|honda|ford|gm|bmw|mercedes|audi|vw|tesla|hyundai|kia|nissan|mazda|subaru' | head -10",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "OEM-specific vehicle apps"
+    },
+    {
+      "category": "APPS",
+      "label": "Third-Party OBD Apps",
+      "command": "pm list packages 2>/dev/null | grep -iE 'torque|carscanner|obdeleven|carly|forscan|bimmercode' | head -5",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Third-party OBD diagnostic apps - can read vehicle data",
+      "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
+      "label": "Navigation Apps",
+      "command": "pm list packages 2>/dev/null | grep -iE 'maps|waze|here|tomtom|sygic|navigation' | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Navigation applications tracking location"
+    },
+    {
+      "category": "APPS",
+      "label": "Apps with VEHICLE Permissions",
+      "command": "for perm in CAR_INFO CAR_EXTERIOR_ENVIRONMENT CAR_SPEED CAR_MILEAGE; do echo \"==$perm==\"; dumpsys package 2>/dev/null | grep -B5 \"android.car.permission.$perm\" | grep 'Package \\[' | head -2; done 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Apps with vehicle data access permissions"
+    },
+    {
+      "category": "APPS",
+      "label": "System Apps with Car Privileges",
+      "command": "pm list packages -s 2>/dev/null | grep -iE 'car|vehicle|automotive' | head -10",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "System-level automotive applications"
+    },
+    {
+      "category": "APPS",
+      "label": "Medical/Healthcare Apps Detected",
+      "command": "pm list packages 2>/dev/null | grep -iE 'medical|health|patient|clinical|diagnostic|therapy|monitor|vital|ecg|ekg|pulse|oximeter|glucose|insulin|infusion|ventilator|imaging|dicom|pacs|ehr|emr|epic|cerner' | head -15",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Medical/healthcare applications installed - device may handle PHI"
+    },
+    {
+      "category": "APPS",
+      "label": "FDA/Medical Build Properties",
+      "command": "getprop 2>/dev/null | grep -iE 'medical|fda|iec|hipaa|clinical|regulated' | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Medical/regulatory build properties set by manufacturer"
+    },
+    {
+      "category": "APPS",
+      "label": "Device Classification Properties",
+      "command": "getprop ro.product.device 2>/dev/null; getprop ro.product.model 2>/dev/null; getprop ro.product.manufacturer 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Device identification - document for regulatory purposes"
+    },
+    {
+      "category": "APPS",
+      "label": "Root Access (su)",
+      "command": "su -c 'id' 2>/dev/null | grep -q 'uid=0' && echo 'ROOT_ACTIVE' || which su 2>/dev/null | grep -v '/system/bin/su'",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Check for actual root shell access (excludes Samsung system su)",
+      "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
+      "label": "Running Services Count",
+      "command": "dumpsys activity services | grep -E 'package|process' | wc -l",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Running services on device"
+    },
+    {
+      "category": "APPS",
+      "label": "Frida Detected",
+      "command": "pm list packages | grep frida",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Frida binary indicates runtime manipulation",
+      "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
+      "label": "Magisk Detected",
+      "command": "pm list packages | grep magisk",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Magisk can hide root access",
+      "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
+      "label": "Xposed Framework",
+      "command": "pm list packages | grep xposed",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Xposed framework enables deep system tweaks",
+      "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
+      "label": "Unapproved APKs in /data/local/tmp",
+      "command": "ls /data/local/tmp/*.apk 2>/dev/null",
+      "safe_pattern": "^ls:.*No such file or directory$",
+      "level": "warning",
+      "description": "Unauthorized sideloading or testing APKs",
+      "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
+      "label": "Running Services List",
+      "command": "ps -A 2>/dev/null | grep -vE 'ps|grep' | awk '{print $NF}' | sort | uniq | head -30",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "All running processes - review for unnecessary services"
+    },
+    {
+      "category": "APPS",
+      "label": "Web Server Process",
+      "command": "ps -A 2>/dev/null | grep -iE 'nginx|apache|httpd|lighttpd|busybox.*httpd|boa|goahead|uhttpd'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Web server running - potential attack surface",
+      "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
+      "label": "Telnet Daemon",
+      "command": "ps -A 2>/dev/null | grep -iE 'telnetd|busybox.*telnet'",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Telnet daemon running - INSECURE!",
+      "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
+      "label": "FTP Daemon",
+      "command": "ps -A 2>/dev/null | grep -iE 'ftpd|vsftpd|proftpd|busybox.*ftp'",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "FTP daemon running - credentials in plaintext!",
+      "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
+      "label": "SSH Daemon",
+      "command": "ps -A 2>/dev/null | grep -iE 'sshd|dropbear'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "SSH daemon running"
+    },
+    {
+      "category": "APPS",
+      "label": "MQTT Client/Broker",
+      "command": "ps -A 2>/dev/null | grep -iE 'mosquitto|mqtt|paho'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "MQTT service running"
+    },
+    {
+      "category": "APPS",
+      "label": "Node.js/Python Services",
+      "command": "ps -A 2>/dev/null | grep -iE 'node|python|python3'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Script-based services running"
+    },
+    {
+      "category": "APPS",
+      "label": "Database Services",
+      "command": "ps -A 2>/dev/null | grep -iE 'mysql|mariadb|postgres|sqlite|mongodb|redis'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Database services running"
+    },
+    {
+      "category": "APPS",
+      "label": "Docker/Container Runtime",
+      "command": "ps -A 2>/dev/null | grep -iE 'docker|containerd|runc'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Container runtime detected"
+    },
+    {
+      "category": "APPS",
+      "label": "Init System Type",
+      "command": "cat /proc/1/comm 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Init system (systemd/init/busybox)"
+    },
+    {
+      "category": "APPS",
+      "label": "Custom IoT Daemons",
+      "command": "ps -A 2>/dev/null | grep -vE 'system_server|surfaceflinger|zygote|android|google|samsung|com\\.' | grep -E 'd$|daemon|service' | head -10",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Non-Android services/daemons running"
+    },
+    {
+      "category": "APPS",
+      "label": "Camera Permission Apps",
+      "command": "pm list packages -p android.permission.CAMERA 2>/dev/null | head -20",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Apps with camera permission"
+    },
+    {
+      "category": "APPS",
+      "label": "Microphone Permission Apps",
+      "command": "pm list packages -p android.permission.RECORD_AUDIO 2>/dev/null | head -20",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Apps with microphone permission"
+    },
+    {
+      "category": "APPS",
+      "label": "Location Permission Apps",
+      "command": "pm list packages -p android.permission.ACCESS_FINE_LOCATION 2>/dev/null | head -20",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Apps with fine location permission"
+    },
+    {
+      "category": "APPS",
+      "label": "SMS Permission Apps",
+      "command": "pm list packages -p android.permission.SEND_SMS 2>/dev/null | head -20",
+      "safe_pattern": ".",
+      "level": "warning",
+      "description": "Apps with SMS sending permission"
+    },
+    {
+      "category": "APPS",
+      "label": "Contacts Permission Apps",
+      "command": "pm list packages -p android.permission.READ_CONTACTS 2>/dev/null | head -20",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Apps with contacts read permission"
+    },
+    {
+      "category": "APPS",
+      "label": "Unknown Sources Disabled",
+      "command": "settings get secure install_non_market_apps",
+      "safe_pattern": "0|null",
+      "level": "critical",
+      "description": "Installing from unknown sources should be disabled"
+    },
+    {
+      "category": "APPS",
+      "label": "Package Verifier Enabled",
+      "command": "settings get global package_verifier_enable",
+      "safe_pattern": "1",
+      "level": "warning",
+      "description": "Package verification should be enabled"
+    },
+    {
+      "category": "APPS",
+      "label": "Verify Apps Over USB",
+      "command": "settings get global verifier_verify_adb_installs",
+      "safe_pattern": "1",
+      "level": "warning",
+      "description": "Verify apps installed via ADB"
+    },
+    {
+      "category": "APPS",
+      "label": "Play Protect Enabled",
+      "command": "settings get global package_verifier_user_consent",
+      "safe_pattern": "1",
+      "level": "warning",
+      "description": "Google Play Protect consent status"
+    },
+    {
+      "category": "APPS",
+      "label": "Install via ADB Blocked",
+      "command": "settings get global install_allow_adb",
+      "safe_pattern": "0|null",
+      "level": "warning",
+      "description": "Block app installation via ADB"
+    },
+    {
+      "category": "APPS",
+      "label": "Permission Controller Version",
+      "command": "dumpsys package com.google.android.permissioncontroller 2>/dev/null | grep versionName | head -1",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Permission controller app version"
+    },
+    {
+      "category": "APPS",
+      "label": "Auto Revoke Unused Permissions",
+      "command": "settings get global auto_revoke_permissions_mode",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Auto-revoke permissions for unused apps"
+    },
+    {
+      "category": "APPS",
+      "label": "Background Location Apps",
+      "command": "appops query-op --uid android.permission.ACCESS_BACKGROUND_LOCATION 2>/dev/null | head -10",
+      "safe_pattern": ".",
+      "level": "warning",
+      "description": "Apps with background location access"
+    },
+    {
+      "category": "APPS",
+      "label": "Camera Apps Running",
+      "command": "dumpsys camera 2>/dev/null | grep -i 'client' | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Apps currently using camera"
     }
   ]
 }
