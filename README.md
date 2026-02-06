@@ -1,7 +1,7 @@
-# HARDAX v1.1.0
+# HARDAX v1.2.0
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.1.0-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.2.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.6+-green.svg" alt="Python">
   <img src="https://img.shields.io/badge/checks-428-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-15-purple.svg" alt="Categories">
