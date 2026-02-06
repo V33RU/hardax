@@ -27,7 +27,7 @@
 
 ---
 
-## 📋 Table of Contents
+##  Table of Contents
 
 - [Overview](#-overview)
 - [Features](#-features)
@@ -43,7 +43,7 @@
 
 ---
 
-## 🛡 Overview
+##  Overview
 
 **HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs 428 security checks across 15 categories to identify misconfigurations, vulnerabilities, and security weaknesses.
 
@@ -121,7 +121,7 @@ pip install paramiko
 
 ---
 
-## 📖 Usage
+##  Usage
 
 ### Basic Usage (ADB)
 
@@ -170,7 +170,6 @@ Options:
 ```
 
 ---
-
 
 ## Security Categories
 
@@ -247,7 +246,7 @@ flowchart TD
 ---
 
 
-### Adding Custom Checks
+## Adding Custom Checks
 
 Create or modify JSON files in the `commands/` directory:
 
