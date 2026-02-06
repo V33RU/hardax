@@ -1,0 +1,8 @@
+# HARDAX Requirements
+# Core dependencies (most are stdlib)
+
+# Optional: For certificate audit feature
+cryptography>=3.0
+
+# Optional: For SSH mode
+paramiko>=2.7
