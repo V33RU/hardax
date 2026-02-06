@@ -60,7 +60,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **428 Security Checks** | Comprehensive coverage across 15 security categories |
+| **423 Security Checks** | Comprehensive coverage across 15 security categories |
 | **POS/Payment Terminal Support** | 28 PCI-DSS focused checks for payment devices |
 | **No Root Required** | Runs entirely via ADB shell commands |
 | **Dual Connection Modes** | ADB (USB) and SSH (Network) support |
@@ -183,7 +183,7 @@ HARDAX organizes 428 checks into 15 security categories:
 | **PRIVACY** | 52 | Biometrics, screen lock, location, sensors, clipboard, audio |
 | **APPS** | 48 | Permissions, runtime, installation, dangerous permissions |
 | **BLUETOOTH** | 29 | BLE/Classic security, pairing modes, profiles, MAC randomization |
-| **POS_SECURITY** | 28 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper detection |
+| **POS_SECURITY** | 25 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper detection |
 | **BOOT_SECURITY** | 21 | Verified boot, AVB, dm-verity, bootloader, integrity |
 | **STORAGE** | 21 | Filesystem, backup, encryption, partitions |
 | **DEVICE_MANAGEMENT** | 14 | MDM, accounts, developer options |
