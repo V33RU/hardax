@@ -128,41 +128,6 @@
     },
     {
       "category": "POS_SECURITY",
-      "label": "Root/Su Binary Present",
-      "command": "ls /system/bin/su /system/xbin/su /sbin/su /data/local/bin/su /data/local/su 2>/dev/null",
-      "safe_pattern": "^$",
-      "level": "critical",
-      "description": "PCI-DSS: Rooted devices must not process payment card data",
-      "empty_is_safe": true
-    },
-    {
-      "category": "POS_SECURITY",
-      "label": "Magisk Present",
-      "command": "ls /sbin/magisk /data/adb/magisk 2>/dev/null; pm list packages 2>/dev/null | grep -i magisk",
-      "safe_pattern": "^$",
-      "level": "critical",
-      "description": "PCI-DSS: Root hiding tools detected - device compromised",
-      "empty_is_safe": true
-    },
-    {
-      "category": "POS_SECURITY",
-      "label": "Frida/Xposed Detected",
-      "command": "ps -A 2>/dev/null | grep -iE 'frida|xposed'; pm list packages 2>/dev/null | grep -iE 'xposed|frida'",
-      "safe_pattern": "^$",
-      "level": "critical",
-      "description": "Instrumentation frameworks detected - potential tampering",
-      "empty_is_safe": true
-    },
-    {
-      "category": "POS_SECURITY",
-      "label": "WiFi Direct Disabled",
-      "command": "settings get global wifi_p2p_enabled 2>/dev/null",
-      "safe_pattern": "^(0|null)$",
-      "level": "warning",
-      "description": "WiFi Direct should be disabled to prevent rogue connections"
-    },
-    {
-      "category": "POS_SECURITY",
       "label": "Hotspot Disabled",
       "command": "settings get global wifi_ap_enabled 2>/dev/null",
       "safe_pattern": "^(0|null)$",
@@ -193,15 +158,6 @@
       "safe_pattern": ".+",
       "level": "info",
       "description": "POS vendor-specific system properties detected"
-    },
-    {
-      "category": "POS_SECURITY",
-      "label": "Suspicious APKs in Storage",
-      "command": "find /sdcard /data/local/tmp -name '*.apk' 2>/dev/null | head -5",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "APK files in user storage may indicate sideloading attempts",
-      "empty_is_safe": true
     },
     {
       "category": "POS_SECURITY",
