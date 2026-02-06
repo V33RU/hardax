@@ -27,9 +27,125 @@ import shutil
 import subprocess
 import sys
 import time
+import tempfile
+from datetime import datetime
 from typing import List, Dict, Any, Tuple, Optional
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
+
+# -------------------------
+# Certificate Audit
+# -------------------------
+
+def audit_certificates(device: 'Device') -> List[Dict[str, Any]]:
+    """
+    Pull certificates from device and analyze them.
+    Returns list of cert info with expiry/age calculations.
+    """
+    certs = []
+    
+    try:
+        from cryptography import x509
+        from cryptography.hazmat.backends import default_backend
+    except ImportError:
+        print(f"{Colors.YELLOW}⚠ cryptography library not installed. Skipping certificate audit.{Colors.RESET}")
+        print(f"{Colors.DIM}  Install with: pip install cryptography{Colors.RESET}")
+        return []
+    
+    # Get list of system CA certs
+    cert_list_output = device.shell("ls /system/etc/security/cacerts/ 2>/dev/null")
+    if not cert_list_output.strip():
+        return []
+    
+    cert_files = [f.strip() for f in cert_list_output.split('\n') if f.strip().endswith('.0')]
+    
+    print(f"\n{Colors.BRIGHT_CYAN}🔐 Analyzing {len(cert_files)} system certificates...{Colors.RESET}")
+    
+    today = datetime.now()
+    
+    for i, cert_file in enumerate(cert_files[:50]):  # Limit to 50 certs for performance
+        try:
+            # Get cert content directly via shell
+            cert_path = f"/system/etc/security/cacerts/{cert_file}"
+            cert_pem = device.shell(f"cat {cert_path} 2>/dev/null")
+            
+            if "-----BEGIN CERTIFICATE-----" not in cert_pem:
+                continue
+            
+            # Parse certificate
+            cert_data = cert_pem.encode('utf-8')
+            cert = x509.load_pem_x509_certificate(cert_data, default_backend())
+            
+            # Extract info
+            subject = cert.subject.rfc4514_string()
+            issuer = cert.issuer.rfc4514_string()
+            not_before = cert.not_valid_before_utc.replace(tzinfo=None)
+            not_after = cert.not_valid_after_utc.replace(tzinfo=None)
+            
+            # Calculate age and expiry
+            days_old = (today - not_before).days
+            days_until_expiry = (not_after - today).days
+            
+            # Determine status
+            if days_until_expiry < 0:
+                status = "EXPIRED"
+                risk = "critical"
+            elif days_until_expiry < 30:
+                status = "EXPIRING_SOON"
+                risk = "warning"
+            elif days_until_expiry < 90:
+                status = "CHECK"
+                risk = "warning"
+            else:
+                status = "VALID"
+                risk = "safe"
+            
+            # Extract CN from subject
+            cn = "Unknown"
+            for part in subject.split(','):
+                if part.strip().startswith('CN='):
+                    cn = part.strip()[3:]
+                    break
+            
+            certs.append({
+                'filename': cert_file,
+                'cn': cn[:50] + '...' if len(cn) > 50 else cn,
+                'issuer': issuer[:50] + '...' if len(issuer) > 50 else issuer,
+                'not_before': not_before.strftime('%Y-%m-%d'),
+                'not_after': not_after.strftime('%Y-%m-%d'),
+                'days_old': days_old,
+                'days_until_expiry': days_until_expiry,
+                'status': status,
+                'risk': risk,
+            })
+            
+            # Progress indicator
+            if (i + 1) % 10 == 0:
+                print(f"\r{Colors.DIM}  Processed {i + 1}/{len(cert_files[:50])} certs...{Colors.RESET}", end='', flush=True)
+                
+        except Exception as e:
+            continue
+    
+    print(f"\r{Colors.GREEN}  ✓ Analyzed {len(certs)} certificates{Colors.RESET}          ")
+    
+    # Also check for user-installed certs (potential MITM)
+    user_certs = device.shell("ls /data/misc/user/0/cacerts-added/ 2>/dev/null")
+    if user_certs.strip():
+        user_cert_files = [f.strip() for f in user_certs.split('\n') if f.strip()]
+        for cert_file in user_cert_files:
+            certs.append({
+                'filename': cert_file,
+                'cn': 'USER INSTALLED CERT',
+                'issuer': 'Unknown - User Added',
+                'not_before': '-',
+                'not_after': '-',
+                'days_old': 0,
+                'days_until_expiry': 0,
+                'status': 'USER_CERT',
+                'risk': 'critical',
+            })
+    
+    return sorted(certs, key=lambda x: (x['risk'] != 'critical', x['risk'] != 'warning', x['days_until_expiry']))
 
 # -------------------------
 # ANSI Color Codes
@@ -396,8 +512,79 @@ def write_csv(csv_path: str, rows: List[Dict[str, Any]]) -> None:
         for r in rows:
             w.writerow({k: r.get(k, "") for k in fieldnames})
 
-def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]], counts: Dict[str, int]) -> None:
-    """Write modern HTML report with collapsible category sections"""
+def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]], counts: Dict[str, int], certs: List[Dict[str, Any]] = None) -> None:
+    """Write modern HTML report with collapsible category sections and certificate table"""
+    
+    # Build certificate table HTML if certs provided
+    cert_table_html = ""
+    if certs:
+        cert_rows = []
+        for c in certs:
+            risk_class = c['risk']
+            status_emoji = {
+                'EXPIRED': '🔴',
+                'EXPIRING_SOON': '🟡',
+                'CHECK': '🟡', 
+                'USER_CERT': '⚠️',
+                'VALID': '🟢'
+            }.get(c['status'], '⚪')
+            
+            days_info = f"{c['days_old']:,}" if isinstance(c['days_old'], int) else '-'
+            expiry_info = f"{c['days_until_expiry']:,}" if isinstance(c['days_until_expiry'], int) else '-'
+            
+            cert_rows.append(f'''
+          <tr class="cert-row {risk_class}">
+            <td>{html_escape(c['cn'])}</td>
+            <td>{html_escape(c['not_before'])}</td>
+            <td>{html_escape(c['not_after'])}</td>
+            <td class="days-old">{days_info}</td>
+            <td class="days-expiry">{expiry_info}</td>
+            <td><span class="cert-status {risk_class}">{status_emoji} {c['status']}</span></td>
+          </tr>''')
+        
+        cert_rows_html = "\n".join(cert_rows)
+        
+        # Count by status
+        expired_count = sum(1 for c in certs if c['status'] == 'EXPIRED')
+        expiring_count = sum(1 for c in certs if c['status'] in ('EXPIRING_SOON', 'CHECK'))
+        user_count = sum(1 for c in certs if c['status'] == 'USER_CERT')
+        valid_count = sum(1 for c in certs if c['status'] == 'VALID')
+        
+        cert_table_html = f'''
+    <div class="cert-section category-section" id="cert_section">
+      <div class="category-header" onclick="toggleCategory('cert_section')">
+        <div class="category-title">
+          <span class="toggle-icon">▶</span>
+          <span class="category-name">🔐 CERTIFICATE AUDIT</span>
+          <span class="check-count">({len(certs)} certificates)</span>
+        </div>
+        <div class="category-stats">
+          <span class="cat-badge critical">{expired_count} Expired</span>
+          <span class="cat-badge warning">{expiring_count} Expiring</span>
+          <span class="cat-badge critical">{user_count} User Installed</span>
+          <span class="cat-badge safe">{valid_count} Valid</span>
+        </div>
+      </div>
+      <div class="category-content">
+        <div class="cert-table-container">
+          <table class="cert-table">
+            <thead>
+              <tr>
+                <th>Common Name (CN)</th>
+                <th>Valid From</th>
+                <th>Valid Until</th>
+                <th>Days Old</th>
+                <th>Days to Expiry</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cert_rows_html}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>'''
     
     # Group rows by category
     categories = {}
@@ -868,6 +1055,77 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
     }}
     
     .hidden {{ display: none !important; }}
+    
+    /* Certificate Table Styles */
+    .cert-section {{
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+    }}
+    
+    .cert-section .category-content {{
+      padding: 16px 20px;
+    }}
+    
+    .cert-table-container {{
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }}
+    
+    .cert-table {{
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }}
+    
+    .cert-table th {{
+      background: var(--bg-tertiary);
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      border-bottom: 2px solid var(--border-color);
+    }}
+    
+    .cert-table td {{
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-color);
+    }}
+    
+    .cert-row:hover {{
+      background: var(--bg-tertiary);
+    }}
+    
+    .cert-row.critical {{
+      background: rgba(239,68,68,0.08);
+    }}
+    
+    .cert-row.warning {{
+      background: rgba(245,158,11,0.08);
+    }}
+    
+    .days-old, .days-expiry {{
+      font-family: monospace;
+      text-align: right;
+    }}
+    
+    .cert-status {{
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }}
+    
+    .cert-status.critical {{ background: rgba(239,68,68,0.2); color: var(--critical); }}
+    .cert-status.warning {{ background: rgba(245,158,11,0.2); color: var(--warning); }}
+    .cert-status.safe {{ background: rgba(34,197,94,0.2); color: var(--safe); }}
   </style>
 </head>
 <body>
@@ -922,6 +1180,8 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
         <canvas id="summaryChart" width="250" height="250"></canvas>
       </div>
     </div>
+    
+    {cert_table_html}
     
     <div id="categoriesContainer">
       {categories_html}
@@ -1224,6 +1484,7 @@ Examples:
     ap.add_argument("--out", default="hardax_output", help="Output directory")
     ap.add_argument("--progress-numbers", action="store_true", help="Show progress counter")
     ap.add_argument("--show-commands", action="store_true", help="Display each command")
+    ap.add_argument("--skip-certs", action="store_true", help="Skip certificate audit")
 
     args = ap.parse_args()
 
@@ -1295,6 +1556,11 @@ Examples:
     if args.progress_numbers:
         print()
 
+    # Certificate Audit
+    certs = []
+    if args.mode == "adb" and not args.skip_certs:
+        certs = audit_certificates(device)
+
     # TXT Report
     with open(txt_file, "w", encoding="utf-8") as f:
         f.write(f"HARDAX - Hardening Audit eXaminer Report\nGenerated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
@@ -1302,6 +1568,17 @@ Examples:
         for k in ["model", "brand", "manufacturer", "name", "soc_manufacturer", "soc_model",
                   "android_version", "sdk_level", "build_id", "fingerprint", "serialno", "timezone"]:
             f.write(f"{k.replace('_', ' ').title()}: {device_info.get(k, '')}\n")
+        
+        # Certificate section in TXT
+        if certs:
+            f.write("\n" + "=" * 40 + "\nCertificate Audit\n" + "=" * 40 + "\n")
+            f.write(f"{'CN':<40} {'Valid From':<12} {'Valid Until':<12} {'Days Old':>10} {'Expiry':>10} {'Status':<15}\n")
+            f.write("-" * 100 + "\n")
+            for c in certs:
+                days_old = str(c['days_old']) if isinstance(c['days_old'], int) else '-'
+                days_exp = str(c['days_until_expiry']) if isinstance(c['days_until_expiry'], int) else '-'
+                f.write(f"{c['cn']:<40} {c['not_before']:<12} {c['not_after']:<12} {days_old:>10} {days_exp:>10} {c['status']:<15}\n")
+        
         f.write("\n" + "=" * 40 + "\nFindings\n" + "=" * 40 + "\n")
         for r in rows:
             f.write(f"\n[{r['category']}] {r['label']}\n")
@@ -1315,11 +1592,15 @@ Examples:
         f.write("AUDIT SUMMARY\n")
         f.write(f"Target: {device.id_string()}\n")
         f.write(f"Safe: {counts['safe']} | Warnings: {counts['warning']} | Critical: {counts['critical']} | Info: {counts['info']}\n")
+        if certs:
+            expired = sum(1 for c in certs if c['status'] == 'EXPIRED')
+            user_certs = sum(1 for c in certs if c['status'] == 'USER_CERT')
+            f.write(f"Certificates: {len(certs)} total | {expired} expired | {user_certs} user-installed\n")
         f.write("=" * 40 + "\n")
 
     # CSV + HTML
     write_csv(csv_file, rows)
-    write_html(html_file, device_info, rows, counts)
+    write_html(html_file, device_info, rows, counts, certs)
 
     # Close SSH if used
     if isinstance(device, SSHDevice):
