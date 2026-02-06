@@ -224,7 +224,7 @@ flowchart TD
     F -->|No| G([Exit])
     F -->|Yes| H[Get Device Info]
     H --> I[Load 14 JSON Files]
-    I --> J[400 Security Checks]
+    I --> J[423 Security Checks]
     J --> K[For Each Check]
     K --> L[Run Command]
     L --> M[Capture Output]
