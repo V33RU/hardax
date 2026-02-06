@@ -3,8 +3,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.2.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.6+-green.svg" alt="Python">
-  <img src="https://img.shields.io/badge/checks-428-orange.svg" alt="Checks">
-  <img src="https://img.shields.io/badge/categories-15-purple.svg" alt="Categories">
+  <img src="https://img.shields.io/badge/checks-435-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/categories-16-purple.svg" alt="Categories">
   <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
 </p>
 
@@ -21,13 +21,13 @@
 ┃  ██╔══██║██╔══██║██╔══██╗██║  ██║██╔══██║ ██╔██    ┃
 ┃  ██║  ██║██║  ██║██║  ██║██████╔╝██║  ██║██╔╝ ██╗  ┃
 ┃  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝  ┃
-┃  [435 Checks] [15 Categories] [3 Report Formats]   ┃
+┃  [435 Checks] [16 Categories] [3 Report Formats]   ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
 ---
 
-##  Table of Contents
+## Table of Contents
 
 - [Overview](#-overview)
 - [Features](#-features)
@@ -36,16 +36,15 @@
 - [Usage](#-usage)
 - [Security Categories](#-security-categories)
 - [Status Levels](#-status-levels)
-- [Report Formats](#-report-formats)
 - [Tool Flow](#-tool-flow)
 - [Extending HARDAX](#-extending-hardax)
 - [Future Roadmap](#-future-roadmap)
 
 ---
 
-##  Overview
+## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs 428 security checks across 15 categories to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs 435 security checks across 16 categories to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -56,12 +55,13 @@ HARDAX is designed for:
 
 ---
 
-##  Features
+## Features
 
 | Feature | Description |
 |---------|-------------|
-| **423 Security Checks** | Comprehensive coverage across 15 security categories |
-| **POS/Payment Terminal Support** | 28 PCI-DSS focused checks for payment devices |
+| **435 Security Checks** | Comprehensive coverage across 16 security categories |
+| **POS/Payment Terminal Support** | 23 PCI-DSS focused checks for payment devices |
+| **Certificate Audit** | CA certificate analysis with expiry/age calculation |
 | **No Root Required** | Runs entirely via ADB shell commands |
 | **Dual Connection Modes** | ADB (USB) and SSH (Network) support |
 | **5 Status Levels** | SAFE, WARNING, CRITICAL, VERIFY, INFO |
@@ -90,8 +90,7 @@ HARDAX works with any Android-based device accessible via ADB or SSH:
 
 ---
 
-##  Installation
-
+## Installation
 
 ### Prerequisites
 
@@ -113,15 +112,19 @@ adb devices
 python3 hardax.py
 ```
 
-### For SSH Mode (Optional)
+### Optional Dependencies
 
 ```bash
+# For SSH mode
 pip install paramiko
+
+# For Certificate Audit feature
+pip install cryptography
 ```
 
 ---
 
-##  Usage
+## Usage
 
 ### Basic Usage (ADB)
 
@@ -132,15 +135,14 @@ python3 hardax.py
 # Show commands being executed
 python3 hardax.py --show-commands
 
-
 # Specify device by serial
 python3 hardax.py --serial DEVICE_SERIAL
 
-# To run all commands run by default
-python3 hardax.py --json-dir commands/
-
 # Custom output directory
 python3 hardax.py --out ./my_reports
+
+# Skip certificate audit
+python3 hardax.py --skip-certs
 ```
 
 ### SSH Mode (Network)
@@ -167,13 +169,14 @@ Options:
   --out DIR             Output directory (default: hardax_output)
   --progress-numbers    Show numeric progress counter
   --show-commands       Display each command being executed
+  --skip-certs          Skip certificate audit
 ```
 
 ---
 
 ## Security Categories
 
-HARDAX organizes 428 checks into 15 security categories:
+HARDAX organizes 435 checks into 16 security categories:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
@@ -182,11 +185,12 @@ HARDAX organizes 428 checks into 15 security categories:
 | **PRIVACY** | 52 | Biometrics, screen lock, location, sensors, clipboard, audio |
 | **APPS** | 48 | Permissions, runtime, installation, dangerous permissions |
 | **BLUETOOTH** | 29 | BLE/Classic security, pairing modes, profiles, MAC randomization |
-| **POS_SECURITY** | 25 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper detection |
+| **POS_SECURITY** | 23 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper detection |
 | **BOOT_SECURITY** | 21 | Verified boot, AVB, dm-verity, bootloader, integrity |
 | **STORAGE** | 21 | Filesystem, backup, encryption, partitions |
 | **DEVICE_MANAGEMENT** | 14 | MDM, accounts, developer options |
 | **USB_SECURITY** | 14 | USB debugging, interfaces, serial ports, gadget mode |
+| **CERTIFICATE_AUDIT** | 12 | CA certificates, user certs, pinning bypass, keystore, expiry analysis |
 | **CRYPTOGRAPHY** | 12 | Encryption, keys, credentials, API keys, certificates |
 | **INPUT** | 9 | Keyboards, accessibility, input methods |
 | **MALWARE** | 5 | Root detection, Frida, suspicious files |
@@ -207,10 +211,9 @@ HARDAX classifies findings into 5 status levels:
 | **VERIFY** | 🟣 Purple | ? | Manual verification required (null/empty output) |
 | **INFO** | 🔵 Blue | ℹ | Informational - no action needed |
 
-
 ---
 
-##  Tool Flow
+## Tool Flow
 
 ```mermaid
 flowchart TD
@@ -222,8 +225,8 @@ flowchart TD
     E --> F{Found?}
     F -->|No| G([Exit])
     F -->|Yes| H[Get Device Info]
-    H --> I[Load 14 JSON Files]
-    I --> J[423 Security Checks]
+    H --> I[Load 16 JSON Files]
+    I --> J[435 Security Checks]
     J --> K[For Each Check]
     K --> L[Run Command]
     L --> M[Capture Output]
@@ -238,15 +241,17 @@ flowchart TD
     O & P & R & S & T --> U[Store Result]
     U --> V{More?}
     V -->|Yes| K
-    V -->|No| W[Generate Reports]
-    W --> X[TXT + CSV + HTML]
-    X --> Y([Done])
+    V -->|No| W[Certificate Audit]
+    W --> X[Generate Reports]
+    X --> Y[TXT + CSV + HTML]
+    Y --> Z([Done])
 ```
 
 ---
 
+## Extending HARDAX
 
-## Adding Custom Checks
+### Adding Custom Checks
 
 Create or modify JSON files in the `commands/` directory:
 
@@ -268,7 +273,7 @@ Create or modify JSON files in the `commands/` directory:
 
 ---
 
-##  Future Roadmap
+## Future Roadmap
 
 - [ ] `--category` flag to run specific categories
 - [ ] `--severity` flag to filter by level
