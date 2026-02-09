@@ -458,46 +458,89 @@ def execute_with_p_fallback(device: Device, command: str, show_commands: bool = 
     return ""
 
 
-def apply_filters(output: str, original_command: str) -> str:
-    """Apply grep filters from original command to output"""
+def apply_filters(output: str, original: str) -> str:
+    """
+    Emulate a simple shell pipeline for the given base+pipeline string:
+      - grep [-i] [-v] [-E] [-F] 'pattern'
+      - head -N / tail -N (applied after greps)
+    """
     if not output:
         return output
-    
-    # Extract grep patterns from original command
-    grep_patterns = re.findall(r"grep\s+(?:-[vE]+\s+)?'([^']+)'", original_command)
-    grep_patterns += re.findall(r'grep\s+(?:-[vE]+\s+)?"([^"]+)"', original_command)
-    
-    # Also check for grep -v (exclude) patterns
-    exclude_patterns = re.findall(r"grep\s+-v\s+'([^']+)'", original_command)
-    exclude_patterns += re.findall(r'grep\s+-v\s+"([^"]+)"', original_command)
-    
-    # Check for specific protocol filters
-    lines = output.strip().split('\n')
-    filtered_lines = []
-    
-    for line in lines:
-        # Check protocol filters in original command
-        if "grep '^tcp '" in original_command and not line.startswith('tcp '):
-            continue
-        if "grep '^tcp6'" in original_command and not line.startswith('tcp6'):
-            continue
-        if "grep '^udp '" in original_command and not line.startswith('udp '):
-            continue
-        if "grep '^udp6'" in original_command and not line.startswith('udp6'):
-            continue
-        
-        # Apply exclude patterns
-        excluded = False
-        for pattern in exclude_patterns:
-            if re.search(pattern.replace('\\\\', '\\'), line):
-                excluded = True
-                break
-        
-        if not excluded:
-            filtered_lines.append(line)
-    
-    return '\n'.join(filtered_lines)
 
+    lines = output.splitlines()
+
+    # Extract pipeline part (everything after first '|')
+    pipe = ''
+    if '|' in original:
+        pipe = original.split('|', 1)[1]
+    if not pipe:
+        return '\n'.join(lines)
+
+    # Tokenize by '|' boundaries
+    stages = [s.strip() for s in pipe.split('|') if s.strip()]
+
+    # Collect greps and optional head/tail
+    head_n = None
+    tail_n = None
+    greps = []
+    for st in stages:
+        if st.startswith('grep'):
+            # flags
+            mflags = re.search(r'(^|\s)-([iEvFv]+)', st)
+            flags = set(mflags.group(2)) if mflags else set()
+            # pattern: '...' or "..." or bare
+            pm = re.search(r"""'(.*?)'|"(.*?)"|(\S+)$""", st)
+            if not pm:
+                continue
+            pattern = pm.group(1) or pm.group(2) or pm.group(3)
+            greps.append((flags, pattern))
+        elif st.startswith('head'):
+            m = re.search(r'head\s+-?(\d+)', st)
+            if m:
+                head_n = int(m.group(1))
+        elif st.startswith('tail'):
+            m = re.search(r'tail\s+-?(\d+)', st)
+            if m:
+                tail_n = int(m.group(1))
+        else:
+            # ignore unknown stages
+            pass
+
+    # Apply greps in order
+    filtered = lines
+    for flags, pattern in greps:
+        ignore_case = 'i' in flags
+        invert = 'v' in flags
+        fixed = 'F' in flags
+        extended = 'E' in flags
+
+        if fixed:
+            needle = pattern if not ignore_case else pattern.lower()
+            def match_fn(s):
+                h = s if not ignore_case else s.lower()
+                return needle in h
+        else:
+            pat = pattern if extended else pattern
+            try:
+                rx = re.compile(pat, re.IGNORECASE if ignore_case else 0)
+                def match_fn(s):
+                    return bool(rx.search(s))
+            except re.error:
+                # Fallback to fixed contains
+                needle = pattern if not ignore_case else pattern.lower()
+                def match_fn(s):
+                    h = s if not ignore_case else s.lower()
+                    return needle in h
+
+        filtered = [ln for ln in filtered if (not match_fn(ln))] if invert else [ln for ln in filtered if match_fn(ln)]
+
+    # Apply tail/head at the end (like shell)
+    if tail_n is not None and tail_n >= 0:
+        filtered = filtered[-tail_n:]
+    if head_n is not None and head_n >= 0:
+        filtered = filtered[:head_n]
+
+    return '\n'.join(filtered)
 
 def detect_root_status(device: Device) -> Tuple[bool, str]:
     """
@@ -552,7 +595,7 @@ def print_banner(id_line: Optional[str]) -> None:
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ┃  {Colors.BOLD}Hardening Audit eXaminer{Colors.RESET}{Colors.BRIGHT_CYAN} v{__version__}                               ┃
 ┃  {Colors.DIM}Android OS based IoT Devices Security Configuration Auditor{Colors.BRIGHT_CYAN}   ┃
-┃  {Colors.YELLOW}[458 Checks]{Colors.RESET} {Colors.GREEN}[17 Categories]{Colors.BRIGHT_CYAN}                                   ┃
+┃  {Colors.YELLOW}[454 Checks]{Colors.RESET} {Colors.GREEN}[17 Categories]{Colors.BRIGHT_CYAN}                                   ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛{Colors.RESET}
 """)
     
@@ -710,77 +753,76 @@ def write_csv(csv_path: str, rows: List[Dict[str, Any]]) -> None:
 def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]], counts: Dict[str, int], certs: List[Dict[str, Any]] = None) -> None:
     """Write modern HTML report with collapsible category sections and certificate table"""
     
-    # Build certificate table HTML if certs provided
+    # --- Certificate table (always render; show empty-state when none) ---
     cert_table_html = ""
+    cert_rows_html = ""
+    expired_count = expiring_count = user_count = valid_count = 0
+
     if certs:
         cert_rows = []
         for c in certs:
             risk_class = c['risk']
             status_emoji = {
-                'EXPIRED': '🔴',
-                'EXPIRING_SOON': '🟡',
-                'CHECK': '🟡', 
+                'EXPIRED': '\U0001F534',
+                'EXPIRING_SOON': '\U0001F7E1',
+                'CHECK': '\U0001F7E1',
                 'USER_CERT': '⚠️',
-                'VALID': '🟢'
+                'VALID': '\U0001F7E2'
             }.get(c['status'], '⚪')
-            
             days_info = f"{c['days_old']:,}" if isinstance(c['days_old'], int) else '-'
             expiry_info = f"{c['days_until_expiry']:,}" if isinstance(c['days_until_expiry'], int) else '-'
-            
-            cert_rows.append(f'''
-          <tr class="cert-row {risk_class}">
-            <td>{html_escape(c['cn'])}</td>
-            <td>{html_escape(c['not_before'])}</td>
-            <td>{html_escape(c['not_after'])}</td>
-            <td class="days-old">{days_info}</td>
-            <td class="days-expiry">{expiry_info}</td>
-            <td><span class="cert-status {risk_class}">{status_emoji} {c['status']}</span></td>
-          </tr>''')
-        
+            cert_rows.append(
+                f"<tr class=\"cert-row {risk_class}\">\n"
+                f"<td>{html_escape(c['cn'])}</td>\n"
+                f"<td>{html_escape(c['not_before'])}</td>\n"
+                f"<td>{html_escape(c['not_after'])}</td>\n"
+                f"<td class=\"days-old\">{days_info}</td>\n"
+                f"<td class=\"days-expiry\">{expiry_info}</td>\n"
+                f"<td><span class=\"cert-status {risk_class}\">{status_emoji} {c['status']}</span></td>\n"
+                f"</tr>"
+            )
         cert_rows_html = "\n".join(cert_rows)
-        
-        # Count by status
         expired_count = sum(1 for c in certs if c['status'] == 'EXPIRED')
         expiring_count = sum(1 for c in certs if c['status'] in ('EXPIRING_SOON', 'CHECK'))
         user_count = sum(1 for c in certs if c['status'] == 'USER_CERT')
         valid_count = sum(1 for c in certs if c['status'] == 'VALID')
-        
-        cert_table_html = f'''
-    <div class="cert-section category-section" id="cert_section">
-      <div class="category-header" onclick="toggleCategory('cert_section')">
-        <div class="category-title">
-          <span class="toggle-icon">▶</span>
-          <span class="category-name">🔐 CERTIFICATE AUDIT</span>
-          <span class="check-count">({len(certs)} certificates)</span>
-        </div>
-        <div class="category-stats">
-          <span class="cat-badge critical">{expired_count} Expired</span>
-          <span class="cat-badge warning">{expiring_count} Expiring</span>
-          <span class="cat-badge critical">{user_count} User Installed</span>
-          <span class="cat-badge safe">{valid_count} Valid</span>
-        </div>
-      </div>
-      <div class="category-content">
-        <div class="cert-table-container">
-          <table class="cert-table">
-            <thead>
-              <tr>
-                <th>Common Name (CN)</th>
-                <th>Valid From</th>
-                <th>Valid Until</th>
-                <th>Days Old</th>
-                <th>Days to Expiry</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cert_rows_html}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>'''
-    
+
+    cert_table_html = (
+        f"<div class=\"cert-section category-section\" id=\"cert_section\">\n"
+        f"  <div class=\"category-header\" onclick=\"toggleCategory('cert_section')\">\n"
+        f"    <div class=\"category-title\">\n"
+        f"      <span class=\"toggle-icon\">▶</span>\n"
+        f"      <span class=\"category-name\">\U0001F510 CERTIFICATE AUDIT</span>\n"
+        f"      <span class=\"check-count\">({len(certs) if certs else 0} certificates)</span>\n"
+        f"    </div>\n"
+        f"    <div class=\"category-stats\">\n"
+        f"      <span class=\"cat-badge critical\">{expired_count} Expired</span>\n"
+        f"      <span class=\"cat-badge warning\">{expiring_count} Expiring</span>\n"
+        f"      <span class=\"cat-badge critical\">{user_count} User Installed</span>\n"
+        f"      <span class=\"cat-badge safe\">{valid_count} Valid</span>\n"
+        f"    </div>\n"
+        f"  </div>\n"
+        f"  <div class=\"category-content\">\n"
+        f"    <div class=\"cert-table-container\">\n"
+        f"      <table class=\"cert-table\">\n"
+        f"        <thead>\n"
+        f"          <tr>\n"
+        f"            <th>Common Name (CN)</th>\n"
+        f"            <th>Valid From</th>\n"
+        f"            <th>Valid Until</th>\n"
+        f"            <th>Days Old</th>\n"
+        f"            <th>Days to Expiry</th>\n"
+        f"            <th>Status</th>\n"
+        f"          </tr>\n"
+        f"        </thead>\n"
+        f"        <tbody>\n"
+        f"          {cert_rows_html if certs else '<tr><td colspan=\"6\" style=\"color:#a3a3a3;\">No certificates parsed. (Tip: ensure cryptography is installed/updated and the device exposes APEX Conscrypt CA store.)</td></tr>'}\n"
+        f"        </tbody>\n"
+        f"      </table>\n"
+        f"    </div>\n"
+        f"  </div>\n"
+        f"</div>"
+        )
     # Group rows by category
     categories = {}
     for r in rows:
@@ -1825,6 +1867,305 @@ Examples:
     print(f"{Colors.DIM}🌐 HTML Report   : {html_file}{Colors.RESET}")
     print(f"{Colors.DIM}📊 CSV Report    : {csv_file}{Colors.RESET}")
     print(f"{Colors.CYAN}{'═' * 70}{Colors.RESET}\n")
+
+
+# =======================
+# HARDAX v2 single-file enhancements
+# - net-debug / net-strict via argv shim (env flags)
+# - cert-debug / cert-limit via argv shim (env flags)
+# - improved execute_with_p_fallback (preserve flags, drop -p only, tool swap)
+# - improved certificate audit (APEX/Google dirs, PEM+DER via base64)
+# =======================
+import os, sys, base64
+
+# ---- argv shim (strip our extra flags so argparse doesn't choke) ----
+try:
+    _clean = [sys.argv[0]]
+    _i = 1
+    while _i < len(sys.argv):
+        a = sys.argv[_i]
+        if a == '--net-debug':
+            os.environ['HARDAX_NET_DEBUG'] = '1'
+        elif a == '--net-strict':
+            os.environ['HARDAX_NET_STRICT'] = '1'
+        elif a == '--cert-debug':
+            os.environ['HARDAX_CERT_DEBUG'] = '1'
+        elif a == '--cert-limit':
+            if _i + 1 < len(sys.argv):
+                os.environ['HARDAX_CERT_LIMIT'] = sys.argv[_i+1]
+                _i += 1
+        else:
+            _clean.append(a)
+        _i += 1
+    sys.argv = _clean
+except Exception:
+    pass
+
+# ---- globals (for clarity; not strictly required) ----
+NET_DEBUG = bool(os.environ.get('HARDAX_NET_DEBUG'))
+NET_STRICT = bool(os.environ.get('HARDAX_NET_STRICT'))
+CERT_DEBUG = bool(os.environ.get('HARDAX_CERT_DEBUG'))
+try:
+    CERT_LIMIT = int(os.environ.get('HARDAX_CERT_LIMIT', '50'))
+except Exception:
+    CERT_LIMIT = 50
+
+# ---- helper: discover cert files in standard Android locations ----
+def _find_cert_files(device):
+    candidates = [
+        '/system/etc/security/cacerts',
+        '/system/etc/security/cacerts_google',
+        '/apex/com.android.conscrypt/cacerts',
+        '/apex/com.android.conscrypt/etc/security/cacerts',
+    ]
+    files = []
+    for base in candidates:
+        listing = device.shell(f'ls -1 {base} 2>/dev/null')
+        names = [n.strip() for n in (listing.splitlines() if listing else []) if n.strip()]
+        matched = []
+        for name in names:
+            if name.endswith('.0') or re.fullmatch(r'[0-9a-fA-F]{1,8}', name):
+                matched.append(f"{base}/{name}")
+        files.extend(matched)
+        if CERT_DEBUG:
+            try:
+                print(f"[cert-debug] {base}: {len(matched)} files matched")
+                for demo in matched[:5]:
+                    print(f"  - {demo}")
+            except Exception:
+                pass
+    return files
+
+# ---- helper: robustly read cert bytes (PEM or DER) ----
+def _read_cert_bytes(device, path):
+    # 1) Try plain read to see if PEM
+    txt = device.shell(f"cat {path} 2>/dev/null")
+    if txt and '-----BEGIN CERTIFICATE-----' in txt:
+        return txt.encode('utf-8'), 'PEM'
+    # 2) Try base64 to obtain DER bytes safely
+    b64 = device.shell(f"base64 {path} 2>/dev/null")
+    if b64 and 'not found' not in b64.lower() and b64.strip():
+        try:
+            cleaned = ''.join(b64.strip().split())
+            return base64.b64decode(cleaned, validate=False), 'DER'
+        except Exception:
+            return None, None
+    return None, None
+
+# ---- override: improved certificate audit ----
+def audit_certificates(device: 'Device') -> List[Dict[str, Any]]:
+    certs: List[Dict[str, Any]] = []
+    try:
+        from cryptography import x509
+        from cryptography.hazmat.backends import default_backend
+    except Exception:
+        if CERT_DEBUG:
+            print('[cert-debug] cryptography not available; skipping system cert parse')
+        return []
+
+    cert_files = _find_cert_files(device)
+    if CERT_DEBUG:
+        print(f"[cert-debug] discovered total: {len(cert_files)}")
+    today = datetime.now()
+
+    for i, cert_path in enumerate(cert_files[:CERT_LIMIT]):
+        try:
+            raw, kind = _read_cert_bytes(device, cert_path)
+            if not raw:
+                continue
+            cert = None
+            if kind == 'PEM':
+                try:
+                    cert = x509.load_pem_x509_certificate(raw, default_backend())
+                except Exception:
+                    cert = None
+            if cert is None:
+                try:
+                    cert = x509.load_der_x509_certificate(raw, default_backend())
+                except Exception:
+                    cert = None
+            if cert is None:
+                if CERT_DEBUG:
+                    print(f"[cert-debug] parse failed: {cert_path}")
+                continue
+            subject = getattr(cert, 'subject', None)
+            issuer = getattr(cert, 'issuer', None)
+            try:
+                not_before = getattr(cert, 'not_valid_before')
+                not_after = getattr(cert, 'not_valid_after')
+            except Exception:
+                # older libs
+                not_before = getattr(cert, 'not_valid_before_utc', None)
+                not_after = getattr(cert, 'not_valid_after_utc', None)
+            if not_before is None or not_after is None:
+                continue
+            try:
+                subject_str = subject.rfc4514_string() if subject else 'Unknown'
+                issuer_str = issuer.rfc4514_string() if issuer else 'Unknown'
+            except Exception:
+                subject_str = 'Unknown'
+                issuer_str = 'Unknown'
+            days_old = (today - not_before.replace(tzinfo=None)).days
+            days_until_expiry = (not_after.replace(tzinfo=None) - today).days
+            if days_until_expiry < 0:
+                status, risk = 'EXPIRED', 'critical'
+            elif days_until_expiry < 30:
+                status, risk = 'EXPIRING_SOON', 'warning'
+            elif days_until_expiry < 90:
+                status, risk = 'CHECK', 'warning'
+            else:
+                status, risk = 'VALID', 'safe'
+            # CN extraction
+            cn = 'Unknown'
+            for part in subject_str.split(','):
+                p = part.strip()
+                if p.startswith('CN='):
+                    cn = p[3:]
+                    break
+            certs.append({
+                'filename': cert_path.split('/')[-1],
+                'cn': cn[:50] + '...' if len(cn) > 50 else cn,
+                'issuer': issuer_str[:50] + '...' if len(issuer_str) > 50 else issuer_str,
+                'not_before': not_before.strftime('%Y-%m-%d'),
+                'not_after': not_after.strftime('%Y-%m-%d'),
+                'days_old': days_old,
+                'days_until_expiry': days_until_expiry,
+                'status': status,
+                'risk': risk,
+            })
+        except Exception:
+            continue
+
+    # User-installed certs across all users
+    try:
+        user_roots = device.shell('ls -d /data/misc/user/*/cacerts-added 2>/dev/null')
+        user_dirs = [d.strip() for d in (user_roots.split('\n') if user_roots else []) if d.strip()]
+        if not user_dirs:
+            user_dirs = ['/data/misc/user/0/cacerts-added']
+        for d in user_dirs:
+            ulist = device.shell(f'ls -1 {d} 2>/dev/null')
+            if ulist.strip():
+                for cf in [x.strip() for x in ulist.split('\n') if x.strip()]:
+                    certs.append({
+                        'filename': cf,
+                        'cn': 'USER INSTALLED CERT',
+                        'issuer': 'Unknown - User Added',
+                        'not_before': '-',
+                        'not_after': '-',
+                        'days_old': 0,
+                        'days_until_expiry': 0,
+                        'status': 'USER_CERT',
+                        'risk': 'critical',
+                    })
+    except Exception:
+        pass
+
+    return sorted(certs, key=lambda x: (x['risk'] != 'critical', x['risk'] != 'warning', x['days_until_expiry']))
+
+# ---- override: execute_with_p_fallback (preserve flags; drop -p; swap tool) ----
+def execute_with_p_fallback(device: 'Device', command: str, show_commands: bool = False, is_rooted: bool = None) -> str:
+    def is_net_or_ss(cmd: str) -> bool:
+        cl = cmd.lower()
+        return ('netstat' in cl) or re.search(r'\bss\b', cl)
+
+    def split_alternatives(src: str) -> list:
+        s = re.sub(r"^\s*(?:/system/bin/)?sh\s+-[a-z]*c\s+(['\"])(.*?)\1\s*$", r"\2", src.strip(), flags=re.IGNORECASE)
+        s = s.replace('\r\n', '\n').replace('\r', '\n')
+        blocks = re.split(r'\n\s*\n+', s.strip())
+        return [b for b in blocks if is_net_or_ss(b)]
+
+    def split_pipeline(block: str):
+        if '|' not in block:
+            return block.strip(), ''
+        base, rest = block.split('|', 1)
+        return base.strip(), ('|' + rest.strip())
+
+    def drop_pid_flag(cmd: str) -> str:
+        def _rm_p(m):
+            f = m.group(1)
+            f2 = f.replace('p', '')
+            return '-' + f2 if f2 else ''
+        return re.sub(r'\s-(\w+)', _rm_p, cmd)
+
+    def swap_tool(cmd: str):
+        if re.match(r'(?i)^\s*netstat\b', cmd):
+            return re.sub(r'(?i)^\s*netstat\b', 'ss', cmd, count=1)
+        if re.match(r'(?i)^\s*ss\b', cmd):
+            return re.sub(r'(?i)^\s*ss\b', 'netstat', cmd, count=1)
+        return None
+
+    def output_reason(txt: str):
+        if not txt or not txt.strip():
+            return False, 'empty output'
+        lower = txt.lower()
+        for bad in ['not found', 'invalid', 'permission denied', 'cannot open', 'no such']:
+            if bad in lower:
+                return False, bad
+        lines = [l for l in txt.strip().split('\n') if l.strip()]
+        if len(lines) <= 1 and (lines and ('proto' in lines[0].lower() or 'state' in lines[0].lower())):
+            return False, 'header-only'
+        return True, 'ok'
+
+    # Bypass for non-network commands
+    if not is_net_or_ss(command):
+        if NET_DEBUG:
+            print('[net-debug] non-network command -> bypass executor')
+        return device.shell(command)
+
+    blocks = split_alternatives(command)
+    if NET_DEBUG:
+        print('[net-debug] alternatives: %d block(s)' % len(blocks))
+        for i, b in enumerate(blocks, 1):
+            print('  block %d: %s' % (i, b.split('|')[0].strip()))
+    if not blocks:
+        return device.shell(command)
+
+    for block in blocks:
+        base_cmd, pipeline = split_pipeline(block)
+        candidates = []
+        if is_rooted or is_rooted is None:
+            candidates.append('su -c "%s"' % base_cmd)
+        candidates.append(base_cmd)
+        # Without -p
+        no_p = drop_pid_flag(base_cmd)
+        if no_p != base_cmd:
+            if is_rooted or is_rooted is None:
+                candidates.append('su -c "%s"' % no_p)
+            candidates.append(no_p)
+        # Swap tool (preserve flags)
+        swapped = swap_tool(base_cmd)
+        if swapped:
+            if is_rooted or is_rooted is None:
+                candidates.append('su -c "%s"' % swapped)
+            candidates.append(swapped)
+            swapped_no_p = drop_pid_flag(swapped)
+            if swapped_no_p != swapped:
+                if is_rooted or is_rooted is None:
+                    candidates.append('su -c "%s"' % swapped_no_p)
+                candidates.append(swapped_no_p)
+
+        if NET_DEBUG:
+            print('[net-debug] candidates (%d):' % len(candidates))
+            for c in candidates:
+                print('  - %s' % c)
+
+        for cand in candidates:
+            if show_commands:
+                print('  -> Trying: %s' % cand)
+            raw = device.shell(cand)
+            ok, why = output_reason(raw)
+            if not ok:
+                if NET_DEBUG:
+                    print('[net-debug] reject: %s' % why)
+                continue
+            if NET_DEBUG:
+                print('[net-debug] winner: %s' % cand)
+            pipeline_src = (base_cmd + (' ' + pipeline if pipeline else ''))
+            return apply_filters(raw, pipeline_src)
+
+    return ''
+
+# ======================= End v2 enhancements =======================
 
 if __name__ == "__main__":
     main()
