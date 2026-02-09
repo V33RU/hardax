@@ -1,0 +1,37 @@
+{
+  "checks": [
+    {
+      "category": "ADB_SECURITY",
+      "label": "ADB Keys Present",
+      "command": "ls /data/misc/adb/adb_keys 2>/dev/null",
+      "safe_pattern": "^ls:.*No such file or directory$",
+      "level": "warning",
+      "description": "Presence of adb_keys may indicate previously trusted host"
+    },
+    {
+      "category": "ADB_SECURITY",
+      "label": "ADB Over Network Port",
+      "command": "getprop service.adb.tcp.port",
+      "safe_pattern": "^$",
+      "level": "info",
+      "description": "Should be empty or disabled; non-default = risk",
+      "empty_is_safe": true
+    },
+    {
+      "category": "ADB_SECURITY",
+      "label": "System Debug Binaries",
+      "command": "ls /system/bin/gdbserver /system/bin/strace 2>/dev/null",
+      "safe_pattern": "^ls:.*No such file or directory$",
+      "level": "warning",
+      "description": "Presence of debug tools increases attack surface"
+    },
+    {
+      "category": "ADB_SECURITY",
+      "label": "Kernel DebugFS Enabled",
+      "command": "cat /sys/kernel/debug/debug_enabled 2>/dev/null",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Kernel debugfs enabled exposes sensitive kernel interfaces"
+    }
+  ]
+}

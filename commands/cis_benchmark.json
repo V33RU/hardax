@@ -1,0 +1,205 @@
+{
+  "checks": [
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 1.3 - Pattern Visibility Disabled",
+      "command": "settings get secure lock_pattern_visible 2>/dev/null",
+      "safe_pattern": "^0$|^null$",
+      "level": "warning",
+      "description": "CIS 1.3: Ensure 'Make pattern visible' is set to 'Disabled' to prevent shoulder surfing attacks",
+      "cis_id": "1.3",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 1.5 - Power Button Instantly Locks",
+      "command": "settings get secure lock_screen_lock_after_timeout 2>/dev/null",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "CIS 1.5: Ensure 'Power button instantly locks' is set to 'Enabled' for immediate device locking",
+      "cis_id": "1.5",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 1.6 - Lock Screen Owner Info Set",
+      "command": "settings get secure lock_screen_owner_info_enabled 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "info",
+      "description": "CIS 1.6: Ensure 'Lock Screen Message' is configured for device identification and emergency contact",
+      "cis_id": "1.6",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 1.6 - Lock Screen Message Content",
+      "command": "settings get secure lock_screen_owner_info 2>/dev/null",
+      "safe_pattern": ".+",
+      "level": "info",
+      "description": "CIS 1.6: Lock screen message should contain emergency contact or corporate info",
+      "cis_id": "1.6",
+      "cis_level": "L1",
+      "empty_is_safe": false
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 1.13 - Find My Device Enabled",
+      "command": "settings get secure find_my_device 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "warning",
+      "description": "CIS 1.13: Ensure 'Find My Device' is set to 'Enabled' for remote locate, lock, and erase capabilities",
+      "cis_id": "1.13",
+      "cis_level": "L2"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 1.16 - Device Admin Apps (Remote Wipe)",
+      "command": "dumpsys device_policy 2>/dev/null | grep -c 'admin=' || echo 0",
+      "safe_pattern": "^[1-9]",
+      "level": "info",
+      "description": "CIS 1.16: Ensure 'Allow remote lock and erase' is enabled via device admin apps",
+      "cis_id": "1.16",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 1.18 - Package Verifier Enabled",
+      "command": "settings get global package_verifier_enable 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "warning",
+      "description": "CIS 1.18: Ensure 'Improve harmful app detection' is enabled for enhanced malware scanning",
+      "cis_id": "1.18",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 1.18 - APK Upload for Scanning",
+      "command": "settings get global upload_apk_enable 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "info",
+      "description": "CIS 1.18: Unknown APKs sent to Google for analysis to improve harmful app detection",
+      "cis_id": "1.18",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 1.19 - Screen Pinning Requires Auth",
+      "command": "settings get secure lock_to_app_exit_locked 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "warning",
+      "description": "CIS 1.19: Ensure 'Ask for PIN/password before unpinning' is enabled when using screen pinning",
+      "cis_id": "1.19",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 1.21 - Wi-Fi Wakeup Disabled",
+      "command": "settings get global wifi_wakeup_enabled 2>/dev/null",
+      "safe_pattern": "^0$|^null$",
+      "level": "warning",
+      "description": "CIS 1.21: Ensure 'Wi-Fi assistant/wakeup' is disabled to prevent auto-connecting to untrusted networks",
+      "cis_id": "1.21",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 1.21 - Network Scoring Disabled",
+      "command": "settings get global network_scoring_provisioned 2>/dev/null",
+      "safe_pattern": "^0$|^null$",
+      "level": "info",
+      "description": "CIS 1.21: Network scoring for Wi-Fi assistant should be disabled",
+      "cis_id": "1.21",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 1.22 - App Auto Update Policy",
+      "command": "settings get global app_auto_update_policy 2>/dev/null",
+      "safe_pattern": "^1$|^2$",
+      "level": "info",
+      "description": "CIS 1.22: App auto-update policy (1=WiFi only, 2=always) should be enabled to keep apps updated",
+      "cis_id": "1.22",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 1.23 - Add Users From Lock Screen Disabled",
+      "command": "settings get global add_users_when_locked 2>/dev/null",
+      "safe_pattern": "^0$|^null$",
+      "level": "warning",
+      "description": "CIS 1.23: Ensure 'Add users from lock screen' is disabled to prevent unauthorized user creation",
+      "cis_id": "1.23",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 1.28 - User Profiles Count",
+      "command": "pm list users 2>/dev/null | wc -l",
+      "safe_pattern": "^1$",
+      "level": "info",
+      "description": "CIS 1.28: Review existing user profiles - ideally only 1 primary user should exist",
+      "cis_id": "1.28",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 2.3 - Web Action Disabled",
+      "command": "settings get secure web_action_enabled 2>/dev/null",
+      "safe_pattern": "^0$|^null$",
+      "level": "info",
+      "description": "CIS 2.3: Web and App Activity tracking should be disabled for privacy",
+      "cis_id": "2.3",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 2.3 - Assist Structure Disabled",
+      "command": "settings get secure assist_structure_enabled 2>/dev/null",
+      "safe_pattern": "^0$|^null$",
+      "level": "info",
+      "description": "CIS 2.3: Assistant structure capture should be disabled for privacy",
+      "cis_id": "2.3",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 2.4 - Error Reporting Disabled",
+      "command": "settings get secure send_action_app_error 2>/dev/null",
+      "safe_pattern": "^0$|^null$",
+      "level": "info",
+      "description": "CIS 2.4: Device information/error reporting should be disabled for privacy",
+      "cis_id": "2.4",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 2.11 - Bluetooth Scanning Disabled",
+      "command": "settings get global ble_scan_always_enabled 2>/dev/null",
+      "safe_pattern": "^0$|^null$",
+      "level": "warning",
+      "description": "CIS 2.11: Ensure 'Bluetooth scanning' is disabled to prevent location tracking via BLE beacons",
+      "cis_id": "2.11",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 3.1 - Chrome Microphone Permission",
+      "command": "appops get com.android.chrome RECORD_AUDIO 2>/dev/null | grep -o 'allow\\|deny\\|ask\\|ignore' | head -1",
+      "safe_pattern": "^ask$|^deny$|^ignore$",
+      "level": "info",
+      "description": "CIS 3.1: Chrome microphone permission should require user confirmation (ask) not auto-allow",
+      "cis_id": "3.1",
+      "cis_level": "L1"
+    },
+    {
+      "category": "CIS_BENCHMARK",
+      "label": "CIS 3.2 - Chrome Location Permission",
+      "command": "appops get com.android.chrome COARSE_LOCATION 2>/dev/null | grep -o 'allow\\|deny\\|ask\\|ignore' | head -1",
+      "safe_pattern": "^ask$|^deny$|^ignore$",
+      "level": "info",
+      "description": "CIS 3.2: Chrome location permission should require user confirmation (ask) not auto-allow",
+      "cis_id": "3.2",
+      "cis_level": "L1"
+    }
+  ]
+}

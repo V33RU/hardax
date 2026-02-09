@@ -1,0 +1,172 @@
+{
+  "checks": [
+    {
+      "category": "SYSTEM",
+      "label": "SELinux Mode",
+      "command": "getenforce 2>/dev/null",
+      "safe_pattern": "^Enforcing$",
+      "level": "critical",
+      "description": "SELinux must be Enforcing - Permissive allows policy bypass"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Verified Boot State (Build Property)",
+      "command": "getprop ro.boot.verifiedbootstate 2>/dev/null",
+      "safe_pattern": "^green$",
+      "level": "critical",
+      "description": "Verified boot should be 'green' (fully verified chain)"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "vbmeta Device State",
+      "command": "getprop ro.boot.vbmeta.device_state",
+      "safe_pattern": "^locked$",
+      "level": "critical",
+      "description": "vbmeta device_state must be locked"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "AVB Version Present",
+      "command": "getprop ro.boot.avb_version",
+      "safe_pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$",
+      "level": "info",
+      "description": "AVB version should be present"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "avbctl Present",
+      "command": "command -v avbctl >/dev/null 2>&1 && echo present || echo absent",
+      "safe_pattern": "^present$",
+      "level": "info",
+      "description": "avbctl binary available for rollback checks"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "Rollback Index (slot 0) > 0",
+      "command": "command -v avbctl >/dev/null 2>&1 && avbctl get-rollback-index 0 2>/dev/null | awk '{print $NF}' || echo 0",
+      "safe_pattern": "^[1-9][0-9]*$",
+      "level": "info",
+      "description": "Anti-rollback index should be > 0 (slot 0) (INFO if avbctl unavailable)"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "Rollback Index (slot 1) > 0",
+      "command": "command -v avbctl >/dev/null 2>&1 && avbctl get-rollback-index 1 2>/dev/null | awk '{print $NF}' || echo 0",
+      "safe_pattern": "^[1-9][0-9]*$",
+      "level": "info",
+      "description": "Anti-rollback index should be > 0 (slot 1) (INFO if avbctl unavailable)"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "OEM Unlock Allowed",
+      "command": "getprop sys.oem_unlock_allowed",
+      "safe_pattern": "^0$",
+      "level": "critical",
+      "description": "Should be disabled to prevent unlock"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "Safe Mode",
+      "command": "getprop persist.sys.safemode",
+      "safe_pattern": "^0$",
+      "level": "info",
+      "description": "Should not be running in Safe Mode"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "FRP Policy",
+      "command": "settings get global frp_policy",
+      "safe_pattern": "^1$",
+      "level": "critical",
+      "description": "Factory Reset Protection should be enabled"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "ADB Over Wi-Fi",
+      "command": "settings get global adb_wifi_enabled",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Risky if enabled"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "Bootloader Locked",
+      "command": "getprop ro.boot.flash.locked",
+      "safe_pattern": "^1$",
+      "level": "critical",
+      "description": "1 means locked bootloader; 0 means unlocked"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "Fastboot Unlock Allowed",
+      "command": "getprop ro.oem_unlock_supported",
+      "safe_pattern": "^0$",
+      "level": "critical",
+      "description": "Fastboot OEM unlock must be disabled"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "OEM Unlock Disabled (Global Setting)",
+      "command": "settings get global oem_unlock_allowed 2>/dev/null",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "OEM unlock should be disallowed by policy (0)"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "FRP Partition Path Set",
+      "command": "getprop ro.frp.pst",
+      "safe_pattern": "^/.+",
+      "level": "info",
+      "description": "Factory Reset Protection partition path configured"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "Verity Mode (cmdline)",
+      "command": "grep -o 'androidboot.veritymode=[^ ]*' /proc/cmdline | cut -d= -f2",
+      "safe_pattern": "^enforcing$",
+      "level": "critical",
+      "description": "dm-verity should be enforcing"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "dm-verity-backed Partitions Mounted",
+      "command": "mount | grep '/dm-' | grep -E 'ext4|f2fs' | wc -l",
+      "safe_pattern": "^[1-9][0-9]*$",
+      "level": "warning",
+      "description": "At least one partition should be backed by dm-verity"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "AVB/Verity Success in dmesg",
+      "command": "dmesg 2>/dev/null | grep -iE 'avb.*(success|green)|dm-verity:.*(enabled|ready|using)' | wc -l",
+      "safe_pattern": "^[1-9][0-9]*$",
+      "level": "info",
+      "description": "Kernel logs should show AVB/verity success (if accessible)"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "Test-keys Build",
+      "command": "getprop ro.build.fingerprint",
+      "safe_pattern": "release-keys",
+      "level": "critical",
+      "description": "Test-keys in fingerprint indicates insecure engineering/debug build"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "Boot Image Tampered",
+      "command": "ls -l /init /init.rc",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Check for unusual file sizes or dates"
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "label": "System Partition Tampering",
+      "command": "lsattr /system/bin/app_process* 2>/dev/null",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Detects immutability or possible tampering"
+    }
+  ]
+}

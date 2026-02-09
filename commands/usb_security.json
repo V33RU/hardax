@@ -1,0 +1,122 @@
+{
+  "checks": [
+    {
+      "category": "USB_SECURITY",
+      "label": "USB Debugging Enabled",
+      "command": "settings get global adb_enabled",
+      "safe_pattern": "0|null",
+      "level": "critical",
+      "description": "USB debugging should be disabled in production"
+    },
+    {
+      "category": "USB_SECURITY",
+      "label": "USB Mass Storage",
+      "command": "getprop sys.usb.config",
+      "safe_pattern": "^(none|mtp|ptp|charging)$",
+      "level": "warning",
+      "description": "Check USB configuration mode"
+    },
+    {
+      "category": "USB_SECURITY",
+      "label": "USB Accessory Mode",
+      "command": "getprop sys.usb.state",
+      "safe_pattern": "^(none|mtp|ptp|charging)$",
+      "level": "info",
+      "description": "Current USB state"
+    },
+    {
+      "category": "USB_SECURITY",
+      "label": "MTP Enabled",
+      "command": "settings get global mtp_enabled",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "MTP file transfer status"
+    },
+    {
+      "category": "USB_SECURITY",
+      "label": "Serial Device Files Exposed",
+      "command": "ls /dev/tty* 2>/dev/null | grep -E 'ttyS|ttyUSB|ttyACM|ttyAMA|ttyMSM|ttyHS' | head -10",
+      "safe_pattern": "^$",
+      "level": "info",
+      "description": "Serial interfaces exposed to userspace - may allow debug console access if physical UART connected",
+      "empty_is_safe": true
+    },
+    {
+      "category": "USB_SECURITY",
+      "label": "GPIO Sysfs Exposed",
+      "command": "ls /sys/class/gpio/ 2>/dev/null | grep -v 'export\\|unexport'",
+      "safe_pattern": "^$",
+      "level": "info",
+      "description": "GPIO pins exported to userspace - apps can control hardware pins",
+      "empty_is_safe": true
+    },
+    {
+      "category": "USB_SECURITY",
+      "label": "I2C Bus Exposed",
+      "command": "ls /dev/i2c-* 2>/dev/null",
+      "safe_pattern": "^$",
+      "level": "info",
+      "description": "I2C bus accessible from userspace - can communicate with sensors/peripherals",
+      "empty_is_safe": true
+    },
+    {
+      "category": "USB_SECURITY",
+      "label": "SPI Bus Exposed",
+      "command": "ls /dev/spidev* 2>/dev/null",
+      "safe_pattern": "^$",
+      "level": "info",
+      "description": "SPI bus accessible from userspace",
+      "empty_is_safe": true
+    },
+    {
+      "category": "USB_SECURITY",
+      "label": "USB Gadget Controller",
+      "command": "ls /sys/class/udc/ 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "USB device controller present - device can act as USB peripheral"
+    },
+    {
+      "category": "USB_SECURITY",
+      "label": "Kernel Console Enabled",
+      "command": "cat /proc/cmdline 2>/dev/null | grep -oE 'console=[^ ]+'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Kernel boot console configured - debug output on serial port",
+      "empty_is_safe": true
+    },
+    {
+      "category": "USB_SECURITY",
+      "label": "Video Capture Devices",
+      "command": "ls /dev/video* 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Camera/video devices available"
+    },
+    {
+      "category": "USB_SECURITY",
+      "label": "Audio Capture Devices",
+      "command": "ls /dev/snd/pcm*c* 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Audio capture devices (microphones) available"
+    },
+    {
+      "category": "USB_SECURITY",
+      "label": "Raw Memory Access",
+      "command": "ls -la /dev/mem /dev/kmem 2>/dev/null",
+      "safe_pattern": "^$|No such file",
+      "level": "critical",
+      "description": "/dev/mem or /dev/kmem exposed - allows raw memory read/write!",
+      "empty_is_safe": true
+    },
+    {
+      "category": "USB_SECURITY",
+      "label": "Block Devices Writable",
+      "command": "ls -la /dev/block/mmcblk* /dev/block/sd* 2>/dev/null | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Raw block devices - check permissions"
+    }
+  ]
+}
