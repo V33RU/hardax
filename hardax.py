@@ -1,21 +1,4 @@
 #!/usr/bin/env python3
-"""
-HARDAX - Hardening Audit eXaminer
-Android OS based IoT Devices Security Configuration Auditor
-
-Modes:
-    ADB (default)      -> runs commands via `adb shell`
-    SSH (--mode ssh)   -> runs commands via SSH (password supported)
-
-Features:
-    Beautiful colored CLI output with real-time progress
-    Live command execution display
-    Enhanced visual feedback
-    Collapsible HTML report with category sections
-
-Reports:
-    TXT + CSV + HTML (timestamped folders)
-"""
 
 import argparse
 import csv
@@ -342,6 +325,218 @@ class SSHDevice(Device):
             pass
 
 # -------------------------
+# Smart Command Execution with -p Fallback (netstat/ss only)
+# -------------------------
+
+def execute_with_p_fallback(device: Device, command: str, show_commands: bool = False, is_rooted: bool = None) -> str:
+    """
+    Smart execution for netstat/ss commands.
+    
+    Strategy:
+    1. If device is rooted → try with su -c first for full info
+    2. If not rooted or su fails → try without su
+    3. If -p flag causes issues → remove -p and retry
+    
+    Returns the best available output.
+    """
+    
+    def is_netstat_or_ss_command(cmd: str) -> bool:
+        """Check if command contains netstat or ss"""
+        cmd_lower = cmd.lower()
+        return 'netstat' in cmd_lower or re.search(r'\bss\b', cmd_lower)
+    
+    def extract_netstat_ss_command(cmd: str) -> str:
+        """Extract the core netstat/ss command from shell wrappers"""
+        # Remove sh -c, sh -lc wrappers
+        cmd = re.sub(r"sh\s+-[a-z]*c\s+'([^']+)'", r'\1', cmd)
+        # Get first command (before ||)
+        if '||' in cmd:
+            cmd = cmd.split('||')[0].strip()
+        # Remove redirections
+        cmd = re.sub(r'\s*2>/dev/null', '', cmd)
+        return cmd.strip()
+    
+    def is_output_valid(output: str) -> bool:
+        """Check if output has actual data (not just header or error)"""
+        if not output or not output.strip():
+            return False
+        output_lower = output.lower()
+        # Check for errors
+        if any(err in output_lower for err in ['permission denied', 'not found', 'cannot open', 'invalid']):
+            return False
+        # Check if it's just a header line
+        lines = [l for l in output.strip().split('\n') if l.strip()]
+        if len(lines) <= 1:
+            # Might just be header "Proto Recv-Q..."
+            if lines and ('proto' in lines[0].lower() or 'state' in lines[0].lower()):
+                return False
+        return True
+    
+    def has_data_rows(output: str) -> bool:
+        """Check if output has actual data rows (not just header)"""
+        if not output:
+            return False
+        lines = [l.strip() for l in output.strip().split('\n') if l.strip()]
+        # Filter out header lines
+        data_lines = [l for l in lines if not l.lower().startswith('proto') and 
+                      not l.lower().startswith('state') and
+                      not l.lower().startswith('active')]
+        return len(data_lines) > 0
+    
+    # Check if this is a network command
+    if not is_netstat_or_ss_command(command):
+        return device.shell(command)
+    
+    # Extract the core command
+    core_cmd = extract_netstat_ss_command(command)
+    
+    # Determine if we should use netstat or ss
+    use_netstat = 'netstat' in core_cmd.lower()
+    
+    # Build simple commands without wrappers
+    if use_netstat:
+        # Use -anp for all connections with PID
+        simple_cmd = "netstat -anp"
+    else:
+        simple_cmd = "ss -anp"
+    
+    results = []
+    
+    # Strategy 1: If potentially rooted, try with su first
+    if is_rooted or is_rooted is None:
+        su_cmd = f'su -c "{simple_cmd}"'
+        if show_commands:
+            print(f"    {Colors.DIM}→ Trying (root): {su_cmd}{Colors.RESET}")
+        
+        su_result = device.shell(su_cmd)
+        
+        if su_result and "not found" not in su_result.lower() and is_output_valid(su_result):
+            if show_commands:
+                print(f"    {Colors.GREEN}→ Got output via su (root){Colors.RESET}")
+            # Apply original grep filters if any
+            return apply_filters(su_result, command)
+    
+    # Strategy 2: Try without su
+    if show_commands:
+        print(f"    {Colors.DIM}→ Trying (non-root): {simple_cmd}{Colors.RESET}")
+    
+    result = device.shell(simple_cmd)
+    
+    if result and is_output_valid(result):
+        if show_commands:
+            print(f"    {Colors.YELLOW}→ Got output (non-root){Colors.RESET}")
+        return apply_filters(result, command)
+    
+    # Strategy 3: Try without -p flag
+    simple_cmd_no_p = simple_cmd.replace('-anp', '-an').replace('-lntp', '-lnt').replace('-lnup', '-lnu')
+    if simple_cmd_no_p != simple_cmd:
+        if show_commands:
+            print(f"    {Colors.DIM}→ Trying without -p: {simple_cmd_no_p}{Colors.RESET}")
+        
+        no_p_result = device.shell(simple_cmd_no_p)
+        
+        if no_p_result and is_output_valid(no_p_result):
+            if show_commands:
+                print(f"    {Colors.YELLOW}→ Got output without -p (no PID info){Colors.RESET}")
+            return apply_filters(no_p_result, command)
+    
+    # Strategy 4: Try ss as fallback if netstat failed
+    if use_netstat:
+        ss_cmd = "ss -anp"
+        if is_rooted or is_rooted is None:
+            ss_cmd = f'su -c "{ss_cmd}"'
+        
+        if show_commands:
+            print(f"    {Colors.DIM}→ Trying ss fallback: {ss_cmd}{Colors.RESET}")
+        
+        ss_result = device.shell(ss_cmd)
+        
+        if ss_result and is_output_valid(ss_result):
+            return apply_filters(ss_result, command)
+    
+    # Return empty with note about failure
+    return ""
+
+
+def apply_filters(output: str, original_command: str) -> str:
+    """Apply grep filters from original command to output"""
+    if not output:
+        return output
+    
+    # Extract grep patterns from original command
+    grep_patterns = re.findall(r"grep\s+(?:-[vE]+\s+)?'([^']+)'", original_command)
+    grep_patterns += re.findall(r'grep\s+(?:-[vE]+\s+)?"([^"]+)"', original_command)
+    
+    # Also check for grep -v (exclude) patterns
+    exclude_patterns = re.findall(r"grep\s+-v\s+'([^']+)'", original_command)
+    exclude_patterns += re.findall(r'grep\s+-v\s+"([^"]+)"', original_command)
+    
+    # Check for specific protocol filters
+    lines = output.strip().split('\n')
+    filtered_lines = []
+    
+    for line in lines:
+        # Check protocol filters in original command
+        if "grep '^tcp '" in original_command and not line.startswith('tcp '):
+            continue
+        if "grep '^tcp6'" in original_command and not line.startswith('tcp6'):
+            continue
+        if "grep '^udp '" in original_command and not line.startswith('udp '):
+            continue
+        if "grep '^udp6'" in original_command and not line.startswith('udp6'):
+            continue
+        
+        # Apply exclude patterns
+        excluded = False
+        for pattern in exclude_patterns:
+            if re.search(pattern.replace('\\\\', '\\'), line):
+                excluded = True
+                break
+        
+        if not excluded:
+            filtered_lines.append(line)
+    
+    return '\n'.join(filtered_lines)
+
+
+def detect_root_status(device: Device) -> Tuple[bool, str]:
+    """
+    Detect if device is rooted and what root method is available.
+    
+    Returns:
+        (is_rooted: bool, root_method: str)
+        root_method can be: 'su', 'magisk', 'none'
+    """
+    # Check for su binary
+    su_check = device.shell("which su 2>/dev/null || command -v su 2>/dev/null")
+    has_su = bool(su_check and su_check.strip() and 'not found' not in su_check.lower())
+    
+    # Check if su actually works
+    if has_su:
+        su_test = device.shell('su -c "id" 2>/dev/null')
+        if su_test and 'uid=0' in su_test:
+            # Check for Magisk
+            magisk_check = device.shell("su -c 'magisk -v' 2>/dev/null")
+            if magisk_check and magisk_check.strip() and 'not found' not in magisk_check.lower():
+                return True, 'magisk'
+            return True, 'su'
+    
+    # Check for Magisk directly
+    magisk_check = device.shell("magisk -v 2>/dev/null")
+    if magisk_check and magisk_check.strip() and 'not found' not in magisk_check.lower():
+        return True, 'magisk'
+    
+    # Check ro.debuggable and other root indicators
+    debuggable = device.shell("getprop ro.debuggable")
+    if debuggable and debuggable.strip() == '1':
+        # Might be rooted, try su
+        su_test = device.shell('su -c "id" 2>/dev/null')
+        if su_test and 'uid=0' in su_test:
+            return True, 'su'
+    
+    return False, 'none'
+
+# -------------------------
 # Banner
 # -------------------------
 
@@ -357,7 +552,7 @@ def print_banner(id_line: Optional[str]) -> None:
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ┃  {Colors.BOLD}Hardening Audit eXaminer{Colors.RESET}{Colors.BRIGHT_CYAN} v{__version__}                               ┃
 ┃  {Colors.DIM}Android OS based IoT Devices Security Configuration Auditor{Colors.BRIGHT_CYAN}   ┃
-┃  {Colors.YELLOW}[400 Checks]{Colors.RESET} {Colors.GREEN}[14 Categories]{Colors.BRIGHT_CYAN}                                   ┃
+┃  {Colors.YELLOW}[458 Checks]{Colors.RESET} {Colors.GREEN}[17 Categories]{Colors.BRIGHT_CYAN}                                   ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛{Colors.RESET}
 """)
     
@@ -1297,7 +1492,7 @@ def is_empty_or_error(output: str) -> bool:
             return True
     return False
 
-def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, show_commands: bool = False) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
+def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, show_commands: bool = False, is_rooted: bool = False) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
     rows: List[Dict[str, Any]] = []
     counts = {"safe": 0, "warning": 0, "critical": 0, "info": 0, "verify": 0}
     total = len(checks)
@@ -1317,7 +1512,7 @@ def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, s
         # New: allow checks to specify if null means safe
         null_is_safe = chk.get("null_is_safe", False)
 
-        raw = device.shell(command) if command else ""
+        raw = execute_with_p_fallback(device, command, show_commands, is_rooted=is_rooted) if command else ""
         normalized = normalize_for_match(raw)
         bucket = bucket_from_level(level)
 
@@ -1550,8 +1745,17 @@ Examples:
 
     # Run audit
     print(f"\n{Colors.BRIGHT_CYAN}🔍 Starting security audit with {len(checks)} checks...{Colors.RESET}\n")
+    
+    # Detect root status first
+    is_rooted, root_method = detect_root_status(device)
+    if is_rooted:
+        print(f"{Colors.GREEN}✓ Root detected ({root_method}) - will use su for privileged commands{Colors.RESET}")
+    else:
+        print(f"{Colors.YELLOW}⚠ Device not rooted - some checks may have limited output{Colors.RESET}")
+    print()
+    
     device_info = collect_device_info(device)
-    rows, counts = run_checks(device, checks, on_progress=_progress, show_commands=args.show_commands or not args.progress_numbers)
+    rows, counts = run_checks(device, checks, on_progress=_progress, show_commands=args.show_commands or not args.progress_numbers, is_rooted=is_rooted)
 
     if args.progress_numbers:
         print()
