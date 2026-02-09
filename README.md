@@ -9,8 +9,7 @@
 </p>
 
 <p align="center">
-  <b>Hardening Audit eXaminer for Android-based Devices</b><br>
-  <i>Comprehensive Security Configuration Auditor for IoT & POS Terminals</i>
+  <b>Hardening Audit eXaminer for Android OS based Connected Devices</b><br>
 </p>
 
 ```
