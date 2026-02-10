@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.2.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.6+-green.svg" alt="Python">
-  <img src="https://img.shields.io/badge/checks-435-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-454-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-16-purple.svg" alt="Categories">
   <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
 </p>
@@ -20,7 +20,7 @@
 ┃  ██╔══██║██╔══██║██╔══██╗██║  ██║██╔══██║ ██╔██    ┃
 ┃  ██║  ██║██║  ██║██║  ██║██████╔╝██║  ██║██╔╝ ██╗  ┃
 ┃  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝  ┃
-┃  [458 Checks] [17 Categories] [3 Report Formats]   ┃
+┃  [454 Checks] [17 Categories] [3 Report Formats]   ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
