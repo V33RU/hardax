@@ -114,11 +114,11 @@ python3 hardax.py
 ### Optional Dependencies
 
 ```bash
-# For SSH mode
-pip install paramiko
+For Linux : 
+pip install paramiko cryptography
 
-# For Certificate Audit feature
-pip install cryptography
+For Windows
+py -m pip install -r requirements.txt
 ```
 
 ---
@@ -133,6 +133,9 @@ python3 hardax.py
 
 # Show commands being executed
 python3 hardax.py --show-commands
+
+# Custom output directory
+python3 hardax.py --json-dir commands
 
 # Specify device by serial
 python3 hardax.py --serial DEVICE_SERIAL
