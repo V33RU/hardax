@@ -544,40 +544,76 @@ def apply_filters(output: str, original: str) -> str:
 
 def detect_root_status(device: Device) -> Tuple[bool, str]:
     """
-    Detect if device is rooted and what root method is available.
-    
-    Returns:
-        (is_rooted: bool, root_method: str)
-        root_method can be: 'su', 'magisk', 'none'
+    Returns (is_rooted, method).
+    method ∈ {'adbd-root','magisk','su','su-present-not-working','none'}
+    NOTE: This augments the existing logic with an explicit 'su -c id' validation.
     """
-    # Check for su binary
-    su_check = device.shell("which su 2>/dev/null || command -v su 2>/dev/null")
-    has_su = bool(su_check and su_check.strip() and 'not found' not in su_check.lower())
-    
-    # Check if su actually works
+    # -----------------------------
+    # 1) Try ADBD root (eng/userdebug)
+    # -----------------------------
+    try:
+        if isinstance(device, ADBDevice):
+            # Try to elevate adbd itself (only works on eng/userdebug)
+            run_local(["adb", "start-server"])
+            run_local(device._base() + ["root"])   # ignore message text
+            out = device.shell("id 2>/dev/null")
+            if out and ("uid=0(" in out or out.strip() == "0"):
+                return True, "adbd-root"
+    except Exception:
+        pass
+
+    # -----------------------------
+    # 2) Check for su presence (existence only)
+    # -----------------------------
+    su_path = device.shell("command -v su 2>/dev/null || which su 2>/dev/null").strip()
+    has_su = bool(su_path and "not found" not in su_path.lower())
+
+    # Helper: see if 'timeout' exists; if not, fallback to plain su
+    try:
+        has_timeout = "yes" in device.shell("command -v timeout >/dev/null 2>&1 && echo yes || echo no").strip().lower()
+    except Exception:
+        has_timeout = False
+
+    def _su_cmd(cmd: str, seconds: int = 2) -> str:
+        if has_timeout:
+            return device.shell(f"timeout {seconds} su -c '{cmd}' 2>/dev/null")
+        # no timeout available; best-effort attempt (avoid long commands)
+        return device.shell(f"su -c '{cmd}' 2>/dev/null")
+
+    # -----------------------------
+    # 3) Validate functional su (fast, non-interactive)
+    # -----------------------------
     if has_su:
-        su_test = device.shell('su -c "id" 2>/dev/null')
-        if su_test and 'uid=0' in su_test:
-            # Check for Magisk
-            magisk_check = device.shell("su -c 'magisk -v' 2>/dev/null")
-            if magisk_check and magisk_check.strip() and 'not found' not in magisk_check.lower():
-                return True, 'magisk'
-            return True, 'su'
-    
-    # Check for Magisk directly
-    magisk_check = device.shell("magisk -v 2>/dev/null")
-    if magisk_check and magisk_check.strip() and 'not found' not in magisk_check.lower():
-        return True, 'magisk'
-    
-    # Check ro.debuggable and other root indicators
-    debuggable = device.shell("getprop ro.debuggable")
-    if debuggable and debuggable.strip() == '1':
-        # Might be rooted, try su
-        su_test = device.shell('su -c "id" 2>/dev/null')
-        if su_test and 'uid=0' in su_test:
-            return True, 'su'
-    
-    return False, 'none'
+        # Preferred proof: id -u == 0
+        out = _su_cmd("id -u", 2).strip()
+        if out == "0":
+            # Try to classify as Magisk
+            ver = _su_cmd("magisk --version", 2).strip() or _su_cmd("magisk -v", 2).strip()
+            if ver:
+                return True, "magisk"
+            # If no version, still rooted with su
+            return True, "su"
+
+        # Fallback explicit check you requested:
+        # adb shell "timeout 2 su -c id 2>/dev/null"
+        id_out = _su_cmd("id", 2)
+        if id_out:
+            # New: Accept any output that clearly says uid=0(root) → rooted
+            if "uid=0(" in id_out or "uid=0" in id_out:
+                # If Magisk SELinux context is visible, treat as Magisk
+                if "context=u:r:magisk:s0" in id_out:
+                    return True, "magisk"
+                # Otherwise, try a quick magisk version probe; if none, classify as generic su
+                ver = _su_cmd("magisk --version", 2).strip() or _su_cmd("magisk -v", 2).strip()
+                return (True, "magisk") if ver else (True, "su")
+
+        # su exists but didn’t grant root (timed out or denied)
+        return False, "su-present-not-working"
+
+    # -----------------------------
+    # 4) No su + no adbd-root → treat as not rooted
+    # -----------------------------
+    return False, "none"
 
 # -------------------------
 # Banner
