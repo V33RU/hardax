@@ -3,7 +3,7 @@
     {
       "category": "APPS",
       "label": "AppOps: private-data access",
-      "command": "dumpsys appops | grep -E 'READ_EXTERNAL_STORAGE|ACCESS_FINE_LOCATION'",
+      "command": "timeout 10 dumpsys appops 2>/dev/null | grep -E 'READ_EXTERNAL_STORAGE|ACCESS_FINE_LOCATION'",
       "safe_pattern": "mode=ignore",
       "level": "info",
       "description": "Monitor unexpected accesses to sensitive data"
@@ -37,7 +37,7 @@
     {
       "category": "APPS",
       "label": "Debuggable Apps (Strict)",
-      "command": "for pkg in $(pm list packages -3 2>/dev/null | cut -d: -f2 | head -20); do dumpsys package $pkg 2>/dev/null | grep -q 'DEBUGGABLE' && echo $pkg; done",
+      "command": "PKGS=$(pm list packages -3 2>/dev/null | cut -d: -f2 | head -20 | tr '\\n' '|' | sed 's/|$//'); dumpsys package 2>/dev/null | grep -E \"Package \\\\[($PKGS)\\\\]\" -A 50 | grep -B1 'DEBUGGABLE' | grep 'Package \\\\[' | sed 's/.*Package \\\\[//;s/\\\\].*//' | head -10",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Third-party apps with debuggable flag enabled",
@@ -96,7 +96,7 @@
     {
       "category": "APPS",
       "label": "Apps with VEHICLE Permissions",
-      "command": "for perm in CAR_INFO CAR_EXTERIOR_ENVIRONMENT CAR_SPEED CAR_MILEAGE; do echo \"==$perm==\"; dumpsys package 2>/dev/null | grep -B5 \"android.car.permission.$perm\" | grep 'Package \\[' | head -2; done 2>/dev/null",
+      "command": "PKG_DUMP=$(dumpsys package 2>/dev/null); for perm in CAR_INFO CAR_EXTERIOR_ENVIRONMENT CAR_SPEED CAR_MILEAGE; do echo \"==$perm==\"; echo \"$PKG_DUMP\" | grep -B5 \"android.car.permission.$perm\" | grep 'Package \\[' | head -2; done 2>/dev/null",
       "safe_pattern": ".",
       "level": "info",
       "description": "Apps with vehicle data access permissions"
@@ -145,7 +145,7 @@
     {
       "category": "APPS",
       "label": "Running Services Count",
-      "command": "dumpsys activity services | grep -E 'package|process' | wc -l",
+      "command": "timeout 8 dumpsys activity services 2>/dev/null | grep -E 'package|process' | wc -l",
       "safe_pattern": ".*",
       "level": "info",
       "description": "Running services on device"
