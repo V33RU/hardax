@@ -371,7 +371,7 @@
     {
       "category": "PRIVACY",
       "label": "Location Data Stored",
-      "command": "find /data -type f -name '*.db' -exec sqlite3 {} \"SELECT name FROM sqlite_master WHERE name LIKE '%location%' OR name LIKE '%gps%';\" \\; 2>/dev/null | head -5",
+      "command": "find /data/data -type f -name '*.db' -print0 2>/dev/null | xargs -0 -I{} sqlite3 {} \\\"SELECT name FROM sqlite_master WHERE name LIKE '%location%' OR name LIKE '%gps%';\\\" 2>/dev/null | head -5",
       "safe_pattern": "^$",
       "level": "info",
       "description": "Location tracking databases",
@@ -388,7 +388,7 @@
     {
       "category": "PRIVACY",
       "label": "Unencrypted PHI Indicators",
-      "command": "find /sdcard /data -type f \\( -name '*.csv' -o -name '*.txt' -o -name '*.xml' \\) -exec grep -l -iE 'patient|ssn|dob|mrn|diagnosis|medication' {} \\; 2>/dev/null | head -5",
+      "command": "find /sdcard /data -type f \\( -name '*.csv' -o -name '*.txt' -o -name '*.xml' \\) -print0 2>/dev/null | xargs -0 grep -l -iE 'patient|ssn|dob|mrn|diagnosis|medication' 2>/dev/null | head -5",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Potential unencrypted PHI found - HIPAA violation risk!",
@@ -397,7 +397,7 @@
     {
       "category": "PRIVACY",
       "label": "Log Files with PHI Risk",
-      "command": "find /data -name '*.log' -exec grep -l -iE 'patient|name|ssn|dob|mrn' {} \\; 2>/dev/null | head -5",
+      "command": "find /data -name '*.log' -print0 2>/dev/null | xargs -0 grep -l -iE 'patient|name|ssn|dob|mrn' 2>/dev/null | head -5",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Log files may contain PHI - must be encrypted or purged",
