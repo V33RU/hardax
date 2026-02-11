@@ -51,16 +51,16 @@
     {
       "category": "STORAGE",
       "label": "World-Readable Files",
-      "command": "find /data -type f -perm -o+r -exec ls -l {} \\; 2>/dev/null | wc -l",
+      "command": "find /data -maxdepth 4 -type f -perm -o+r 2>/dev/null | head -50 | wc -l",
       "safe_pattern": "^0$",
       "level": "warning",
-      "description": "No sensitive files should be world-readable",
+      "description": "No sensitive files should be world-readable (scans top 4 levels)",
       "empty_is_safe": true
     },
     {
       "category": "STORAGE",
       "label": "SQLite DB Permissions",
-      "command": "find /data/data -name '*.db' -exec ls -l {} \\; 2>/dev/null | grep -v 'rw-------'",
+      "command": "find /data/data -maxdepth 4 -name '*.db' -print0 2>/dev/null | xargs -0 ls -l 2>/dev/null | grep -v 'rw-------'",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "SQLite databases should not be world-readable/writable",
@@ -135,7 +135,7 @@
     {
       "category": "STORAGE",
       "label": "OTA Package Location",
-      "command": "find /data /cache -name '*.zip' -o -name '*update*' -o -name '*ota*' 2>/dev/null | head -5",
+      "command": "find /data/ota /data/data/com.google.android.gms /cache /data/cache -maxdepth 3 -name '*.zip' 2>/dev/null | head -5; find /cache /data/ota -maxdepth 2 \\( -name '*update*' -o -name '*ota*' \\) 2>/dev/null | head -5",
       "safe_pattern": ".",
       "level": "info",
       "description": "OTA update packages found"
@@ -161,10 +161,10 @@
     {
       "category": "STORAGE",
       "label": "Orphaned Files in /data",
-      "command": "find /data -type f -uid 0 ! -user system 2>/dev/null | wc -l",
+      "command": "find /data -maxdepth 3 -type f -uid 0 ! -user system 2>/dev/null | wc -l",
       "safe_pattern": "^0$",
       "level": "info",
-      "description": "Looks for files owned by root but not by 'system' user"
+      "description": "Looks for files owned by root but not by 'system' user (top 3 levels)"
     },
     {
       "category": "STORAGE",
