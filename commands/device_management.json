@@ -67,14 +67,6 @@
     },
     {
       "category": "DEVICE_MANAGEMENT",
-      "label": "Bluetooth HCI Snoop Log",
-      "command": "settings get global bluetooth_hci_log",
-      "safe_pattern": "0|null",
-      "level": "warning",
-      "description": "BT HCI snoop log captures all Bluetooth traffic"
-    },
-    {
-      "category": "DEVICE_MANAGEMENT",
       "label": "Device Admin Apps",
       "command": "dumpsys device_policy 2>/dev/null | grep -i admin | head -10",
       "safe_pattern": ".",
