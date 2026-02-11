@@ -14,7 +14,7 @@ import tempfile
 from datetime import datetime
 from typing import List, Dict, Any, Tuple, Optional
 
-__version__ = "1.3.0"
+__version__ = "1.2.0"
 
 # -------------------------
 # ADB Transport Error Detection
