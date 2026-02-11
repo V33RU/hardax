@@ -43,7 +43,7 @@
     {
       "category": "CRYPTOGRAPHY",
       "label": "Hardcoded Passwords in Config",
-      "command": "find /system /vendor /data -type f \\( -name '*.conf' -o -name '*.cfg' -o -name '*.ini' -o -name '*.properties' \\) -exec grep -l -i 'password\\|passwd\\|pwd=' {} \\; 2>/dev/null | head -10",
+      "command": "find /system /vendor /data -type f \\( -name '*.conf' -o -name '*.cfg' -o -name '*.ini' -o -name '*.properties' \\) -print0 2>/dev/null | xargs -0 grep -l -i 'password\\|passwd\\|pwd=' 2>/dev/null | head -10",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Config files containing passwords - CRITICAL",
@@ -52,7 +52,7 @@
     {
       "category": "CRYPTOGRAPHY",
       "label": "API Keys in Files",
-      "command": "find /system /vendor /data -type f \\( -name '*.json' -o -name '*.xml' -o -name '*.conf' \\) -exec grep -l -iE 'api_key|apikey|api-key|secret_key|secretkey|access_token' {} \\; 2>/dev/null | head -10",
+      "command": "find /system /vendor /data -type f \\( -name '*.json' -o -name '*.xml' -o -name '*.conf' \\) -print0 2>/dev/null | xargs -0 grep -l -iE 'api_key|apikey|api-key|secret_key|secretkey|access_token' 2>/dev/null | head -10",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Files containing API keys or secrets",
@@ -88,7 +88,7 @@
     {
       "category": "CRYPTOGRAPHY",
       "label": "Hardcoded URLs with Credentials",
-      "command": "find /system /vendor /data -type f \\( -name '*.conf' -o -name '*.json' -o -name '*.xml' \\) -exec grep -l -E 'https?://[^:]+:[^@]+@' {} \\; 2>/dev/null | head -5",
+      "command": "find /system /vendor /data -type f \\( -name '*.conf' -o -name '*.json' -o -name '*.xml' \\) -print0 2>/dev/null | xargs -0 grep -l -E 'https?://[^:]+:[^@]+@' 2>/dev/null | head -5",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "URLs with embedded credentials found",
