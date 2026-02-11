@@ -86,7 +86,7 @@
     {
       "category": "SYSTEM",
       "label": "Kernel Hardening (PAN/UAO)",
-      "command": "zcat /proc/config.gz | grep -E 'CONFIG_ARM64_PAN=|CONFIG_ARM64_UAO='",
+      "command": "(zcat /proc/config.gz 2>/dev/null || cat /proc/config.gz 2>/dev/null || echo 'CONFIG_NOT_AVAILABLE') | grep -E 'CONFIG_ARM64_PAN=|CONFIG_ARM64_UAO='",
       "safe_pattern": "CONFIG_ARM64_PAN=y.*CONFIG_ARM64_UAO=y",
       "level": "critical",
       "description": "Privileged Access Never (PAN) and User Access Override (UAO) should be enabled for memory protection"
@@ -171,7 +171,7 @@
     {
       "category": "SYSTEM",
       "label": "Stack Canaries",
-      "command": "zcat /proc/config.gz | grep CONFIG_CC_STACKPROTECTOR_STRONG",
+      "command": "(zcat /proc/config.gz 2>/dev/null || cat /proc/config.gz 2>/dev/null || echo 'CONFIG_NOT_AVAILABLE') | grep CONFIG_CC_STACKPROTECTOR_STRONG",
       "safe_pattern": "CONFIG_CC_STACKPROTECTOR_STRONG=y",
       "level": "critical",
       "description": "Stack canaries should be enabled to prevent buffer overflows"
@@ -179,7 +179,7 @@
     {
       "category": "SYSTEM",
       "label": "ROP Mitigation (PAC)",
-      "command": "zcat /proc/config.gz | grep CONFIG_ARM64_PTR_AUTH",
+      "command": "(zcat /proc/config.gz 2>/dev/null || cat /proc/config.gz 2>/dev/null || echo 'CONFIG_NOT_AVAILABLE') | grep CONFIG_ARM64_PTR_AUTH",
       "safe_pattern": "CONFIG_ARM64_PTR_AUTH=y",
       "level": "critical",
       "description": "Pointer Authentication (PAC) should be enabled to prevent ROP attacks"
@@ -187,7 +187,7 @@
     {
       "category": "SYSTEM",
       "label": "Memory Tagging (MTE)",
-      "command": "zcat /proc/config.gz | grep CONFIG_ARM64_MTE",
+      "command": "(zcat /proc/config.gz 2>/dev/null || cat /proc/config.gz 2>/dev/null || echo 'CONFIG_NOT_AVAILABLE') | grep CONFIG_ARM64_MTE",
       "safe_pattern": "CONFIG_ARM64_MTE=y",
       "level": "critical",
       "description": "Memory Tagging Extension (MTE) should be enabled for JIT hardening"
@@ -333,7 +333,7 @@
     {
       "category": "SYSTEM",
       "label": "Audit Logs Enabled",
-      "command": "cat /proc/sys/kernel/printk",
+      "command": "cat /proc/sys/kernel/printk 2>/dev/null",
       "safe_pattern": ".*",
       "level": "warning",
       "description": "Non-zero values indicate audit logs may be active"
@@ -341,7 +341,7 @@
     {
       "category": "SYSTEM",
       "label": "ASLR Enabled",
-      "command": "cat /proc/sys/kernel/randomize_va_space",
+      "command": "cat /proc/sys/kernel/randomize_va_space 2>/dev/null",
       "safe_pattern": "^2$",
       "level": "critical",
       "description": "ASLR must be enabled (value 2) to randomize memory layout and protect against memory-based attacks."
@@ -365,7 +365,7 @@
     {
       "category": "SYSTEM",
       "label": "Core Dumps Disabled",
-      "command": "cat /proc/sys/kernel/core_pattern",
+      "command": "cat /proc/sys/kernel/core_pattern 2>/dev/null",
       "safe_pattern": "^\\|/dev/null$",
       "level": "warning",
       "description": "Core dumps should be disabled to prevent sensitive data leakage."
@@ -373,7 +373,7 @@
     {
       "category": "SYSTEM",
       "label": "SECCOMP Enabled",
-      "command": "zcat /proc/config.gz | grep CONFIG_SECCOMP=",
+      "command": "(zcat /proc/config.gz 2>/dev/null || cat /proc/config.gz 2>/dev/null || echo 'CONFIG_NOT_AVAILABLE') | grep CONFIG_SECCOMP=",
       "safe_pattern": "CONFIG_SECCOMP=Y",
       "level": "warning",
       "description": "SECCOMP must be enabled to restrict system calls."
@@ -381,7 +381,7 @@
     {
       "category": "SYSTEM",
       "label": "Kernel Modules Loading Restricted",
-      "command": "cat /proc/sys/kernel/modules_disabled",
+      "command": "cat /proc/sys/kernel/modules_disabled 2>/dev/null",
       "safe_pattern": "^1$",
       "level": "warning",
       "description": "Kernel module loading should be disabled after boot to prevent unauthorized module insertion."
@@ -389,7 +389,7 @@
     {
       "category": "SYSTEM",
       "label": "Protected Symlinks Enabled",
-      "command": "cat /proc/sys/fs/protected_symlinks",
+      "command": "cat /proc/sys/fs/protected_symlinks 2>/dev/null",
       "safe_pattern": "^1$",
       "level": "warning",
       "description": "Symlink protection should be enabled to prevent symlink-based privilege escalation."
@@ -397,7 +397,7 @@
     {
       "category": "SYSTEM",
       "label": "Protected Hardlinks Enabled",
-      "command": "cat /proc/sys/fs/protected_hardlinks",
+      "command": "cat /proc/sys/fs/protected_hardlinks 2>/dev/null",
       "safe_pattern": "^1$",
       "level": "warning",
       "description": "Hardlink protection should be enabled to prevent unauthorized file access."
@@ -405,7 +405,7 @@
     {
       "category": "SYSTEM",
       "label": "dmesg Restriction Enabled",
-      "command": "cat /proc/sys/kernel/dmesg_restrict",
+      "command": "cat /proc/sys/kernel/dmesg_restrict 2>/dev/null",
       "safe_pattern": "^1$",
       "level": "warning",
       "description": "Restricting dmesg access prevents unprivileged users from reading kernel logs."
@@ -429,7 +429,7 @@
     {
       "category": "SYSTEM",
       "label": "Car Service Running",
-      "command": "dumpsys activity services 2>/dev/null | grep -i 'CarService\\|android.car' | head -5",
+      "command": "timeout 8 dumpsys activity services 2>/dev/null | grep -i 'CarService\\|android.car' | head -5",
       "safe_pattern": ".",
       "level": "info",
       "description": "Android Car Service status"
