@@ -263,6 +263,59 @@ class Device:
     def id_string(self) -> str:
         raise NotImplementedError()
 
+class CachedDevice(Device):
+    """
+    Wraps a Device and caches output of expensive commands that are called
+    multiple times with the same base (e.g. dumpsys package, dumpsys wifi,
+    netstat -anp).  The first call executes on-device; subsequent calls
+    reuse the cached output and apply grep/filter locally.
+
+    Also enforces a per-command timeout to prevent hangs on stuck commands
+    (e.g. find scanning huge trees, dumpsys on unresponsive services).
+    """
+    # Commands whose *base* output should be fetched once and cached.
+    # Key = substring that triggers caching, Value = the full command to
+    # run once (without grep/filter – those are applied in Python).
+    CACHEABLE_BASES = {
+        'dumpsys package':  'timeout 10 dumpsys package 2>/dev/null',
+        'dumpsys wifi':     'timeout 5 dumpsys wifi 2>/dev/null',
+        'dumpsys connectivity': 'timeout 5 dumpsys connectivity 2>/dev/null',
+        'dumpsys bluetooth_manager': 'timeout 5 dumpsys bluetooth_manager 2>/dev/null',
+    }
+
+    def __init__(self, real_device: Device, cmd_timeout: int = 30):
+        self._real = real_device
+        self._cache: Dict[str, str] = {}
+        self._timeout = cmd_timeout
+
+    def id_string(self) -> str:
+        return self._real.id_string()
+
+    def _shell_with_timeout(self, command: str) -> str:
+        """Run command with timeout wrapper to prevent hangs."""
+        # If the command already has a timeout, use as-is
+        if command.lstrip().startswith('timeout '):
+            return self._real.shell(command)
+        # Wrap with timeout (best-effort; depends on device having timeout cmd)
+        return self._real.shell(f"timeout {self._timeout} sh -c '{command.replace(chr(39), chr(39)+chr(92)+chr(39)+chr(39))}' 2>/dev/null")
+
+    def shell(self, command: str) -> str:
+        """Execute with caching for expensive commands."""
+        # Check if this command uses a cacheable base
+        for trigger, base_cmd in self.CACHEABLE_BASES.items():
+            if trigger in command:
+                # Fetch base output once
+                if trigger not in self._cache:
+                    self._cache[trigger] = self._real.shell(base_cmd)
+                # Apply pipeline (grep/head/tail) locally in Python
+                return apply_filters(self._cache[trigger], command)
+
+        # Non-cacheable: run with timeout protection for find commands
+        if 'find ' in command and '-exec' in command:
+            return self._shell_with_timeout(command)
+
+        return self._real.shell(command)
+
 class ADBDevice(Device):
     def __init__(self, serial: Optional[str]):
         self.serial = serial
@@ -1756,6 +1809,8 @@ Examples:
     ap.add_argument("--progress-numbers", action="store_true", help="Show progress counter")
     ap.add_argument("--show-commands", action="store_true", help="Display each command")
     ap.add_argument("--skip-certs", action="store_true", help="Skip certificate audit")
+    ap.add_argument("--cmd-timeout", type=int, default=30, help="Per-command timeout in seconds (default: 30)")
+    ap.add_argument("--thorough", action="store_true", help="Disable caching and timeout wrapping (slower but maximum coverage)")
 
     args = ap.parse_args()
 
@@ -1829,8 +1884,16 @@ Examples:
     else:
         print(f"{Colors.YELLOW}⚠ Device not rooted - some checks may have limited output{Colors.RESET}")
     print()
+
+    # Wrap device with caching layer to avoid re-running expensive commands
+    if not args.thorough:
+        device = CachedDevice(device, cmd_timeout=args.cmd_timeout)
+        print(f"{Colors.DIM}⚡ Fast mode: caching enabled, per-command timeout={args.cmd_timeout}s (use --thorough to disable){Colors.RESET}\n")
+    else:
+        print(f"{Colors.DIM}🔍 Thorough mode: no caching, no timeouts (may be slower){Colors.RESET}\n")
     
-    device_info = collect_device_info(device)
+    raw_device = device._real if isinstance(device, CachedDevice) else device
+    device_info = collect_device_info(raw_device)  # Use unwrapped for device info
     rows, counts = run_checks(device, checks, on_progress=_progress, show_commands=args.show_commands or not args.progress_numbers, is_rooted=is_rooted)
 
     if args.progress_numbers:
@@ -1838,8 +1901,9 @@ Examples:
 
     # Certificate Audit
     certs = []
+    real_device = device._real if isinstance(device, CachedDevice) else device
     if args.mode == "adb" and not args.skip_certs:
-        certs = audit_certificates(device)
+        certs = audit_certificates(real_device)
 
     # TXT Report
     with open(txt_file, "w", encoding="utf-8") as f:
@@ -1883,8 +1947,9 @@ Examples:
     write_html(html_file, device_info, rows, counts, certs)
 
     # Close SSH if used
-    if isinstance(device, SSHDevice):
-        device.close()
+    real_dev = device._real if isinstance(device, CachedDevice) else device
+    if isinstance(real_dev, SSHDevice):
+        real_dev.close()
 
     # Summary output
     print(f"\n{Colors.CYAN}{'═' * 70}{Colors.RESET}")
