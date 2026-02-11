@@ -51,7 +51,7 @@
     {
       "category": "POS_SECURITY",
       "label": "Payment App Permissions",
-      "command": "PKGS=$(pm list packages 2>/dev/null | grep -iE 'pay|wallet|pos|terminal' | cut -d: -f2 | head -3 | tr '\\n' '|' | sed 's/|$//'); [ -n \"$PKGS\" ] && dumpsys package 2>/dev/null | grep -E \"Package \\\\[($PKGS)\\\\]\" -A 100 | grep -E 'permission.*INTERNET|permission.*NFC|permission.*CAMERA' | head -15 || echo ''",
+      "command": "DUMP=$(dumpsys package 2>/dev/null); for pkg in $(pm list packages 2>/dev/null | grep -iE 'pay|wallet|pos|terminal' | cut -d: -f2 | head -3); do echo \"==$pkg==\"; echo \"$DUMP\" | grep -A100 \"Package.*$pkg\" | head -100 | grep -E 'permission.*INTERNET|permission.*NFC|permission.*CAMERA' | head -5; done",
       "safe_pattern": ".*",
       "level": "info",
       "description": "Review critical permissions granted to payment apps - INTERNET+NFC+CAMERA combo needs manual review"
