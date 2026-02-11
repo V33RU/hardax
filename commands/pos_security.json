@@ -3,16 +3,16 @@
     {
       "category": "POS_SECURITY",
       "label": "TEE Implementation",
-      "command": "getprop ro.hardware.gatekeeper 2>/dev/null",
-      "safe_pattern": ".+",
-      "level": "warning",
-      "description": "Trusted Execution Environment should be present for secure key operations"
+      "command": "(gk=$(getprop ro.hardware.gatekeeper 2>/dev/null); ks=$(getprop ro.hardware.keystore 2>/dev/null); wv=$(getprop ro.hardware.weaver 2>/dev/null); sb=$(pm list features 2>/dev/null | grep -i strongbox); km=$(service list 2>/dev/null | grep -iE 'keymint|keymaster' | head -1); out=''; [ -n \"$wv\" ] && out=\"weaver=$wv \"; [ -n \"$sb\" ] && out=\"${out}strongbox=present \"; [ -n \"$km\" ] && out=\"${out}keymint_or_keymaster=present \"; [ -n \"$gk\" ] && [ \"$gk\" != 'default' ] && [ \"$gk\" != 'software' ] && out=\"${out}gatekeeper=$gk \"; [ -n \"$ks\" ] && [ \"$ks\" != 'default' ] && [ \"$ks\" != 'software' ] && out=\"${out}keystore=$ks \"; echo ${out:-NOT_FOUND})",
+      "safe_pattern": "^(?!NOT_FOUND).+",
+      "level": "critical",
+      "description": "PCI-DSS: TEE/hardware-backed key storage required for payment operations. Checks gatekeeper, keystore, weaver props + StrongBox feature + KeyMint/Keymaster service. Outputs detected signals or NOT_FOUND. Skips 'default'/'software' (pure SW fallback)."
     },
     {
       "category": "POS_SECURITY",
       "label": "Secure Element HAL",
       "command": "ls /vendor/lib64/hw/android.hardware.secure_element*.so /vendor/lib/hw/android.hardware.secure_element*.so 2>/dev/null | wc -l",
-      "safe_pattern": "^[1-9][0-9]*$",
+      "safe_pattern": ".*",
       "level": "info",
       "description": "Secure Element HAL libraries for hardware security module access"
     },
@@ -20,25 +20,17 @@
       "category": "POS_SECURITY",
       "label": "Keymaster HAL Version",
       "command": "ls /vendor/lib64/hw/android.hardware.keymaster*.so /vendor/lib/hw/android.hardware.keymaster*.so 2>/dev/null | head -1 | grep -oE 'keymaster[@-]?[0-9.]+' || echo 'not_found'",
-      "safe_pattern": ".+",
+      "safe_pattern": ".*",
       "level": "info",
       "description": "Keymaster HAL version - higher versions have better security features"
     },
     {
       "category": "POS_SECURITY",
-      "label": "Screen Lock Enabled",
-      "command": "settings get secure lockscreen.disabled 2>/dev/null",
-      "safe_pattern": "^(0|null)$",
-      "level": "critical",
-      "description": "PCI-DSS 8.1: Screen lock required for POS device access control"
-    },
-    {
-      "category": "POS_SECURITY",
       "label": "Kiosk Mode (Lock Task)",
-      "command": "dumpsys activity 2>/dev/null | grep -i 'mLockTaskModeState' | grep -oE '[0-9]+' || echo '0'",
+      "command": "result=$(dumpsys activity 2>/dev/null | grep -iE 'mLockTaskModeState|mLockTaskMode[^S]' | grep -oE '[0-9]+' | head -1); echo \"${result:-0}\"",
       "safe_pattern": "^[1-2]$",
       "level": "warning",
-      "description": "POS should run in kiosk/lock task mode to prevent unauthorized app access"
+      "description": "POS should run in kiosk/lock task mode (1=locked, 2=pinned). Supports both old (mLockTaskModeState) and new (mLockTaskMode) Android property names. Returns 0 if not in kiosk mode."
     },
     {
       "category": "POS_SECURITY",
@@ -52,7 +44,7 @@
       "category": "POS_SECURITY",
       "label": "Payment Apps Installed",
       "command": "pm list packages 2>/dev/null | grep -iE 'pay|wallet|pos|terminal|merchant|square|clover|toast|stripe|verifone|ingenico|pax' | wc -l",
-      "safe_pattern": ".+",
+      "safe_pattern": ".*",
       "level": "info",
       "description": "Count of payment-related applications installed"
     },
@@ -60,14 +52,14 @@
       "category": "POS_SECURITY",
       "label": "Payment App Permissions",
       "command": "for pkg in $(pm list packages 2>/dev/null | grep -iE 'pay|wallet|pos|terminal' | cut -d: -f2 | head -3); do dumpsys package $pkg 2>/dev/null | grep -E 'permission.*INTERNET|permission.*NFC|permission.*CAMERA' | head -5; done",
-      "safe_pattern": ".+",
+      "safe_pattern": ".*",
       "level": "info",
-      "description": "Review critical permissions granted to payment apps"
+      "description": "Review critical permissions granted to payment apps - INTERNET+NFC+CAMERA combo needs manual review"
     },
     {
       "category": "POS_SECURITY",
       "label": "Dangerous Permission - CAMERA",
-      "command": "pm list packages -p 2>/dev/null | while read pkg; do dumpsys package $(echo $pkg | cut -d: -f2) 2>/dev/null | grep -q 'android.permission.CAMERA.*granted=true' && echo $pkg; done | grep -ivE 'camera|photo|scan|barcode' | head -5",
+      "command": "pm list packages 2>/dev/null | cut -d: -f2 | while read pkg; do dumpsys package \"$pkg\" 2>/dev/null | grep -q 'android.permission.CAMERA.*granted=true' && echo \"$pkg\"; done | grep -ivE 'camera|photo|scan|barcode|qr' | head -5",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Non-camera apps with CAMERA permission - potential card skimming risk",
@@ -77,23 +69,23 @@
       "category": "POS_SECURITY",
       "label": "Open Listening Ports",
       "command": "netstat -tlnp 2>/dev/null | grep -E 'LISTEN' | awk '{print $4}' | grep -oE '[0-9]+$' | sort -u | tr '\\n' ',' | sed 's/,$//'",
-      "safe_pattern": ".+",
+      "safe_pattern": ".*",
       "level": "info",
       "description": "PCI-DSS 1.1.6: Review all listening ports on POS terminal"
     },
     {
       "category": "POS_SECURITY",
       "label": "Remote Desktop Ports",
-      "command": "netstat -tlnp 2>/dev/null | grep -E ':3389|:5900|:5901|:5800|:22' | grep 'LISTEN'",
+      "command": "netstat -tlnp 2>/dev/null | grep -E ':3389|:5900|:5901|:5800|:22|:5555|:4444' | grep 'LISTEN'",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "PCI-DSS 2.2.7: RDP/VNC/SSH ports must be closed on POS terminals",
+      "description": "PCI-DSS 2.2.7: RDP(:3389)/VNC(:5900-5901,:5800)/SSH(:22)/ADB-net(:5555) must be closed. :4444 included as Metasploit/reverse-shell indicator - verify manually if flagged.",
       "empty_is_safe": true
     },
     {
       "category": "POS_SECURITY",
       "label": "Suspicious Processes - Memory Tools",
-      "command": "ps -A -o cmd 2>/dev/null | grep -iE 'memdump|memscrap|dump|tcpdump|strace|ltrace' | grep -v grep",
+      "command": "ps -A -o cmd 2>/dev/null | grep -iE '\\bmemdump\\b|\\bmemscrap\\b|\\btcpdump\\b|\\bstrace\\b|\\bltrace\\b' | grep -ivE 'dumpstate|dumpsys|dumpcrash|tombstoned|incidentd' | grep -v grep",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Memory dumping tools detected - potential RAM scraping malware indicator",
@@ -137,17 +129,17 @@
       "category": "POS_SECURITY",
       "label": "POS Vendor Properties",
       "command": "getprop 2>/dev/null | grep -iE 'pax|verifone|ingenico|newland|sunmi|elo|clover|square|toast' | head -10",
-      "safe_pattern": ".+",
+      "safe_pattern": ".*",
       "level": "info",
       "description": "POS vendor-specific system properties detected"
     },
     {
       "category": "POS_SECURITY",
       "label": "Log Files with Card Patterns",
-      "command": "find /data/local /sdcard -name '*.log' -o -name '*.txt' 2>/dev/null | xargs grep -l -E '[0-9]{13,16}' 2>/dev/null | head -3",
+      "command": "find /data/local /sdcard \\( -name '*.log' -o -name '*.txt' \\) 2>/dev/null | xargs grep -lE '(^|[^0-9])(4[0-9]{12,15}|5[1-5][0-9]{14}|3[47][0-9]{13}|6(011|5[0-9]{2})[0-9]{12})([^0-9]|$)' 2>/dev/null | head -3",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "PCI-DSS 3.4: Files potentially containing unencrypted card numbers",
+      "description": "PCI-DSS 3.4: Files potentially containing standalone PANs (Visa/MC/Amex/Discover). Uses digit-boundary matching to reduce false positives from serial numbers and IDs.",
       "empty_is_safe": true
     },
     {
@@ -163,17 +155,26 @@
       "category": "POS_SECURITY",
       "label": "Logcat Buffer Size",
       "command": "getprop persist.logd.size 2>/dev/null | grep -E '^[0-9]+[KMG]?$' || echo 'default'",
-      "safe_pattern": ".+",
+      "safe_pattern": ".*",
       "level": "info",
       "description": "Large log buffers may retain sensitive transaction data longer"
     },
     {
       "category": "POS_SECURITY",
-      "label": "Certificate Pinning Bypass Apps",
-      "command": "pm list packages 2>/dev/null | grep -iE 'sslunpin|trustme|justtrustme|httptoolkit'",
+      "label": "PAN Data in SQLite Databases",
+      "command": "find /data/data -name '*.db' 2>/dev/null | while read db; do if command -v sqlite3 >/dev/null 2>&1; then out=$(sqlite3 \"$db\" .dump 2>/dev/null | grep -E '(^|[^0-9])(4[0-9]{12,15}|5[1-5][0-9]{14}|3[47][0-9]{13}|6(011|5[0-9]{2})[0-9]{12})([^0-9]|$)' | head -1); else out=$(strings -n 13 \"$db\" 2>/dev/null | grep -E '(^|[^0-9])(4[0-9]{12,15}|5[1-5][0-9]{14}|3[47][0-9]{13}|6(011|5[0-9]{2})[0-9]{12})([^0-9]|$)' | head -1); fi; [ -n \"$out\" ] && echo \"Found in: $db\"; done | head -5",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "SSL pinning bypass tools detected - MITM attack possible",
+      "description": "PCI-DSS 3.4: SQLite databases containing unencrypted PAN card data. Uses sqlite3 .dump (text output) instead of raw strings to avoid binary false positives.",
+      "empty_is_safe": true
+    },
+    {
+      "category": "POS_SECURITY",
+      "label": "Screen Recording Process Active",
+      "command": "ps -A -o cmd 2>/dev/null | grep -iE 'screenrecord|scrcpy|minicap|wfirefly|recordScreen' | grep -v grep",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Screen recording tool detected - may capture card data or PIN entry on POS terminal",
       "empty_is_safe": true
     }
   ]
