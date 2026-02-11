@@ -50,14 +50,6 @@
     },
     {
       "category": "CERTIFICATE_AUDIT",
-      "label": "StrongBox Support",
-      "command": "ls /vendor/lib64/hw/android.hardware.strongbox* 2>/dev/null | head -1",
-      "safe_pattern": ".+",
-      "level": "info",
-      "description": "StrongBox hardware security module availability"
-    },
-    {
-      "category": "CERTIFICATE_AUDIT",
       "label": "Keystore Credentials Count",
       "command": "ls /data/misc/keystore/user_0/ 2>/dev/null | wc -l",
       "safe_pattern": "^[0-9]+$",
