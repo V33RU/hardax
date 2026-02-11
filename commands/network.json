@@ -51,10 +51,10 @@
     {
       "category": "NETWORK",
       "label": "World-Writable Files",
-      "command": "find /data -type f \\( -perm -o+w \\) -exec ls -l {} \\; 2>/dev/null | wc -l",
+      "command": "find /data -maxdepth 4 -type f -perm -o+w 2>/dev/null | head -20 | wc -l",
       "safe_pattern": "^0$",
       "level": "warning",
-      "description": "Unprotected sensitive files",
+      "description": "Unprotected sensitive files (scans top 4 levels of /data)",
       "empty_is_safe": true
     },
     {
@@ -119,7 +119,7 @@
     {
       "category": "NETWORK",
       "label": "Vehicle Diagnostic Permissions",
-      "command": "dumpsys package 2>/dev/null | grep -E 'android.car.permission.CAR_DIAGNOSTICS|android.car.permission.CAR_ENGINE' | head -5",
+      "command": "timeout 8 dumpsys package 2>/dev/null | grep -E 'android.car.permission.CAR_DIAGNOSTICS|android.car.permission.CAR_ENGINE' | head -5",
       "safe_pattern": ".",
       "level": "info",
       "description": "Apps with vehicle diagnostic permissions"
@@ -127,7 +127,7 @@
     {
       "category": "NETWORK",
       "label": "Vehicle Control Permissions",
-      "command": "dumpsys package 2>/dev/null | grep -E 'CAR_CONTROL|CAR_SPEED|CAR_ENERGY|CAR_POWERTRAIN' | head -5",
+      "command": "timeout 8 dumpsys package 2>/dev/null | grep -E 'CAR_CONTROL|CAR_SPEED|CAR_ENERGY|CAR_POWERTRAIN' | head -5",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Apps with vehicle control permissions - review carefully!",
@@ -201,7 +201,7 @@
     {
       "category": "NETWORK",
       "label": "Firebase Config Present",
-      "command": "find /data -name 'google-services.json' 2>/dev/null",
+      "command": "ls /data/data/*/google-services.json /data/data/*/files/google-services.json 2>/dev/null || find /data -maxdepth 6 -name 'google-services.json' 2>/dev/null | head -3",
       "safe_pattern": ".",
       "level": "info",
       "description": "Firebase configuration - check security rules"
@@ -209,7 +209,7 @@
     {
       "category": "NETWORK",
       "label": "AWS SDK/Config",
-      "command": "find /data /system -type f \\( -name '*.json' -o -name '*.conf' \\) -exec grep -l -i 'aws_access_key\\|aws_secret\\|amazonaws.com' {} \\; 2>/dev/null | head -5",
+      "command": "find /data/data /data/app /data/misc /data/local /system/etc /system/app /vendor/etc -maxdepth 5 -type f \\( -name '*.json' -o -name '*.conf' -o -name '*.properties' -o -name '*.xml' -o -name '*.yaml' -o -name '*.yml' -o -name '*.env' -o -name '*.cfg' \\) -print0 2>/dev/null | xargs -0 grep -l -i 'aws_access_key\\|aws_secret\\|amazonaws.com' 2>/dev/null | head -5",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "AWS credentials or config found",
@@ -218,7 +218,7 @@
     {
       "category": "NETWORK",
       "label": "Azure IoT Config",
-      "command": "find /data /system -type f -exec grep -l -i 'azure-devices.net\\|iothub\\|SharedAccessKey' {} \\; 2>/dev/null | head -5",
+      "command": "find /data/data /data/app /data/misc /data/local /system/etc /system/app /vendor/etc -maxdepth 5 -type f \\( -name '*.json' -o -name '*.conf' -o -name '*.xml' -o -name '*.properties' -o -name '*.yaml' -o -name '*.yml' -o -name '*.env' -o -name '*.cfg' \\) -print0 2>/dev/null | xargs -0 grep -l -i 'azure-devices.net\\|iothub\\|SharedAccessKey' 2>/dev/null | head -5",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Azure IoT Hub configuration found",
@@ -227,7 +227,7 @@
     {
       "category": "NETWORK",
       "label": "MQTT Broker Config",
-      "command": "find /data /system /vendor -type f \\( -name '*.conf' -o -name '*.json' \\) -exec grep -l -iE 'mqtt://|mqtts://|broker.*1883|mosquitto' {} \\; 2>/dev/null | head -5",
+      "command": "find /data/data /data/misc /system/etc /vendor/etc /vendor/firmware -maxdepth 5 -type f \\( -name '*.conf' -o -name '*.json' -o -name '*.xml' -o -name '*.yaml' -o -name '*.yml' -o -name '*.cfg' \\) -print0 2>/dev/null | xargs -0 grep -l -iE 'mqtt://|mqtts://|broker.*1883|mosquitto' 2>/dev/null | head -5",
       "safe_pattern": ".",
       "level": "info",
       "description": "MQTT broker configuration files"
@@ -235,7 +235,7 @@
     {
       "category": "NETWORK",
       "label": "Telemetry Endpoints",
-      "command": "find /system /vendor -type f \\( -name '*.json' -o -name '*.xml' \\) -exec grep -l -iE 'telemetry|analytics|tracking|metrics' {} \\; 2>/dev/null | head -5",
+      "command": "find /system/etc /vendor/etc /system/app /vendor/app -maxdepth 4 -type f \\( -name '*.json' -o -name '*.xml' -o -name '*.yaml' -o -name '*.conf' \\) -print0 2>/dev/null | xargs -0 grep -l -iE 'telemetry|analytics|tracking|metrics' 2>/dev/null | head -5",
       "safe_pattern": ".",
       "level": "info",
       "description": "Telemetry/analytics endpoints configured"
@@ -243,7 +243,7 @@
     {
       "category": "NETWORK",
       "label": "OTA Update URL",
-      "command": "find /system /vendor -type f -exec grep -l -iE 'ota.*update|firmware.*url|update.*server' {} \\; 2>/dev/null | head -5",
+      "command": "find /system/etc /vendor/etc /system/app /vendor/app /vendor/firmware -maxdepth 4 -type f \\( -name '*.json' -o -name '*.xml' -o -name '*.conf' -o -name '*.prop' -o -name '*.yaml' \\) -print0 2>/dev/null | xargs -0 grep -l -iE 'ota.*update|firmware.*url|update.*server' 2>/dev/null | head -5",
       "safe_pattern": ".",
       "level": "info",
       "description": "OTA update configuration - verify HTTPS and signing"
