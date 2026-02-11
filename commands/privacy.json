@@ -337,14 +337,6 @@
     },
     {
       "category": "PRIVACY",
-      "label": "Unencrypted Data Partition",
-      "command": "getprop ro.crypto.state 2>/dev/null",
-      "safe_pattern": "encrypted",
-      "level": "critical",
-      "description": "Data partition should be encrypted"
-    },
-    {
-      "category": "PRIVACY",
       "label": "SD Card Encryption",
       "command": "getprop ro.crypto.sdcard 2>/dev/null",
       "safe_pattern": "encrypted|true",
