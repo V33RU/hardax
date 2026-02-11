@@ -37,7 +37,7 @@
     {
       "category": "APPS",
       "label": "Debuggable Apps (Strict)",
-      "command": "PKGS=$(pm list packages -3 2>/dev/null | cut -d: -f2 | head -20 | tr '\\n' '|' | sed 's/|$//'); dumpsys package 2>/dev/null | grep -E \"Package \\\\[($PKGS)\\\\]\" -A 50 | grep -B1 'DEBUGGABLE' | grep 'Package \\\\[' | sed 's/.*Package \\\\[//;s/\\\\].*//' | head -10",
+      "command": "DUMP=$(dumpsys package 2>/dev/null); for pkg in $(pm list packages -3 2>/dev/null | cut -d: -f2 | head -20); do echo \"$DUMP\" | grep -A50 \"Package.*$pkg\" | head -50 | grep -q DEBUGGABLE && echo \"$pkg\"; done",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Third-party apps with debuggable flag enabled",
