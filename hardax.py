@@ -17,6 +17,37 @@ from typing import List, Dict, Any, Tuple, Optional
 __version__ = "1.2.0"
 
 # -------------------------
+# ADB Transport Error Detection
+# -------------------------
+# These strings indicate the ADB connection itself failed,
+# NOT that the command returned bad output. Checks should be
+# SKIPPED (not flagged) when these appear.
+ADB_TRANSPORT_ERRORS = [
+    'device offline',
+    'device not found',
+    'device unauthorized',
+    'no devices/emulators found',
+    'no devices found',
+    'closed',
+    'protocol fault',
+    'device still authorizing',
+    'insufficient permissions',
+    'more than one device',
+    'error: closed',
+    'adb: error:',
+]
+
+def is_adb_transport_error(output: str) -> bool:
+    """Detect if output is an ADB transport/connection error, not real command output."""
+    if not output:
+        return False
+    output_lower = output.lower().strip()
+    # Short output containing ADB error signatures
+    if len(output_lower) > 300:
+        return False  # Real command output is usually longer than ADB errors
+    return any(err in output_lower for err in ADB_TRANSPORT_ERRORS)
+
+# -------------------------
 # Certificate Audit
 # -------------------------
 
@@ -182,10 +213,15 @@ if not supports_color():
 def which(prog: str) -> Optional[str]:
     return shutil.which(prog)
 
-def run_local(cmd: List[str]) -> Tuple[int, str, str]:
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    out, err = proc.communicate()
-    return proc.returncode, out, err
+def run_local(cmd: List[str], timeout: int = None) -> Tuple[int, str, str]:
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        out, err = proc.communicate(timeout=timeout)
+        return proc.returncode, out, err
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.communicate()
+        return -1, "", "timeout"
 
 def html_escape(s: str) -> str:
     return html.escape(s, quote=False)
@@ -263,59 +299,6 @@ class Device:
     def id_string(self) -> str:
         raise NotImplementedError()
 
-class CachedDevice(Device):
-    """
-    Wraps a Device and caches output of expensive commands that are called
-    multiple times with the same base (e.g. dumpsys package, dumpsys wifi,
-    netstat -anp).  The first call executes on-device; subsequent calls
-    reuse the cached output and apply grep/filter locally.
-
-    Also enforces a per-command timeout to prevent hangs on stuck commands
-    (e.g. find scanning huge trees, dumpsys on unresponsive services).
-    """
-    # Commands whose *base* output should be fetched once and cached.
-    # Key = substring that triggers caching, Value = the full command to
-    # run once (without grep/filter – those are applied in Python).
-    CACHEABLE_BASES = {
-        'dumpsys package':  'timeout 10 dumpsys package 2>/dev/null',
-        'dumpsys wifi':     'timeout 5 dumpsys wifi 2>/dev/null',
-        'dumpsys connectivity': 'timeout 5 dumpsys connectivity 2>/dev/null',
-        'dumpsys bluetooth_manager': 'timeout 5 dumpsys bluetooth_manager 2>/dev/null',
-    }
-
-    def __init__(self, real_device: Device, cmd_timeout: int = 30):
-        self._real = real_device
-        self._cache: Dict[str, str] = {}
-        self._timeout = cmd_timeout
-
-    def id_string(self) -> str:
-        return self._real.id_string()
-
-    def _shell_with_timeout(self, command: str) -> str:
-        """Run command with timeout wrapper to prevent hangs."""
-        # If the command already has a timeout, use as-is
-        if command.lstrip().startswith('timeout '):
-            return self._real.shell(command)
-        # Wrap with timeout (best-effort; depends on device having timeout cmd)
-        return self._real.shell(f"timeout {self._timeout} sh -c '{command.replace(chr(39), chr(39)+chr(92)+chr(39)+chr(39))}' 2>/dev/null")
-
-    def shell(self, command: str) -> str:
-        """Execute with caching for expensive commands."""
-        # Check if this command uses a cacheable base
-        for trigger, base_cmd in self.CACHEABLE_BASES.items():
-            if trigger in command:
-                # Fetch base output once
-                if trigger not in self._cache:
-                    self._cache[trigger] = self._real.shell(base_cmd)
-                # Apply pipeline (grep/head/tail) locally in Python
-                return apply_filters(self._cache[trigger], command)
-
-        # Non-cacheable: run with timeout protection for find commands
-        if 'find ' in command and '-exec' in command:
-            return self._shell_with_timeout(command)
-
-        return self._real.shell(command)
-
 class ADBDevice(Device):
     def __init__(self, serial: Optional[str]):
         self.serial = serial
@@ -332,7 +315,22 @@ class ADBDevice(Device):
     def shell(self, command: str) -> str:
         code, out, err = run_local(self._base() + ["shell", command])
         txt = (out or "") + (("\n" + err) if err else "")
-        return txt.replace("\r", "").strip()
+        txt = txt.replace("\r", "").strip()
+
+        # Detect ADB transport errors and retry once after reconnect
+        if is_adb_transport_error(txt):
+            # Try to recover the connection
+            run_local(self._base() + ["reconnect"])
+            time.sleep(2)
+            # One more attempt — wait for device
+            run_local(self._base() + ["wait-for-device"], timeout=10)
+            time.sleep(1)
+            # Retry the command
+            code2, out2, err2 = run_local(self._base() + ["shell", command])
+            txt2 = (out2 or "") + (("\n" + err2) if err2 else "")
+            txt2 = txt2.replace("\r", "").strip()
+            return txt2
+        return txt
 
     def id_string(self) -> str:
         return self.serial or "(unknown-serial)"
@@ -412,6 +410,9 @@ def execute_with_p_fallback(device: Device, command: str, show_commands: bool = 
     def is_output_valid(output: str) -> bool:
         """Check if output has actual data (not just header or error)"""
         if not output or not output.strip():
+            return False
+        # ADB transport errors are never valid output
+        if is_adb_transport_error(output):
             return False
         output_lower = output.lower()
         # Check for errors
@@ -915,7 +916,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
     for r in rows:
         cat = r["category"]
         if cat not in categories:
-            categories[cat] = {"rows": [], "stats": {"CRITICAL": 0, "WARNING": 0, "VERIFY": 0, "SAFE": 0, "INFO": 0}}
+            categories[cat] = {"rows": [], "stats": {"CRITICAL": 0, "WARNING": 0, "VERIFY": 0, "SAFE": 0, "INFO": 0, "SKIPPED": 0}}
         categories[cat]["rows"].append(r)
         status = r["status"]
         if status in categories[cat]["stats"]:
@@ -941,6 +942,8 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
             badges.append(f'<span class="cat-badge safe">{stats["SAFE"]} Safe</span>')
         if stats["INFO"] > 0:
             badges.append(f'<span class="cat-badge info">{stats["INFO"]} Info</span>')
+        if stats.get("SKIPPED", 0) > 0:
+            badges.append(f'<span class="cat-badge skipped">{stats["SKIPPED"]} Skipped</span>')
         badges_html = " ".join(badges)
         
         # Build check items
@@ -951,7 +954,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
             desc_esc = html_escape(r["description"])
             label_esc = html_escape(r["label"])
             status = r["status"]
-            css_class = {"SAFE": "safe", "WARNING": "warning", "CRITICAL": "critical", "VERIFY": "verify"}.get(status, "info")
+            css_class = {"SAFE": "safe", "WARNING": "warning", "CRITICAL": "critical", "VERIFY": "verify", "SKIPPED": "skipped"}.get(status, "info")
             
             items_html.append(f'''
         <div class="check-item {css_class}" data-search="{html_escape(r['label'].lower())} {html_escape(r['description'].lower())}">
@@ -1136,6 +1139,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
     .summary-card.verify {{ border-left: 4px solid var(--verify); }}
     .summary-card.safe {{ border-left: 4px solid var(--safe); }}
     .summary-card.info {{ border-left: 4px solid var(--info); }}
+    .summary-card.skipped {{ border-left: 4px solid #6b7280; }}
     .summary-card.total {{ border-left: 4px solid var(--accent); }}
     
     .summary-card .number {{
@@ -1150,6 +1154,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
     .summary-card.verify .number {{ color: var(--verify); }}
     .summary-card.safe .number {{ color: var(--safe); }}
     .summary-card.info .number {{ color: var(--info); }}
+    .summary-card.skipped .number {{ color: #9ca3af; }}
     .summary-card.total .number {{ color: var(--accent); }}
     
     .summary-card .label {{
@@ -1286,6 +1291,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
     .cat-badge.verify {{ background: rgba(168,85,247,0.15); color: var(--verify); }}
     .cat-badge.safe {{ background: rgba(34,197,94,0.15); color: var(--safe); }}
     .cat-badge.info {{ background: rgba(59,130,246,0.15); color: var(--info); }}
+    .cat-badge.skipped {{ background: rgba(107,114,128,0.15); color: #9ca3af; }}
     
     .category-content {{
       display: none;
@@ -1308,6 +1314,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
     .check-item.verify {{ border-left-color: var(--verify); }}
     .check-item.safe {{ border-left-color: var(--safe); }}
     .check-item.info {{ border-left-color: var(--info); }}
+    .check-item.skipped {{ border-left-color: #6b7280; opacity: 0.7; }}
     
     .check-item:last-child {{ margin-bottom: 0; }}
     
@@ -1336,6 +1343,7 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
     .status-badge.verify {{ background: var(--verify); color: #fff; }}
     .status-badge.safe {{ background: var(--safe); color: #fff; }}
     .status-badge.info {{ background: var(--info); color: #fff; }}
+    .status-badge.skipped {{ background: #6b7280; color: #fff; }}
     
     .check-desc {{
       color: var(--text-secondary);
@@ -1487,6 +1495,10 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
         <div class="number">{counts.get("info", 0)}</div>
         <div class="label">Info</div>
       </div>
+      <div class="summary-card skipped">
+        <div class="number">{counts.get("skipped", 0)}</div>
+        <div class="label">Skipped</div>
+      </div>
       <div class="summary-card total">
         <div class="number">{total_checks}</div>
         <div class="label">Total Checks</div>
@@ -1561,10 +1573,10 @@ def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]
       new Chart(ctx, {{
         type: 'doughnut',
         data: {{
-          labels: ['Critical', 'Warning', 'Verify', 'Safe', 'Info'],
+          labels: ['Critical', 'Warning', 'Verify', 'Safe', 'Info', 'Skipped'],
           datasets: [{{
-            data: [{counts.get("critical", 0)}, {counts.get("warning", 0)}, {counts.get("verify", 0)}, {counts.get("safe", 0)}, {counts.get("info", 0)}],
-            backgroundColor: ['#ef4444', '#f59e0b', '#a855f7', '#22c55e', '#3b82f6'],
+            data: [{counts.get("critical", 0)}, {counts.get("warning", 0)}, {counts.get("verify", 0)}, {counts.get("safe", 0)}, {counts.get("info", 0)}, {counts.get("skipped", 0)}],
+            backgroundColor: ['#ef4444', '#f59e0b', '#a855f7', '#22c55e', '#3b82f6', '#6b7280'],
             borderWidth: 0
           }}]
         }},
@@ -1606,6 +1618,9 @@ def is_empty_or_error(output: str) -> bool:
     """Check if output is empty or indicates an error/unsupported command"""
     if not output:
         return True
+    # ADB transport errors are not real output
+    if is_adb_transport_error(output):
+        return True
     output_lower = output.lower().strip()
     # Common indicators of no data / unsupported command
     error_indicators = [
@@ -1623,9 +1638,10 @@ def is_empty_or_error(output: str) -> bool:
 
 def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, show_commands: bool = False, is_rooted: bool = False) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
     rows: List[Dict[str, Any]] = []
-    counts = {"safe": 0, "warning": 0, "critical": 0, "info": 0, "verify": 0}
+    counts = {"safe": 0, "warning": 0, "critical": 0, "info": 0, "verify": 0, "skipped": 0}
     total = len(checks)
     start_time = time.time()
+    consecutive_adb_errors = 0  # Track consecutive ADB failures
 
     for idx, chk in enumerate(checks, start=1):
         category = chk.get("category", "General")
@@ -1642,63 +1658,117 @@ def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, s
         null_is_safe = chk.get("null_is_safe", False)
 
         raw = execute_with_p_fallback(device, command, show_commands, is_rooted=is_rooted) if command else ""
-        normalized = normalize_for_match(raw)
-        bucket = bucket_from_level(level)
 
-        matched = False
-        needs_verification = False
-        
-        # Check if output is empty, error, or null
-        output_empty = is_empty_or_error(raw)
-        output_is_null = is_null_response(raw)
-        
-        if safe_pattern:
-            try:
-                matched = bool(re.search(safe_pattern, normalized, re.IGNORECASE | re.MULTILINE | re.DOTALL))
-            except re.error:
-                matched = safe_pattern.lower() in normalized.lower()
+        # ── ADB transport error detection ──
+        # If the ADB connection dropped, mark SKIPPED instead of false-flagging
+        if raw and is_adb_transport_error(raw):
+            consecutive_adb_errors += 1
+            status = "SKIPPED"
+            counts["skipped"] += 1
+            raw = f"[ADB ERROR] {raw.strip()}"
+            # Defaults for SKIPPED — prevent NameError in rows.append
+            matched = False
+            needs_verification = False
+            bucket = bucket_from_level(level)
+            output_is_null = False
 
-        # Determine status with improved logic
-        if output_is_null:
-            # NULL output - check if null is explicitly allowed in safe_pattern
-            null_in_pattern = safe_pattern and 'null' in safe_pattern.lower()
-            if null_is_safe or null_in_pattern:
-                status = "SAFE"
-                counts["safe"] += 1
-            else:
-                # NULL without explicit allowance = needs manual verification
-                status = "VERIFY"
-                counts["verify"] += 1
-                needs_verification = True
-        elif matched:
-            status = "SAFE"
-            counts["safe"] += 1
-        elif output_empty:
-            # Empty output handling
-            if empty_is_safe:
-                # Some checks consider empty as safe (e.g., "no bad apps found")
-                status = "SAFE"
-                counts["safe"] += 1
-            elif requires_output and bucket in ("critical", "warning"):
-                # Empty output for critical/warning checks = needs manual verification
-                status = "VERIFY"
-                counts["verify"] += 1
-                needs_verification = True
-            else:
-                # For info-level checks, empty is just info
-                status = "INFO"
-                counts["info"] += 1
+            # If 5+ consecutive ADB errors, device is truly gone — abort early
+            if consecutive_adb_errors >= 5:
+                print(f"\n  {Colors.BRIGHT_RED}✗ Device unresponsive after {consecutive_adb_errors} consecutive ADB errors.{Colors.RESET}")
+                print(f"  {Colors.YELLOW}  Attempting reconnect...{Colors.RESET}")
+                if isinstance(device, ADBDevice):
+                    run_local(device._base() + ["reconnect"])
+                    time.sleep(3)
+                    run_local(device._base() + ["wait-for-device"], timeout=15)
+                    time.sleep(2)
+                    # Test with a simple command
+                    test_code, test_out, _ = run_local(device._base() + ["shell", "echo HARDAX_ALIVE"], timeout=5)
+                    if "HARDAX_ALIVE" in (test_out or ""):
+                        print(f"  {Colors.GREEN}  ✓ Device reconnected! Resuming...{Colors.RESET}")
+                        consecutive_adb_errors = 0
+                    else:
+                        print(f"  {Colors.BRIGHT_RED}  ✗ Device still offline. Skipping remaining checks.{Colors.RESET}")
+                        # Append current check first
+                        rows.append({
+                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "category": category, "label": label, "level": level,
+                            "bucket": bucket, "status": "SKIPPED", "matched": "False",
+                            "command": command, "result": raw,
+                            "description": desc + " [⊘ Skipped — ADB connection lost]",
+                            "needs_verification": False,
+                        })
+                        # Skip all remaining checks
+                        for remaining_chk in checks[idx:]:
+                            rows.append({
+                                "category": remaining_chk.get("category", "General"),
+                                "label": remaining_chk.get("label", "Unnamed"),
+                                "command": remaining_chk.get("command", ""),
+                                "result": "[SKIPPED] Device offline — ADB connection lost",
+                                "status": "SKIPPED",
+                                "description": remaining_chk.get("description", ""),
+                            })
+                            counts["skipped"] += 1
+                        break
         else:
-            # We have actual output that doesn't match safe pattern
-            if bucket == "critical":
-                status = "CRITICAL"
-                counts["critical"] += 1
-            elif bucket == "warning":
-                status = "WARNING"
-                counts["warning"] += 1
+            consecutive_adb_errors = 0  # Reset on successful command
+
+            normalized = normalize_for_match(raw)
+            bucket = bucket_from_level(level)
+
+            matched = False
+            needs_verification = False
+            
+            # Check if output is empty, error, or null
+            output_empty = is_empty_or_error(raw)
+            output_is_null = is_null_response(raw)
+            
+            if safe_pattern:
+                try:
+                    matched = bool(re.search(safe_pattern, normalized, re.IGNORECASE | re.MULTILINE | re.DOTALL))
+                except re.error:
+                    matched = safe_pattern.lower() in normalized.lower()
+
+            # Determine status with improved logic
+            if output_is_null:
+                # NULL output - check if null is explicitly allowed in safe_pattern
+                null_in_pattern = safe_pattern and 'null' in safe_pattern.lower()
+                if null_is_safe or null_in_pattern:
+                    status = "SAFE"
+                    counts["safe"] += 1
+                else:
+                    # NULL without explicit allowance = needs manual verification
+                    status = "VERIFY"
+                    counts["verify"] += 1
+                    needs_verification = True
+            elif matched:
+                status = "SAFE"
+                counts["safe"] += 1
+            elif output_empty:
+                # Empty output handling
+                if empty_is_safe:
+                    # Some checks consider empty as safe (e.g., "no bad apps found")
+                    status = "SAFE"
+                    counts["safe"] += 1
+                elif requires_output and bucket in ("critical", "warning"):
+                    # Empty output for critical/warning checks = needs manual verification
+                    status = "VERIFY"
+                    counts["verify"] += 1
+                    needs_verification = True
+                else:
+                    # For info-level checks, empty is just info
+                    status = "INFO"
+                    counts["info"] += 1
             else:
-                status = "INFO"
-                counts["info"] += 1
+                # We have actual output that doesn't match safe pattern
+                if bucket == "critical":
+                    status = "CRITICAL"
+                    counts["critical"] += 1
+                elif bucket == "warning":
+                    status = "WARNING"
+                    counts["warning"] += 1
+                else:
+                    status = "INFO"
+                    counts["info"] += 1
 
         # Progress display
         if on_progress or show_commands:
@@ -1722,6 +1792,9 @@ def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, s
                 elif status == "VERIFY":
                     status_color = Colors.BRIGHT_MAGENTA
                     status_symbol = "?"
+                elif status == "SKIPPED":
+                    status_color = Colors.DIM
+                    status_symbol = "⊘"
                 else:
                     status_color = Colors.CYAN
                     status_symbol = "ℹ"
@@ -1809,8 +1882,6 @@ Examples:
     ap.add_argument("--progress-numbers", action="store_true", help="Show progress counter")
     ap.add_argument("--show-commands", action="store_true", help="Display each command")
     ap.add_argument("--skip-certs", action="store_true", help="Skip certificate audit")
-    ap.add_argument("--cmd-timeout", type=int, default=30, help="Per-command timeout in seconds (default: 30)")
-    ap.add_argument("--thorough", action="store_true", help="Disable caching and timeout wrapping (slower but maximum coverage)")
 
     args = ap.parse_args()
 
@@ -1884,16 +1955,32 @@ Examples:
     else:
         print(f"{Colors.YELLOW}⚠ Device not rooted - some checks may have limited output{Colors.RESET}")
     print()
-
-    # Wrap device with caching layer to avoid re-running expensive commands
-    if not args.thorough:
-        device = CachedDevice(device, cmd_timeout=args.cmd_timeout)
-        print(f"{Colors.DIM}⚡ Fast mode: caching enabled, per-command timeout={args.cmd_timeout}s (use --thorough to disable){Colors.RESET}\n")
-    else:
-        print(f"{Colors.DIM}🔍 Thorough mode: no caching, no timeouts (may be slower){Colors.RESET}\n")
     
-    raw_device = device._real if isinstance(device, CachedDevice) else device
-    device_info = collect_device_info(raw_device)  # Use unwrapped for device info
+    device_info = collect_device_info(device)
+
+    # Pre-flight: verify ADB connection is healthy before scanning
+    if isinstance(device, ADBDevice):
+        preflight = device.shell("echo HARDAX_PREFLIGHT_OK")
+        if "HARDAX_PREFLIGHT_OK" not in preflight:
+            print(f"{Colors.BRIGHT_RED}✗ ADB pre-flight check failed!{Colors.RESET}")
+            print(f"  Response: {preflight}")
+            print(f"  {Colors.YELLOW}Attempting reconnect...{Colors.RESET}")
+            run_local(device._base() + ["reconnect"])
+            time.sleep(3)
+            run_local(device._base() + ["wait-for-device"], timeout=15)
+            time.sleep(2)
+            preflight2 = device.shell("echo HARDAX_PREFLIGHT_OK")
+            if "HARDAX_PREFLIGHT_OK" not in preflight2:
+                print(f"  {Colors.BRIGHT_RED}✗ Device still not responding. Please check:  {Colors.RESET}")
+                print(f"    • USB cable connected and device unlocked")
+                print(f"    • Run: adb kill-server && adb start-server")
+                print(f"    • Accept USB debugging prompt on device")
+                sys.exit(1)
+            print(f"  {Colors.GREEN}✓ Reconnected successfully!{Colors.RESET}")
+        else:
+            print(f"{Colors.GREEN}✓ ADB connection verified{Colors.RESET}")
+        print()
+
     rows, counts = run_checks(device, checks, on_progress=_progress, show_commands=args.show_commands or not args.progress_numbers, is_rooted=is_rooted)
 
     if args.progress_numbers:
@@ -1901,9 +1988,8 @@ Examples:
 
     # Certificate Audit
     certs = []
-    real_device = device._real if isinstance(device, CachedDevice) else device
     if args.mode == "adb" and not args.skip_certs:
-        certs = audit_certificates(real_device)
+        certs = audit_certificates(device)
 
     # TXT Report
     with open(txt_file, "w", encoding="utf-8") as f:
@@ -1935,7 +2021,7 @@ Examples:
         f.write("\n" + "=" * 40 + "\n")
         f.write("AUDIT SUMMARY\n")
         f.write(f"Target: {device.id_string()}\n")
-        f.write(f"Safe: {counts['safe']} | Warnings: {counts['warning']} | Critical: {counts['critical']} | Info: {counts['info']}\n")
+        f.write(f"Safe: {counts['safe']} | Warnings: {counts['warning']} | Critical: {counts['critical']} | Info: {counts['info']} | Skipped: {counts.get('skipped', 0)}\n")
         if certs:
             expired = sum(1 for c in certs if c['status'] == 'EXPIRED')
             user_certs = sum(1 for c in certs if c['status'] == 'USER_CERT')
@@ -1947,9 +2033,8 @@ Examples:
     write_html(html_file, device_info, rows, counts, certs)
 
     # Close SSH if used
-    real_dev = device._real if isinstance(device, CachedDevice) else device
-    if isinstance(real_dev, SSHDevice):
-        real_dev.close()
+    if isinstance(device, SSHDevice):
+        device.close()
 
     # Summary output
     print(f"\n{Colors.CYAN}{'═' * 70}{Colors.RESET}")
@@ -1961,6 +2046,8 @@ Examples:
     print(f"{Colors.BRIGHT_RED}✗  Critical      : {Colors.BOLD}{counts['critical']}{Colors.RESET}")
     print(f"{Colors.BRIGHT_MAGENTA}?  Verify        : {Colors.BOLD}{counts['verify']}{Colors.RESET}")
     print(f"{Colors.CYAN}ℹ  Info          : {Colors.BOLD}{counts['info']}{Colors.RESET}")
+    if counts.get('skipped', 0) > 0:
+        print(f"{Colors.DIM}⊘  Skipped (ADB) : {Colors.BOLD}{counts['skipped']}{Colors.RESET}")
     print(f"{Colors.CYAN}{'─' * 70}{Colors.RESET}")
     print(f"{Colors.DIM}📄 TXT Report    : {txt_file}{Colors.RESET}")
     print(f"{Colors.DIM}🌐 HTML Report   : {html_file}{Colors.RESET}")
