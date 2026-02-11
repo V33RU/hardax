@@ -2,27 +2,11 @@
   "checks": [
     {
       "category": "SYSTEM",
-      "label": "Play Protect",
-      "command": "settings get secure package_verifier_enable 2>/dev/null",
-      "safe_pattern": "^(1|null)$",
-      "level": "warning",
-      "description": "Play Protect should be enabled"
-    },
-    {
-      "category": "SYSTEM",
       "label": "Security Patch Level",
       "command": "PATCH_DATE=$(getprop ro.build.version.security_patch 2>/dev/null); if [ -z \"$PATCH_DATE\" ]; then echo 'UNKNOWN'; exit 1; fi; PATCH_EPOCH=$(date -d \"$PATCH_DATE\" +%s 2>/dev/null || echo 0); CURRENT_EPOCH=$(date +%s); DAYS_OLD=$(( ($CURRENT_EPOCH - $PATCH_EPOCH) / 86400 )); if [ $DAYS_OLD -lt 90 ]; then echo \"RECENT: $PATCH_DATE ($DAYS_OLD days old)\"; else echo \"OUTDATED: $PATCH_DATE ($DAYS_OLD days old)\"; fi",
       "safe_pattern": "^RECENT:",
       "level": "critical",
       "description": "Security patch must be less than 90 days old"
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Keyguard Timeout",
-      "command": "settings get secure lock_screen_lock_after_timeout 2>/dev/null",
-      "safe_pattern": ".+",
-      "level": "info",
-      "description": "Time delay before screen locks"
     },
     {
       "category": "SYSTEM",
@@ -76,14 +60,6 @@
     },
     {
       "category": "SYSTEM",
-      "label": "Development Settings Disabled",
-      "command": "settings get global development_settings_enabled 2>/dev/null",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "Developer mode should be disabled for production devices"
-    },
-    {
-      "category": "SYSTEM",
       "label": "Wi-Fi Direct Disabled (WFD)",
       "command": "pm list packages 2>/dev/null | grep -i wfd",
       "safe_pattern": "^$",
@@ -114,14 +90,6 @@
       "safe_pattern": "CONFIG_ARM64_PAN=y.*CONFIG_ARM64_UAO=y",
       "level": "critical",
       "description": "Privileged Access Never (PAN) and User Access Override (UAO) should be enabled for memory protection"
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Kernel Pointer Leaking",
-      "command": "cat /proc/sys/kernel/kptr_restrict",
-      "safe_pattern": "^2$",
-      "level": "warning",
-      "description": "Kernel pointers should not be exposed (2 = full restriction)"
     },
     {
       "category": "SYSTEM",
@@ -156,38 +124,6 @@
       "level": "warning",
       "description": "Debugfs mounted - kernel debug info exposed",
       "empty_is_safe": true
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Kernel Modules Loadable",
-      "command": "cat /proc/sys/kernel/modules_disabled 2>/dev/null",
-      "safe_pattern": "1",
-      "level": "warning",
-      "description": "Kernel module loading should be disabled (1)"
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Core Dumps Enabled",
-      "command": "cat /proc/sys/kernel/core_pattern 2>/dev/null",
-      "safe_pattern": "^$|\\|",
-      "level": "info",
-      "description": "Core dump configuration"
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Symbolic Link Following",
-      "command": "cat /proc/sys/fs/protected_symlinks 2>/dev/null",
-      "safe_pattern": "1",
-      "level": "warning",
-      "description": "Symlink protection should be enabled (1)"
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Hardlink Protection",
-      "command": "cat /proc/sys/fs/protected_hardlinks 2>/dev/null",
-      "safe_pattern": "1",
-      "level": "warning",
-      "description": "Hardlink protection should be enabled (1)"
     },
     {
       "category": "SYSTEM",
@@ -291,14 +227,6 @@
     },
     {
       "category": "SYSTEM",
-      "label": "Memory Protection (ASLR)",
-      "command": "cat /proc/sys/kernel/randomize_va_space 2>/dev/null",
-      "safe_pattern": "2",
-      "level": "critical",
-      "description": "ASLR should be fully enabled (value=2)"
-    },
-    {
-      "category": "SYSTEM",
       "label": "Stack Protection Status",
       "command": "cat /proc/sys/kernel/stack_protected 2>/dev/null || echo 'check_binary'",
       "safe_pattern": ".",
@@ -312,14 +240,6 @@
       "safe_pattern": "[12]",
       "level": "warning",
       "description": "Kernel pointers should be restricted (1 or 2)"
-    },
-    {
-      "category": "SYSTEM",
-      "label": "dmesg Restrictions",
-      "command": "cat /proc/sys/kernel/dmesg_restrict 2>/dev/null",
-      "safe_pattern": "1",
-      "level": "warning",
-      "description": "dmesg should be restricted to prevent kernel info leak"
     },
     {
       "category": "SYSTEM",
@@ -666,35 +586,11 @@
     },
     {
       "category": "SYSTEM",
-      "label": "ADB Enabled (CRITICAL for Medical)",
-      "command": "settings get global adb_enabled 2>/dev/null",
-      "safe_pattern": "^0$|^null$",
-      "level": "critical",
-      "description": "ADB MUST be disabled on medical devices - allows unauthorized access to PHI"
-    },
-    {
-      "category": "SYSTEM",
       "label": "Screen Lock Enforced",
       "command": "settings get secure lockscreen.password_type 2>/dev/null",
       "safe_pattern": "[1-9]",
       "level": "critical",
       "description": "Screen lock MUST be enabled to protect PHI access"
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Lock Timeout (Max 15 min for Medical)",
-      "command": "settings get system screen_off_timeout 2>/dev/null",
-      "safe_pattern": "^[0-9]{1,6}$",
-      "level": "warning",
-      "description": "Screen timeout should be <=15 minutes (900000ms) for medical devices"
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Unknown Sources Blocked",
-      "command": "settings get secure install_non_market_apps 2>/dev/null",
-      "safe_pattern": "^0$|^null$",
-      "level": "critical",
-      "description": "Sideloading MUST be disabled - only approved apps on medical devices"
     },
     {
       "category": "SYSTEM",
