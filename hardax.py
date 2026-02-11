@@ -16,12 +16,6 @@ from typing import List, Dict, Any, Tuple, Optional
 
 __version__ = "1.2.0"
 
-# -------------------------
-# ADB Transport Error Detection
-# -------------------------
-# These strings indicate the ADB connection itself failed,
-# NOT that the command returned bad output. Checks should be
-# SKIPPED (not flagged) when these appear.
 ADB_TRANSPORT_ERRORS = [
     'device offline',
     'device not found',
