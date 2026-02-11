@@ -19,14 +19,6 @@
     },
     {
       "category": "APPS",
-      "label": "Custom CAs Installed",
-      "command": "ls /data/misc/user/0/cacerts-added/ 2>/dev/null | wc -l",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "Custom certs may bypass pinning"
-    },
-    {
-      "category": "APPS",
       "label": "APK Signature Path Check",
       "command": "pm list packages -f | grep .apk | head -n 1",
       "safe_pattern": "package:",
