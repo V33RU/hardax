@@ -3,8 +3,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.2.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.6+-green.svg" alt="Python">
-  <img src="https://img.shields.io/badge/checks-454-orange.svg" alt="Checks">
-  <img src="https://img.shields.io/badge/categories-17-purple.svg" alt="Categories">
+  <img src="https://img.shields.io/badge/checks-462-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/categories-18-purple.svg" alt="Categories">
   <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
 </p>
 
@@ -20,7 +20,7 @@
     ┃  ██╔══██║██╔══██║██╔══██╗██║  ██║██╔══██║ ██╔██    ┃
     ┃  ██║  ██║██║  ██║██║  ██║██████╔╝██║  ██║██╔╝ ██╗  ┃
     ┃  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝  ┃
-    ┃  [454 Checks] [17 Categories] [3 Report Formats]   ┃
+    ┃  [462 Checks] [18 Categories] [3 Report Formats]   ┃
     ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
@@ -43,7 +43,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs 435 security checks across 16 categories to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs 462 security checks across 18 categories to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -58,8 +58,8 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **435 Security Checks** | Comprehensive coverage across 16 security categories |
-| **POS/Payment Terminal Support** | 23 PCI-DSS focused checks for payment devices |
+| **462 Security Checks** | Comprehensive coverage across 18 security categories |
+| **POS/Payment Terminal Support** | 21 PCI-DSS focused checks for payment devices |
 | **Certificate Audit** | CA certificate analysis with expiry/age calculation |
 | **No Root Required** | Runs entirely via ADB shell commands |
 | **Dual Connection Modes** | ADB (USB) and SSH (Network) support |
@@ -178,22 +178,24 @@ Options:
 
 ## Security Categories
 
-HARDAX organizes 435 checks into 16 security categories:
+HARDAX organizes 462 checks into 18 security categories:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
-| **SYSTEM** | 97 | Kernel, memory, TEE, time, power, build properties, CIS benchmarks |
-| **NETWORK** | 70 | Ports, WiFi, cellular, VPN, MQTT, CoAP, CAN bus, HL7, DICOM |
-| **PRIVACY** | 52 | Biometrics, screen lock, location, sensors, clipboard, audio |
-| **APPS** | 48 | Permissions, runtime, installation, dangerous permissions |
+| **SYSTEM** | 84 | Kernel, memory, TEE, time, power, build properties |
+| **NETWORK** | 73 | Ports, WiFi, cellular, VPN, MQTT, CoAP, CAN bus, HL7, DICOM |
+| **PRIVACY** | 51 | Biometrics, screen lock, location, sensors, clipboard, audio |
+| **APPS** | 47 | Permissions, runtime, installation, dangerous permissions |
 | **BLUETOOTH** | 29 | BLE/Classic security, pairing modes, profiles, MAC randomization |
-| **POS_SECURITY** | 23 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper detection |
-| **BOOT_SECURITY** | 21 | Verified boot, AVB, dm-verity, bootloader, integrity |
+| **SELINUX** | 25 | SELinux enforcement, policy, audit, context, boot flags |
+| **POS_SECURITY** | 21 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper detection |
 | **STORAGE** | 21 | Filesystem, backup, encryption, partitions |
-| **DEVICE_MANAGEMENT** | 14 | MDM, accounts, developer options |
+| **CIS_BENCHMARK** | 20 | CIS Android Benchmark controls |
+| **BOOT_SECURITY** | 19 | Verified boot, AVB, dm-verity, bootloader, integrity |
 | **USB_SECURITY** | 14 | USB debugging, interfaces, serial ports, gadget mode |
-| **CERTIFICATE_AUDIT** | 12 | CA certificates, user certs, pinning bypass, keystore, expiry analysis |
+| **DEVICE_MANAGEMENT** | 13 | MDM, accounts, developer options |
 | **CRYPTOGRAPHY** | 12 | Encryption, keys, credentials, API keys, certificates |
+| **CERTIFICATE_AUDIT** | 11 | CA certificates, user certs, pinning bypass, keystore, expiry analysis |
 | **INPUT** | 9 | Keyboards, accessibility, input methods |
 | **MALWARE** | 5 | Root detection, Frida, suspicious files |
 | **ADB_SECURITY** | 4 | ADB keys, network ADB, debugging |
@@ -227,8 +229,8 @@ flowchart TD
     E --> F{Found?}
     F -->|No| G([Exit])
     F -->|Yes| H[Get Device Info]
-    H --> I[Load 17 JSON Files]
-    I --> J[435 Security Checks]
+    H --> I[Load 18 JSON Files]
+    I --> J[462 Security Checks]
     J --> K[For Each Check]
     K --> L[Run Command]
     L --> M[Capture Output]
