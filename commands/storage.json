@@ -143,7 +143,7 @@
     {
       "category": "STORAGE",
       "label": "Hidden or Extra Partitions",
-      "command": "cat /proc/partitions 2>/dev/null | grep -Ev 'mmcblk0p[0-9]+|sda[0-9]+'",
+      "command": "cat /proc/partitions | grep -Ev 'mmcblk0p[0-9]+|sda[0-9]+'",
       "safe_pattern": "^$",
       "level": "info",
       "description": "Detects non-standard or extra partitions",
