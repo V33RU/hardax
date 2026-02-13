@@ -20,7 +20,7 @@
     {
       "category": "SYSTEM",
       "label": "User-installed Apps",
-      "command": "pm list packages -3 2>/dev/null | wc -l",
+      "command": "pm list packages -3 2>/dev/null",
       "safe_pattern": ".+",
       "level": "info",
       "description": "Check how many user apps installed"
@@ -203,7 +203,7 @@
     {
       "category": "SYSTEM",
       "label": "World-Readable Proc Entries",
-      "command": "ls -la /proc/*/cmdline 2>/dev/null | grep 'r--r--r--' | wc -l",
+      "command": "ls -la /proc/*/cmdline 2>/dev/null | grep 'r--r--r--'",
       "safe_pattern": ".",
       "level": "info",
       "description": "Process info readable - normal but review sensitive processes"
@@ -571,7 +571,7 @@
     {
       "category": "SYSTEM",
       "label": "Third-Party Libraries",
-      "command": "find /system /vendor -name '*.so' 2>/dev/null | wc -l",
+      "command": "find /system /vendor -name '*.so' 2>/dev/null",
       "safe_pattern": ".",
       "level": "info",
       "description": "Shared libraries count - document for SBOM/vulnerability tracking"
