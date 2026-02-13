@@ -31,6 +31,33 @@
       "safe_pattern": ".",
       "level": "info",
       "description": "Tap and pay service status"
+    },
+    {
+      "category": "NFC_SECURITY",
+      "label": "NFC Service Detailed Status",
+      "command": "dumpsys nfc 2>/dev/null | grep -iE 'mState|mIsNdefPushEnabled|mScreenState|mNfcAdapter' | head -10",
+      "safe_pattern": "",
+      "level": "info",
+      "description": "NFC service internal state - mState/push/screen details for security posture analysis",
+      "empty_is_safe": false
+    },
+    {
+      "category": "NFC_SECURITY",
+      "label": "NFC Reader Mode Active",
+      "command": "dumpsys nfc 2>/dev/null | grep -i 'mReaderModeParams'",
+      "safe_pattern": "null",
+      "level": "warning",
+      "description": "NFC reader mode parameters active - may indicate relay attack preparation or unauthorized card reading",
+      "empty_is_safe": false
+    },
+    {
+      "category": "NFC_SECURITY",
+      "label": "Secure Element (eSE/UICC) Status",
+      "command": "dumpsys nfc 2>/dev/null | grep -iE 'eSE|UICC|SecureElement|HCE' | head -10",
+      "safe_pattern": "",
+      "level": "info",
+      "description": "Secure element status - eSE/UICC stores payment credentials, HCE indicates host card emulation",
+      "empty_is_safe": false
     }
   ]
 }
