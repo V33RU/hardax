@@ -51,7 +51,7 @@
     {
       "category": "NETWORK",
       "label": "World-Writable Files",
-      "command": "find /data -maxdepth 4 -type f -perm -o+w 2>/dev/null | head -20",
+      "command": "find /data -maxdepth 4 -type f -perm -o+w 2>/dev/null | head -20 | wc -l",
       "safe_pattern": "^0$",
       "level": "warning",
       "description": "Unprotected sensitive files (scans top 4 levels of /data)",
@@ -76,7 +76,7 @@
     {
       "category": "NETWORK",
       "label": "ARP Table Dump",
-      "command": "cat /proc/net/arp 2>/dev/null",
+      "command": "cat /proc/net/arp",
       "safe_pattern": ".*",
       "level": "info",
       "description": "Lists resolved ARP IP-MAC mappings"
@@ -272,7 +272,7 @@
       "command": "netstat -ulnp 2>/dev/null || ss -ulnp 2>/dev/null",
       "safe_pattern": "^$",
       "level": "info",
-      "description": "INFO: All external UDP ports. \ud83d\udfe2 SAFE=empty. \ud83d\udd34 UNSAFE=any output exposes UDP services. Why: UDP services often lack authentication.",
+      "description": "INFO: All external UDP ports. 🟢 SAFE=empty. 🔴 UNSAFE=any output exposes UDP services. Why: UDP services often lack authentication.",
       "empty_is_safe": true
     },
     {
@@ -399,7 +399,7 @@
     {
       "category": "NETWORK",
       "label": "Root Network Access Test",
-      "command": "su -c 'netstat -anp 2>/dev/null || ss -anp 2>/dev/null' 2>/dev/null | head -5 || echo 'ROOT_REQUIRED_FOR_FULL_OUTPUT'",
+      "command": "su -c 'netstat -anp 2>/dev/null | head -5' || echo 'ROOT_REQUIRED_FOR_FULL_OUTPUT'",
       "safe_pattern": "tcp|udp|Proto",
       "level": "info",
       "description": "INFO: Tests if root access works for network commands. If ROOT_REQUIRED shown, run HARDAX on rooted device for full network audit."
@@ -415,10 +415,10 @@
     {
       "category": "NETWORK",
       "label": "Listening Ports Summary (Root)",
-      "command": "su -c 'netstat -lnp 2>/dev/null || ss -lnp 2>/dev/null' 2>/dev/null | grep -E '^tcp|^udp' || netstat -ln 2>/dev/null | grep -E '^tcp|^udp' || ss -ln 2>/dev/null | grep -E '^tcp|^udp'",
+      "command": "su -c 'netstat -lnp' 2>/dev/null | grep -E '^tcp|^udp' || netstat -ln 2>/dev/null | grep -E '^tcp|^udp'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "INFO: All listening ports (TCP+UDP). \ud83d\udfe2 SAFE=only 127.0.0.1. \ud83d\udd34 REVIEW=any 0.0.0.0 or external IP. Shows PID/program if rooted."
+      "description": "INFO: All listening ports (TCP+UDP). 🟢 SAFE=only 127.0.0.1. 🔴 REVIEW=any 0.0.0.0 or external IP. Shows PID/program if rooted."
     },
     {
       "category": "NETWORK",
@@ -426,7 +426,7 @@
       "command": "netstat -lntp 2>/dev/null | grep '^tcp ' || ss -lntp 2>/dev/null | grep '^tcp'",
       "safe_pattern": "^\\s*$",
       "level": "info",
-      "description": "INFO: All IPv4 TCP listening ports. \ud83d\udfe2 SAFE if 127.0.0.1 (localhost only). \ud83d\udd34 UNSAFE if 0.0.0.0 (anyone can connect). Empty may indicate command failure on non-rooted device."
+      "description": "INFO: All IPv4 TCP listening ports. 🟢 SAFE if 127.0.0.1 (localhost only). 🔴 UNSAFE if 0.0.0.0 (anyone can connect). Empty may indicate command failure on non-rooted device."
     },
     {
       "category": "NETWORK",
@@ -434,7 +434,7 @@
       "command": "netstat -lntp 2>/dev/null | grep '^tcp ' | grep -E ':(53|80|25|110|143|465|587|993|995|8080|8443|22)[^0-9]' | grep -v '127\\.' || ss -lntp 2>/dev/null | grep -E ':(53|80|25|110|143|465|587|993|995|8080|8443|22)[^0-9]' | grep -v '127\\.'",
       "safe_pattern": "^\\s*$",
       "level": "warning",
-      "description": "WARNING: 22(SSH), 53(DNS), 80(HTTP), 8080(Proxy) exposed! \ud83d\udfe2 SAFE=empty. \ud83d\udd34 UNSAFE=any output. Risk: brute force, unencrypted traffic."
+      "description": "WARNING: 22(SSH), 53(DNS), 80(HTTP), 8080(Proxy) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: brute force, unencrypted traffic."
     },
     {
       "category": "NETWORK",
@@ -442,7 +442,7 @@
       "command": "netstat -lntp 2>/dev/null | grep '^tcp ' | grep -E ':(21|23|25|445|3306|5432|5555|5900|5901|3389|4444|41795)[^0-9]' | grep -v '127\\.' || ss -lntp 2>/dev/null | grep -E ':(21|23|25|445|3306|5432|5555|5900|5901|3389|4444|41795)[^0-9]' | grep -v '127\\.'",
       "safe_pattern": "^\\s*$",
       "level": "critical",
-      "description": "CRITICAL: 21(FTP), 23(Telnet), 5555(ADB), 3306(MySQL), 3389(RDP), 5900(VNC) exposed! \ud83d\udfe2 SAFE=empty. \ud83d\udd34 UNSAFE=any output. IMMEDIATE ACTION REQUIRED!"
+      "description": "CRITICAL: 21(FTP), 23(Telnet), 5555(ADB), 3306(MySQL), 3389(RDP), 5900(VNC) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. IMMEDIATE ACTION REQUIRED!"
     },
     {
       "category": "NETWORK",
@@ -450,7 +450,7 @@
       "command": "netstat -lnup 2>/dev/null | grep '^udp ' | grep -v '127\\.' || ss -lnup 2>/dev/null | grep '^udp' | grep -v '127\\.'",
       "safe_pattern": "^\\s*$",
       "level": "info",
-      "description": "INFO: External UDP ports. \ud83d\udfe2 SAFE=empty. \ud83d\udd34 UNSAFE=any output. Risk: UDP services often lack authentication."
+      "description": "INFO: External UDP ports. 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: UDP services often lack authentication."
     },
     {
       "category": "NETWORK",
@@ -458,7 +458,7 @@
       "command": "netstat -lnup 2>/dev/null | grep '^udp ' | grep -E ':(123|161|162|5353)[^0-9]' | grep -v '127\\.' || ss -lnup 2>/dev/null | grep -E ':(123|161|162|5353)[^0-9]' | grep -v '127\\.'",
       "safe_pattern": "^\\s*$",
       "level": "warning",
-      "description": "WARNING: 123(NTP), 161(SNMP), 5353(mDNS) exposed! \ud83d\udfe2 SAFE=empty. \ud83d\udd34 UNSAFE=any output. Risk: DDoS amplification, device info leakage."
+      "description": "WARNING: 123(NTP), 161(SNMP), 5353(mDNS) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: DDoS amplification, device info leakage."
     },
     {
       "category": "NETWORK",
@@ -466,7 +466,7 @@
       "command": "netstat -lnup 2>/dev/null | grep '^udp ' | grep -E ':(69|1900|500|4500|520)[^0-9]' | grep -v '127\\.' || ss -lnup 2>/dev/null | grep -E ':(69|1900|500|4500|520)[^0-9]' | grep -v '127\\.'",
       "safe_pattern": "^\\s*$",
       "level": "critical",
-      "description": "CRITICAL: 69(TFTP), 1900(SSDP), 500(IPsec) exposed! \ud83d\udfe2 SAFE=empty. \ud83d\udd34 UNSAFE=any output. Risk: No auth, DDoS amplification!"
+      "description": "CRITICAL: 69(TFTP), 1900(SSDP), 500(IPsec) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: No auth, DDoS amplification!"
     },
     {
       "category": "NETWORK",
@@ -474,7 +474,7 @@
       "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -v '::1'",
       "safe_pattern": "^\\s*$",
       "level": "info",
-      "description": "INFO: IPv6 TCP listening ports. \ud83d\udfe2 SAFE=empty or ::1 only. \ud83d\udd34 UNSAFE if ::: (all interfaces). IPv6 often overlooked!"
+      "description": "INFO: IPv6 TCP listening ports. 🟢 SAFE=empty or ::1 only. 🔴 UNSAFE if ::: (all interfaces). IPv6 often overlooked!"
     },
     {
       "category": "NETWORK",
@@ -482,7 +482,7 @@
       "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -E ':(53|80|25|110|143|465|587|993|995|8080|8443|22)[^0-9]' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -E ':(53|80|22)[^0-9]' | grep -v '::1'",
       "safe_pattern": "^\\s*$",
       "level": "warning",
-      "description": "WARNING: Common TCP on IPv6! \ud83d\udfe2 SAFE=empty. \ud83d\udd34 UNSAFE=any output. Risk: Often missed in firewall rules!"
+      "description": "WARNING: Common TCP on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Often missed in firewall rules!"
     },
     {
       "category": "NETWORK",
@@ -490,7 +490,7 @@
       "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -E ':(21|23|25|445|3306|5432|5555|5900|5901|3389|4444|41795)[^0-9]' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -E ':(21|23|5555)[^0-9]' | grep -v '::1'",
       "safe_pattern": "^\\s*$",
       "level": "critical",
-      "description": "CRITICAL: Dangerous ports on IPv6! \ud83d\udfe2 SAFE=empty. \ud83d\udd34 UNSAFE=any output. Risk: Full device control via IPv6!"
+      "description": "CRITICAL: Dangerous ports on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Full device control via IPv6!"
     },
     {
       "category": "NETWORK",
@@ -498,7 +498,7 @@
       "command": "netstat -lnup 2>/dev/null | grep '^udp6' | grep -v '::1' || ss -lnup 2>/dev/null | grep 'udp6\\|\\[::\\]' | grep -v '::1'",
       "safe_pattern": "^\\s*$",
       "level": "info",
-      "description": "INFO: External IPv6 UDP ports. \ud83d\udfe2 SAFE=empty. \ud83d\udd34 UNSAFE=any output. Risk: Bypasses IPv4 firewall rules."
+      "description": "INFO: External IPv6 UDP ports. 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Bypasses IPv4 firewall rules."
     },
     {
       "category": "NETWORK",
@@ -506,7 +506,7 @@
       "command": "netstat -lnup 2>/dev/null | grep '^udp6' | grep -E ':(123|161|162|5353)[^0-9]' | grep -v '::1' || ss -lnup 2>/dev/null | grep 'udp6' | grep -E ':(123|161|5353)[^0-9]' | grep -v '::1'",
       "safe_pattern": "^\\s*$",
       "level": "warning",
-      "description": "WARNING: NTP/SNMP/mDNS on IPv6! \ud83d\udfe2 SAFE=empty. \ud83d\udd34 UNSAFE=any output. Risk: DDoS, device discovery."
+      "description": "WARNING: NTP/SNMP/mDNS on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: DDoS, device discovery."
     },
     {
       "category": "NETWORK",
@@ -514,7 +514,7 @@
       "command": "netstat -lnup 2>/dev/null | grep '^udp6' | grep -E ':(69|1900|500|4500|520)[^0-9]' | grep -v '::1' || ss -lnup 2>/dev/null | grep 'udp6' | grep -E ':(69|1900)[^0-9]' | grep -v '::1'",
       "safe_pattern": "^\\s*$",
       "level": "critical",
-      "description": "CRITICAL: TFTP/SSDP on IPv6! \ud83d\udfe2 SAFE=empty. \ud83d\udd34 UNSAFE=any output. Risk: No-auth file transfer, DDoS!"
+      "description": "CRITICAL: TFTP/SSDP on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: No-auth file transfer, DDoS!"
     },
     {
       "category": "NETWORK",
@@ -603,6 +603,15 @@
       "safe_pattern": "1",
       "level": "info",
       "description": "Captive portal detection for public WiFi"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Active External Connections (ESTABLISHED)",
+      "command": "netstat -tunp 2>/dev/null | grep ESTABLISHED | grep -vE '127.0.0.1|::1|localhost' | head -20 || ss -tunp 2>/dev/null | grep ESTAB | grep -vE '127.0.0.1|::1' | head -20",
+      "safe_pattern": "",
+      "level": "warning",
+      "description": "Active outbound connections to external IPs - unexpected connections may indicate C2 communication or data exfiltration",
+      "empty_is_safe": false
     }
   ]
 }
