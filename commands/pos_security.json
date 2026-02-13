@@ -27,7 +27,7 @@
     {
       "category": "POS_SECURITY",
       "label": "Kiosk Mode (Lock Task)",
-      "command": "result=$(timeout 10 dumpsys activity activities 2>/dev/null | grep -iE 'mLockTaskModeState|mLockTaskMode[^S]' | grep -oE '[0-9]+' | head -1); echo \"${result:-0}\"",
+      "command": "result=$(dumpsys activity 2>/dev/null | grep -iE 'mLockTaskModeState|mLockTaskMode[^S]' | grep -oE '[0-9]+' | head -1); echo \"${result:-0}\"",
       "safe_pattern": "^[1-2]$",
       "level": "warning",
       "description": "POS should run in kiosk/lock task mode (1=locked, 2=pinned). Supports both old (mLockTaskModeState) and new (mLockTaskMode) Android property names. Returns 0 if not in kiosk mode."
@@ -51,7 +51,7 @@
     {
       "category": "POS_SECURITY",
       "label": "Payment App Permissions",
-      "command": "DUMP=$(dumpsys package 2>/dev/null); for pkg in $(pm list packages 2>/dev/null | grep -iE 'pay|wallet|pos|terminal' | cut -d: -f2 | head -3); do echo \"==$pkg==\"; echo \"$DUMP\" | grep -A100 \"Package.*$pkg\" | head -100 | grep -E 'permission.*INTERNET|permission.*NFC|permission.*CAMERA' | head -5; done",
+      "command": "for pkg in $(pm list packages 2>/dev/null | grep -iE 'pay|wallet|pos|terminal' | cut -d: -f2 | head -3); do dumpsys package $pkg 2>/dev/null | grep -E 'permission.*INTERNET|permission.*NFC|permission.*CAMERA' | head -5; done",
       "safe_pattern": ".*",
       "level": "info",
       "description": "Review critical permissions granted to payment apps - INTERNET+NFC+CAMERA combo needs manual review"
@@ -59,7 +59,7 @@
     {
       "category": "POS_SECURITY",
       "label": "Dangerous Permission - CAMERA",
-      "command": "dumpsys package 2>/dev/null | grep -B20 'android.permission.CAMERA.*granted=true' | grep 'Package \\[' | sed 's/.*Package \\[//;s/\\].*//' | sort -u | grep -ivE 'camera|photo|scan|barcode|qr' | head -5",
+      "command": "pm list packages 2>/dev/null | cut -d: -f2 | while read pkg; do dumpsys package \"$pkg\" 2>/dev/null | grep -q 'android.permission.CAMERA.*granted=true' && echo \"$pkg\"; done | grep -ivE 'camera|photo|scan|barcode|qr' | head -5",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Non-camera apps with CAMERA permission - potential card skimming risk",
@@ -68,7 +68,7 @@
     {
       "category": "POS_SECURITY",
       "label": "Open Listening Ports",
-      "command": "(netstat -tlnp 2>/dev/null || ss -tlnp 2>/dev/null) | grep -E 'LISTEN' | awk '{print $4}' | grep -oE '[0-9]+$' | sort -u | tr '\\n' ',' | sed 's/,$//'",
+      "command": "netstat -tlnp 2>/dev/null | grep -E 'LISTEN' | awk '{print $4}' | grep -oE '[0-9]+$' | sort -u | tr '\\n' ',' | sed 's/,$//'",
       "safe_pattern": ".*",
       "level": "info",
       "description": "PCI-DSS 1.1.6: Review all listening ports on POS terminal"
@@ -76,7 +76,7 @@
     {
       "category": "POS_SECURITY",
       "label": "Remote Desktop Ports",
-      "command": "(netstat -tlnp 2>/dev/null || ss -tlnp 2>/dev/null) | grep -E ':3389|:5900|:5901|:5800|:22|:5555|:4444' | grep 'LISTEN'",
+      "command": "netstat -tlnp 2>/dev/null | grep -E ':3389|:5900|:5901|:5800|:22|:5555|:4444' | grep 'LISTEN'",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "PCI-DSS 2.2.7: RDP(:3389)/VNC(:5900-5901,:5800)/SSH(:22)/ADB-net(:5555) must be closed. :4444 included as Metasploit/reverse-shell indicator - verify manually if flagged.",
@@ -175,6 +175,33 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Screen recording tool detected - may capture card data or PIN entry on POS terminal",
+      "empty_is_safe": true
+    },
+    {
+      "category": "POS_SECURITY",
+      "label": "NFC Relay Attack Tools",
+      "command": "ps -A -o cmd 2>/dev/null | grep -iE 'nfcrelay|nfcgate|nfcproxy|nfc.relay|supercard|phantomcard' | grep -v grep",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "NFC relay attack tool detected - intercepts and relays contactless payment data in real-time",
+      "empty_is_safe": true
+    },
+    {
+      "category": "POS_SECURITY",
+      "label": "PAX Terminal Services",
+      "command": "ps -A -o cmd 2>/dev/null | grep -iE 'pax|paydroid|neptune|sagittarius' | grep -v grep",
+      "safe_pattern": "",
+      "level": "info",
+      "description": "PAX terminal-specific processes detected - verify all services are legitimate PAX firmware",
+      "empty_is_safe": false
+    },
+    {
+      "category": "POS_SECURITY",
+      "label": "PAX Unsigned Partition Access (CVE-2023-42134)",
+      "command": "ls -la /dev/block/by-name/pax* 2>/dev/null",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "PAX unsigned partition block device accessible - CVE-2023-42134 allows local code execution via unsigned partition flashing",
       "empty_is_safe": true
     }
   ]
