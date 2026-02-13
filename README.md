@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.2.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.6+-green.svg" alt="Python">
-  <img src="https://img.shields.io/badge/checks-462-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-488-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-18-purple.svg" alt="Categories">
   <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
 </p>
@@ -20,7 +20,7 @@
     ┃  ██╔══██║██╔══██║██╔══██╗██║  ██║██╔══██║ ██╔██    ┃
     ┃  ██║  ██║██║  ██║██║  ██║██████╔╝██║  ██║██╔╝ ██╗  ┃
     ┃  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝  ┃
-    ┃  [462 Checks] [18 Categories] [3 Report Formats]   ┃
+    ┃  [488 Checks] [18 Categories] [3 Report Formats]   ┃
     ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
@@ -43,7 +43,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs 462 security checks across 18 categories to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **488 security checks** across **18 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -58,15 +58,18 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **462 Security Checks** | Comprehensive coverage across 18 security categories |
-| **POS/Payment Terminal Support** | 21 PCI-DSS focused checks for payment devices |
+| **488 Security Checks** | Comprehensive coverage across 18 security categories |
+| **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
+| **Malware & Hooking Detection** | 16 checks for rootkits, RATs, Frida, Xposed, keyloggers, memory scrapers |
 | **Certificate Audit** | CA certificate analysis with expiry/age calculation |
 | **No Root Required** | Runs entirely via ADB shell commands |
-| **Dual Connection Modes** | ADB (USB) and SSH (Network) support |
-| **5 Status Levels** | SAFE, WARNING, CRITICAL, VERIFY, INFO |
+| **Root Auto-Detection** | Detects root (Magisk/SuperSU/su) and uses `su -c` for privileged commands |
+| **ADB Resilience** | 5-layer protection: connection check, auto-reconnect, timeout, SKIPPED status |
+| **Dual Connection Modes** | ADB (USB/Network) and SSH support |
+| **5 Status Levels** | SAFE, WARNING, CRITICAL, VERIFY, INFO, SKIPPED |
 | **3 Report Formats** | TXT, CSV, HTML with interactive dashboard |
 | **False Positive Prevention** | Smart null/empty handling with VERIFY status |
-| **Extensible JSON Checks** | Easy to add custom security checks |
+| **Extensible JSON Checks** | Easy to add custom security checks - drop JSON, run |
 | **Beautiful CLI Output** | Color-coded real-time progress display |
 | **Device Info Collection** | Automatic device fingerprinting |
 
@@ -81,6 +84,7 @@ HARDAX works with any Android-based device accessible via ADB or SSH:
 | **POS Terminals** | PAX, Verifone, Ingenico, Sunmi, Newland, Clover, Square |
 | **Smartphones & Tablets** | Samsung, Pixel, OnePlus, Xiaomi, etc. |
 | **IoT Devices** | Android Things, AOSP-based smart devices |
+| **Collaboration Panels** | Crestron, Poly, Neat, Webex Board |
 | **Android Automotive** | Infotainment systems, head units |
 | **Medical Devices** | Android-based clinical devices |
 | **Industrial Android** | Rugged tablets, handheld scanners |
@@ -93,7 +97,7 @@ HARDAX works with any Android-based device accessible via ADB or SSH:
 
 ### Prerequisites
 
-- Python 3.6 or higher
+- Python 3.8 or higher
 - ADB (Android Debug Bridge) installed and in PATH
 - USB Debugging enabled on target device
 
@@ -114,10 +118,10 @@ python3 hardax.py
 ### Optional Dependencies
 
 ```bash
-For Linux : 
+# For Linux
 pip install paramiko cryptography
 
-For Windows
+# For Windows
 py -m pip install -r requirements.txt
 ```
 
@@ -134,7 +138,7 @@ python3 hardax.py
 # Show commands being executed
 python3 hardax.py --show-commands
 
-# Custom output directory
+# Load all check files from commands/ directory
 python3 hardax.py --json-dir commands
 
 # Specify device by serial
@@ -151,6 +155,13 @@ python3 hardax.py --skip-certs
 
 ```bash
 python3 hardax.py --mode ssh --host 192.168.1.100 --ssh-user root --ssh-pass password
+```
+
+### Network ADB
+
+```bash
+adb connect 192.168.1.100:5555
+python3 hardax.py --serial 192.168.1.100:5555
 ```
 
 ### All Options
@@ -178,42 +189,43 @@ Options:
 
 ## Security Categories
 
-HARDAX organizes 462 checks into 18 security categories:
+HARDAX organizes **488 checks** into **18 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
-| **SYSTEM** | 84 | Kernel, memory, TEE, time, power, build properties |
-| **NETWORK** | 73 | Ports, WiFi, cellular, VPN, MQTT, CoAP, CAN bus, HL7, DICOM |
+| **SYSTEM** | 89 | Kernel, memory, TEE, time, power, build properties, emulator detection, SIM status |
+| **NETWORK** | 74 | Ports, WiFi, cellular, VPN, MQTT, CoAP, CAN bus, HL7, DICOM, active connections |
 | **PRIVACY** | 51 | Biometrics, screen lock, location, sensors, clipboard, audio |
-| **APPS** | 47 | Permissions, runtime, installation, dangerous permissions |
+| **APPS** | 50 | Permissions, overlay attacks, installation sources, backup audit, dangerous perms |
 | **BLUETOOTH** | 29 | BLE/Classic security, pairing modes, profiles, MAC randomization |
 | **SELINUX** | 25 | SELinux enforcement, policy, audit, context, boot flags |
-| **POS_SECURITY** | 21 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper detection |
+| **POS_SECURITY** | 24 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper, NFC relay, PAX CVE |
 | **STORAGE** | 21 | Filesystem, backup, encryption, partitions |
-| **CIS_BENCHMARK** | 20 | CIS Android Benchmark controls |
+| **CIS_BENCHMARK** | 20 | CIS Android Benchmark v1.6.0 controls (89% coverage) |
 | **BOOT_SECURITY** | 19 | Verified boot, AVB, dm-verity, bootloader, integrity |
+| **MALWARE** | 16 | Root/Magisk/SuperSU, Frida, Xposed/LSPosed, RATs, keyloggers, memory scrapers, root cloaking |
 | **USB_SECURITY** | 14 | USB debugging, interfaces, serial ports, gadget mode |
 | **DEVICE_MANAGEMENT** | 13 | MDM, accounts, developer options |
 | **CRYPTOGRAPHY** | 12 | Encryption, keys, credentials, API keys, certificates |
 | **CERTIFICATE_AUDIT** | 11 | CA certificates, user certs, pinning bypass, keystore, expiry analysis |
 | **INPUT** | 9 | Keyboards, accessibility, input methods |
-| **MALWARE** | 5 | Root detection, Frida, suspicious files |
+| **NFC_SECURITY** | 7 | NFC state, Android Beam, tap-to-pay, reader mode, secure element (eSE/UICC) |
 | **ADB_SECURITY** | 4 | ADB keys, network ADB, debugging |
-| **NFC_SECURITY** | 4 | NFC, Android Beam, tap-to-pay |
 
 ---
 
 ## Status Levels
 
-HARDAX classifies findings into 5 status levels:
+HARDAX classifies findings into 6 status levels:
 
 | Status | Color | Symbol | Description |
 |--------|-------|--------|-------------|
 | **SAFE** | 🟢 Green | ✓ | Secure configuration detected |
-| **WARNING** | 🟡 Yellow | ⚠ | Potential risk - review recommended |
-| **CRITICAL** | 🔴 Red | ✗ | Security issue - immediate action required |
+| **WARNING** | 🟡 Yellow | ⚠ | Potential risk  - review recommended |
+| **CRITICAL** | 🔴 Red | ✗ | Security issue - mmediate action required |
 | **VERIFY** | 🟣 Purple | ? | Manual verification required (null/empty output) |
 | **INFO** | 🔵 Blue | ℹ | Informational - no action needed |
+| **SKIPPED** | ⚪ Gray | ○ | ADB connection lost —cchheck ould not execute |
 
 ---
 
@@ -222,34 +234,53 @@ HARDAX classifies findings into 5 status levels:
 ```mermaid
 flowchart TD
     A([Start HARDAX]) --> B{Mode?}
-    B -->|ADB| C[USB Connection]
-    B -->|SSH| D[Network Connection]
+    B -->|ADB| C[USB/Network Connection]
+    B -->|SSH| D[SSH Connection]
     C --> E[Detect Device]
     D --> E
     E --> F{Found?}
     F -->|No| G([Exit])
     F -->|Yes| H[Get Device Info]
-    H --> I[Load 18 JSON Files]
-    I --> J[462 Security Checks]
-    J --> K[For Each Check]
-    K --> L[Run Command]
-    L --> M[Capture Output]
-    M --> N{Evaluate}
-    N -->|Empty + safe| O[✅ SAFE]
-    N -->|Match pattern| O
-    N -->|Null value| P[🟣 VERIFY]
-    N -->|No match| Q{Level?}
-    Q -->|critical| R[🔴 CRITICAL]
-    Q -->|warning| S[🟡 WARNING]
-    Q -->|info| T[🔵 INFO]
-    O & P & R & S & T --> U[Store Result]
-    U --> V{More?}
-    V -->|Yes| K
-    V -->|No| W[Certificate Audit]
-    W --> X[Generate Reports]
-    X --> Y[TXT + CSV + HTML]
-    Y --> Z([Done])
+    H --> I[Detect Root Status]
+    I --> J[Load 18 JSON Files]
+    J --> K[488 Security Checks]
+    K --> L[For Each Check]
+    L --> M{ADB Connected?}
+    M -->|No| N[Auto-Reconnect]
+    N -->|Fail| O[⚪ SKIPPED]
+    M -->|Yes| P[Run Command]
+    N -->|OK| P
+    P --> Q[Capture Output]
+    Q --> R{Evaluate}
+    R -->|Empty + safe| S[✅ SAFE]
+    R -->|Match pattern| S
+    R -->|Null value| T[🟣 VERIFY]
+    R -->|No match| U{Level?}
+    U -->|critical| V[🔴 CRITICAL]
+    U -->|warning| W[🟡 WARNING]
+    U -->|info| X[🔵 INFO]
+    S & T & V & W & X & O --> Y[Store Result]
+    Y --> Z{More?}
+    Z -->|Yes| L
+    Z -->|No| AA[Certificate Audit]
+    AA --> AB[Generate Reports]
+    AB --> AC[TXT + CSV + HTML]
+    AC --> AD([Done])
 ```
+
+---
+
+## HTML Report Features
+
+The interactive HTML report includes:
+
+- **Summary Dashboard** — Total checks, pass/fail counts, doughnut chart
+- **Device Information** — Model, Android version, build, serial, security patch level
+- **Collapsible Categories** — Click to expand/collapse each security area
+- **Color-Coded Results** — Green=SAFE, Yellow=WARNING, Red=CRITICAL
+- **Certificate Audit Table** — CA certificates with expiry dates and risk status
+- **Search & Filter** — Find specific checks by keyword
+- **Category Statistics** — Per-category breakdown of findings
 
 ---
 
@@ -263,8 +294,8 @@ Create or modify JSON files in the `commands/` directory:
 {
   "checks": [
     {
-      "category": "NETWORK",
-      "label": "Custom Port Check",
+      "category": "CUSTOM",
+      "label": "My Custom Port Check",
       "command": "netstat -tlnp 2>/dev/null | grep ':8080'",
       "safe_pattern": "^$",
       "level": "warning",
@@ -277,16 +308,94 @@ Create or modify JSON files in the `commands/` directory:
 
 ---
 
+## Project Structure
+
+```
+HARDAX/
+├── hardax.py              # Main engine (2200+ lines)
+├── requirements.txt       # Python dependencies
+├── README.md              # This file
+└── commands/              # Security check definitions
+    ├── system.json        #  87 checks — Kernel, TEE, build, emulator, memory
+    ├── network.json       #  74 checks — Ports, WiFi, VPN, IoT protocols
+    ├── privacy.json       #  51 checks — Biometrics, location, sensors
+    ├── apps.json          #  50 checks — Permissions, overlay, backup, install
+    ├── bluetooth.json     #  29 checks — BLE/Classic, pairing, profiles
+    ├── selinux.json       #  25 checks — Enforcement, policy, audit
+    ├── pos_security.json  #  24 checks — PCI-DSS, kiosk, NFC relay, PAX CVE
+    ├── storage.json       #  21 checks — Encryption, partitions, backup
+    ├── cis_benchmark.json #  20 checks — CIS Android Benchmark v1.6.0
+    ├── boot_security.json #  21 checks — Verified boot, AVB, dm-verity
+    ├── malware.json       #  16 checks — Root, Frida, Xposed, RATs, scrapers
+    ├── usb_security.json  #  14 checks — USB debug, MTP, gadget mode
+    ├── device_management.json # 13 checks — MDM, accounts, dev options
+    ├── cryptography.json  #  12 checks — Keystore, StrongBox, algorithms
+    ├── certificate_audit.json # 11 checks — CA certs, expiry, MITM
+    ├── input.json         #   9 checks — Keyboards, accessibility, IME
+    ├── nfc_security.json  #   7 checks — NFC, reader mode, secure element
+    └── adb_security.json  #   4 checks — ADB keys, network ADB
+```
+
+---
+
+## Sample Output
+
+```
+$ python3 hardax.py --show-commands
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  HARDAX — Hardening Audit eXaminer v1.2.0                         ┃
+┃  [488 Checks] [18 Categories]                                     ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+[*] Detecting connected devices...
+[+] Found device: R58M42XXXXX
+
+[*] Collecting device information...
+    Model: SM-A536E | Android: 14 | SDK: 34 | Build: UP1A.231005.007
+
+[*] Checking root status...
+[+] Root method: magisk (Magisk v27.0)
+
+[*] Loading check files from: commands/
+[+] Loaded 488 checks from 18 JSON files
+
+[*] Running security checks...
+
+[SYSTEM]      Play Protect .......................... ✓ SAFE
+[SYSTEM]      Security Patch Level .................. ⚠ WARNING (2024-01-01)
+[SYSTEM]      Developer Options ..................... ✗ CRITICAL
+[MALWARE]     Frida Server Running .................. ✓ SAFE
+[MALWARE]     Xposed Framework ...................... ✓ SAFE
+[MALWARE]     Remote Access Tools ................... ✓ SAFE
+[BLUETOOTH]   Discoverable Mode ..................... ✓ SAFE
+[POS]         NFC Relay Attack Tools ................ ✓ SAFE
+[USB]         USB Debugging ......................... ✗ CRITICAL
+
+Progress: ████████████████████████ 100%
+SAFE: 340 | WARNING: 42 | CRITICAL: 28 | VERIFY: 15 | INFO: 63
+
+[*] Reports saved to: hardax_output/
+    → hardax_report_SM-A536E.txt
+    → hardax_report_SM-A536E.csv
+    → hardax_report_SM-A536E.html
+```
+
+---
+
 ## Future Roadmap
 
 - [ ] `--category` flag to run specific categories
 - [ ] `--severity` flag to filter by level
 - [ ] `--format json` for JSON output
 - [ ] Exit codes for CI/CD integration
+- [ ] CVE Correlation Engine
+- [ ] Binary Hardening Analysis (ASLR, NX, PIE)
+- [ ] HARDAX Risk Score (0–100)
 - [ ] Save baseline configuration
 - [ ] Diff reports between scans
 - [ ] Device profiles (IoT/Automotive/Medical presets)
-- [ ] CIS Android Benchmark mapping
+- [ ] CIS Android Benchmark full mapping
 - [ ] OWASP MASVS/MSTG mapping
 - [ ] NIST guidelines mapping
 - [ ] Remediation suggestions
@@ -295,3 +404,4 @@ Create or modify JSON files in the `commands/` directory:
 - [ ] Plugin architecture
 - [ ] APK analysis integration
 - [ ] Firmware extraction support
+
