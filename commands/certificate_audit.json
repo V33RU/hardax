@@ -30,8 +30,7 @@
       "command": "pm list packages 2>/dev/null | grep -iE 'sslunpin|trustme|justtrustme|unpinner|certpinner'",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "Apps that bypass certificate pinning - should not be installed",
-      "empty_is_safe": true
+      "description": "Apps that bypass certificate pinning - should not be installed"
     },
     {
       "category": "CERTIFICATE_AUDIT",
