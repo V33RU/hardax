@@ -270,20 +270,6 @@ flowchart TD
 
 ---
 
-## HTML Report Features
-
-The interactive HTML report includes:
-
-- **Summary Dashboard** — Total checks, pass/fail counts, doughnut chart
-- **Device Information** — Model, Android version, build, serial, security patch level
-- **Collapsible Categories** — Click to expand/collapse each security area
-- **Color-Coded Results** — Green=SAFE, Yellow=WARNING, Red=CRITICAL
-- **Certificate Audit Table** — CA certificates with expiry dates and risk status
-- **Search & Filter** — Find specific checks by keyword
-- **Category Statistics** — Per-category breakdown of findings
-
----
-
 ## Extending HARDAX
 
 ### Adding Custom Checks
@@ -335,52 +321,6 @@ HARDAX/
     ├── nfc_security.json  #   7 checks — NFC, reader mode, secure element
     └── adb_security.json  #   4 checks — ADB keys, network ADB
 ```
-
----
-
-## Sample Output
-
-```
-$ python3 hardax.py --show-commands
-
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  HARDAX — Hardening Audit eXaminer v1.2.0                         ┃
-┃  [488 Checks] [18 Categories]                                     ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-
-[*] Detecting connected devices...
-[+] Found device: R58M42XXXXX
-
-[*] Collecting device information...
-    Model: SM-A536E | Android: 14 | SDK: 34 | Build: UP1A.231005.007
-
-[*] Checking root status...
-[+] Root method: magisk (Magisk v27.0)
-
-[*] Loading check files from: commands/
-[+] Loaded 488 checks from 18 JSON files
-
-[*] Running security checks...
-
-[SYSTEM]      Play Protect .......................... ✓ SAFE
-[SYSTEM]      Security Patch Level .................. ⚠ WARNING (2024-01-01)
-[SYSTEM]      Developer Options ..................... ✗ CRITICAL
-[MALWARE]     Frida Server Running .................. ✓ SAFE
-[MALWARE]     Xposed Framework ...................... ✓ SAFE
-[MALWARE]     Remote Access Tools ................... ✓ SAFE
-[BLUETOOTH]   Discoverable Mode ..................... ✓ SAFE
-[POS]         NFC Relay Attack Tools ................ ✓ SAFE
-[USB]         USB Debugging ......................... ✗ CRITICAL
-
-Progress: ████████████████████████ 100%
-SAFE: 340 | WARNING: 42 | CRITICAL: 28 | VERIFY: 15 | INFO: 63
-
-[*] Reports saved to: hardax_output/
-    → hardax_report_SM-A536E.txt
-    → hardax_report_SM-A536E.csv
-    → hardax_report_SM-A536E.html
-```
-
 ---
 
 ## Future Roadmap
