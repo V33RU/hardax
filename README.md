@@ -84,7 +84,7 @@ HARDAX works with any Android-based device accessible via ADB or SSH:
 | **POS Terminals** | PAX, Verifone, Ingenico, Sunmi, Newland, Clover, Square |
 | **Smartphones & Tablets** | Samsung, Pixel, OnePlus, Xiaomi, etc. |
 | **IoT Devices** | Android Things, AOSP-based smart devices |
-| **Collaboration Panels** | Crestron, Poly, Neat, Webex Board |
+| **Collaboration Panels** | Poly, Neat, Webex Board |
 | **Android Automotive** | Infotainment systems, head units |
 | **Medical Devices** | Android-based clinical devices |
 | **Industrial Android** | Rugged tablets, handheld scanners |
