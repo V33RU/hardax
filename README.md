@@ -23,7 +23,7 @@
     ┃  [488 Checks] [18 Categories] [3 Report Formats]   ┃
     ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
-i
+
 ---
 
 ## Table of Contents
@@ -161,7 +161,7 @@ python3 hardax.py --mode ssh --host 192.168.1.100 --ssh-user root --ssh-pass pas
 
 ```bash
 adb connect 192.168.1.100:5555
-python3 hardax.py --serial 192.168.1.100:5555
+python3 hardax.py --json-dir commands
 ```
 
 ### All Options
