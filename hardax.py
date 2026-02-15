@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-HARDAX — Hardening Audit eXaminer
+HARDAX - Hardening Audit eXaminer
 Android OS based Connected Devices Security Configuration Auditor
 
 488 Security Checks | 18 Categories | 3 Report Formats
@@ -51,7 +51,7 @@ ADB_TRANSPORT_ERRORS = [
 ]
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  CLI ARGV SHIM — strip extra flags before argparse
+#  CLI ARGV SHIM - strip extra flags before argparse
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 try:
@@ -239,7 +239,7 @@ def explainAdbDevicesAndExit(exitCode: int = 2):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 class Device:
-    """Abstract shell runner — subclass for ADB or SSH."""
+    """Abstract shell runner - subclass for ADB or SSH."""
     def shell(self, command: str) -> str:
         raise NotImplementedError()
 
@@ -815,7 +815,7 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                             "category": category, "label": label, "level": level,
                             "bucket": bucket, "status": "SKIPPED", "matched": "False",
                             "command": command, "result": raw,
-                            "description": desc + " [⊘ Skipped — ADB connection lost]",
+                            "description": desc + " [⊘ Skipped - ADB connection lost]",
                             "needs_verification": False,
                         })
                         for remainingChk in checks[idx:]:
@@ -823,7 +823,7 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                                 "category": remainingChk.get("category", "General"),
                                 "label": remainingChk.get("label", "Unnamed"),
                                 "command": remainingChk.get("command", ""),
-                                "result": "[SKIPPED] Device offline — ADB connection lost",
+                                "result": "[SKIPPED] Device offline - ADB connection lost",
                                 "status": "SKIPPED",
                                 "description": remainingChk.get("description", ""),
                             })
@@ -1116,14 +1116,14 @@ def auditCertificates(device: Device) -> List[Dict[str, Any]]:
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  REPORT GENERATION — TXT
+#  REPORT GENERATION - TXT
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def writeTxtReport(path: str, deviceInfo: Dict[str, str],
                    rows: List[Dict[str, Any]], counts: Dict[str, int],
                    certs: List[Dict[str, Any]], deviceIdStr: str) -> None:
     with open(path, "w", encoding="utf-8") as f:
-        f.write(f"HARDAX — Hardening Audit eXaminer Report\nGenerated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        f.write(f"HARDAX - Hardening Audit eXaminer Report\nGenerated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
         f.write("Device Information\n" + "=" * 40 + "\n")
         for k in ["model", "brand", "manufacturer", "name", "soc_manufacturer", "soc_model",
                    "android_version", "sdk_level", "build_id", "fingerprint", "serialno", "timezone"]:
@@ -1159,7 +1159,7 @@ def writeTxtReport(path: str, deviceInfo: Dict[str, str],
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  REPORT GENERATION — CSV
+#  REPORT GENERATION - CSV
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def writeCsvReport(path: str, rows: List[Dict[str, Any]]) -> None:
@@ -1174,7 +1174,7 @@ def writeCsvReport(path: str, rows: List[Dict[str, Any]]) -> None:
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  REPORT GENERATION — HTML (Hacker Aesthetic)
+#  REPORT GENERATION - HTML (Hacker Aesthetic)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
@@ -1330,7 +1330,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HARDAX — Security Audit Report</title>
+  <title>HARDAX - Security Audit Report</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1891,7 +1891,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
     </div>
 
     <footer>
-      <p><strong>HARDAX</strong> — Hardening Audit eXaminer v{__version__} | {time.strftime("%Y-%m-%d %H:%M:%S")}</p>
+      <p><strong>HARDAX</strong> - Hardening Audit eXaminer v{__version__} | {time.strftime("%Y-%m-%d %H:%M:%S")}</p>
       <p>Android OS Security Configuration Auditor | IOTSRG</p>
     </footer>
   </div>
@@ -2030,7 +2030,7 @@ def printBanner(idLine: Optional[str]) -> None:
 
 def main():
     ap = argparse.ArgumentParser(
-        description="HARDAX — Hardening Audit eXaminer for Android / IoT",
+        description="HARDAX - Hardening Audit eXaminer for Android / IoT",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -2123,9 +2123,9 @@ Examples:
 
     isRooted, rootMethod = detectRootStatus(device)
     if isRooted:
-        print(f"{Colors.GREEN}✓ Root detected ({rootMethod}) — will use su for privileged commands{Colors.RESET}")
+        print(f"{Colors.GREEN}✓ Root detected ({rootMethod}) - will use su for privileged commands{Colors.RESET}")
     else:
-        print(f"{Colors.YELLOW}⚠ Device not rooted — some checks may have limited output{Colors.RESET}")
+        print(f"{Colors.YELLOW}⚠ Device not rooted - some checks may have limited output{Colors.RESET}")
     print()
 
     # ── Device info ──
