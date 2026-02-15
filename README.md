@@ -1,7 +1,7 @@
-# HARDAX v1.2.0
+# HARDAX v1.3.0
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.2.0-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.3.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.6+-green.svg" alt="Python">
   <img src="https://img.shields.io/badge/checks-488-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-18-purple.svg" alt="Categories">
@@ -368,7 +368,7 @@ HARDAX/
 $ python3 hardax.py --show-commands
 
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  HARDAX — Hardening Audit eXaminer v1.2.0                           ┃
+┃  HARDAX — Hardening Audit eXaminer v1.3.0                           ┃
 ┃  [488 Checks] [18 Categories]                                       ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
@@ -407,7 +407,7 @@ SAFE: 340 | WARNING: 42 | CRITICAL: 28 | VERIFY: 15 | INFO: 63
 
 ---
 
-## What's New in v1.2.0
+## What's New in v1.3.0
 
 ### New Checks (+26)
 
