@@ -1215,7 +1215,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
         f'  <div class="cat-header" onclick="toggleCat(\'cert_section\')">'
         f'    <div class="cat-title">'
         f'      <span class="toggle-arrow">▶</span>'
-        f'      <span class="cat-name">🔐 CERTIFICATE AUDIT</span>'
+        f'      <span class="cat-name"> CERTIFICATE AUDIT</span>'
         f'      <span class="cat-count">({len(certs) if certs else 0} certificates)</span>'
         f'    </div>'
         f'    <div class="cat-badges">'
