@@ -1892,7 +1892,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
 
     <footer>
       <p><strong>HARDAX</strong> - Hardening Audit eXaminer v{__version__} | {time.strftime("%Y-%m-%d %H:%M:%S")}</p>
-      <p>Android OS Security Configuration Auditor | IOTSRG</p>
+      <p>Android OS Security Configuration Auditor | Mr-IoT</p>
     </footer>
   </div>
 
