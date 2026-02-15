@@ -221,11 +221,11 @@ HARDAX classifies findings into 6 status levels:
 | Status | Color | Symbol | Description |
 |--------|-------|--------|-------------|
 | **SAFE** | 🟢 Green | ✓ | Secure configuration detected |
-| **WARNING** | 🟡 Yellow | ⚠ | Potential risk — review recommended |
-| **CRITICAL** | 🔴 Red | ✗ | Security issue — immediate action required |
+| **WARNING** | 🟡 Yellow | ⚠ | Potential risk - review recommended |
+| **CRITICAL** | 🔴 Red | ✗ | Security issue - immediate action required |
 | **VERIFY** | 🟣 Purple | ? | Manual verification required (null/empty output) |
-| **INFO** | 🔵 Blue | ℹ | Informational — no action needed |
-| **SKIPPED** | ⚪ Gray | ○ | ADB connection lost — check could not execute |
+| **INFO** | 🔵 Blue | ℹ | Informational - no action needed |
+| **SKIPPED** | ⚪ Gray | ○ | ADB connection lost - check could not execute |
 
 ---
 
@@ -274,13 +274,13 @@ flowchart TD
 
 The interactive HTML report includes:
 
-- **Summary Dashboard** — Total checks, pass/fail counts, doughnut chart
-- **Device Information** — Model, Android version, build, serial, security patch level
-- **Collapsible Categories** — Click to expand/collapse each security area
-- **Color-Coded Results** — Green=SAFE, Yellow=WARNING, Red=CRITICAL
-- **Certificate Audit Table** — CA certificates with expiry dates and risk status
-- **Search & Filter** — Find specific checks by keyword
-- **Category Statistics** — Per-category breakdown of findings
+- **Summary Dashboard** - Total checks, pass/fail counts, doughnut chart
+- **Device Information** - Model, Android version, build, serial, security patch level
+- **Collapsible Categories** - Click to expand/collapse each security area
+- **Color-Coded Results** - Green=SAFE, Yellow=WARNING, Red=CRITICAL
+- **Certificate Audit Table** - CA certificates with expiry dates and risk status
+- **Search & Filter** - Find specific checks by keyword
+- **Category Statistics** - Per-category breakdown of findings
 
 ---
 
@@ -404,28 +404,6 @@ SAFE: 340 | WARNING: 42 | CRITICAL: 28 | VERIFY: 15 | INFO: 63
     → hardax_report_SM-A536E.csv
     → hardax_report_SM-A536E.html
 ```
-
----
-
-## What's New in v2.0
-
-### New Checks (+26)
-
-- **Malware Detection** — SuperSU, root cloaking apps, BusyBox, hidden icon apps (PixPirate technique), memory scrapers, keyloggers, RATs, Xposed/LSPosed framework, Frida port detection
-- **POS Security** — NFC relay attack tools (NFCGate/NFCProxy), PAX terminal services, PAX unsigned partition exploit (CVE-2023-42134)
-- **NFC Security** — NFC service dump, reader mode detection, secure element (eSE/UICC) status
-- **Apps** — Overlay permission (SYSTEM_ALERT_WINDOW) audit, current window stack, allowBackup enumeration
-- **System** — Emulator detection (QEMU/goldfish/ranchu), virtual hardware detection, memory baseline, suspicious executables in /data/local/tmp, SIM card status
-- **Network** — Active external ESTABLISHED connections (C2 detection)
-
-### Engine Improvements
-
-- **ADB Resilience** — 5-layer protection: pre-check connectivity, auto-reconnect on failure, command timeout, SKIPPED status for disconnected checks, retry logic
-- **Root Auto-Detection** — Detects Magisk, SuperSU, adbd-root; auto-prepends `su -c` for privileged commands
-- **Bracket Escaping Fix** — Resolved grep bracket patterns through JSON → Python → ADB → shell layers
-
----
-
 ## Future Roadmap
 
 - [ ] `--category` flag to run specific categories
@@ -447,26 +425,3 @@ SAFE: 340 | WARNING: 42 | CRITICAL: 28 | VERIFY: 15 | INFO: 63
 - [ ] Plugin architecture
 - [ ] APK analysis integration
 - [ ] Firmware extraction support
-
----
-
-## Author
-
-**Mr-IoT** — Founder, IOTSRG (IoT Security Research Group)
-
-- GitHub: [github.com/iotsrg/hardax](https://github.com/iotsrg/hardax)
-- Twitter: [@v33raiot](https://twitter.com/v33raiot)
-- Website: [iotsrg.com](https://iotsrg.com)
-
----
-
-## License
-
-MIT License — Free for commercial and non-commercial use.
-
----
-
-<p align="center">
-  <b>Find misconfigurations before attackers do.</b><br>
-  <code>python3 hardax.py</code>
-</p>
