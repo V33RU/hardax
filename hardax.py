@@ -1,6 +1,19 @@
 #!/usr/bin/env python3
+"""
+HARDAX — Hardening Audit eXaminer
+Android OS based Connected Devices Security Configuration Auditor
+
+488 Security Checks | 18 Categories | 3 Report Formats
+Author : Mr-IoT (IOTSRG)
+License: MIT
+"""
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  IMPORTS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import argparse
+import base64
 import csv
 import html
 import json
@@ -14,200 +27,119 @@ import tempfile
 from datetime import datetime
 from typing import List, Dict, Any, Tuple, Optional
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  VERSION & CONSTANTS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 __version__ = "1.2.0"
 
+REQUIRED_CHECK_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
+
 ADB_TRANSPORT_ERRORS = [
-    'device offline',
-    'device not found',
-    'device unauthorized',
-    'no devices/emulators found',
-    'no devices found',
-    'closed',
-    'protocol fault',
-    'device still authorizing',
-    'insufficient permissions',
-    'more than one device',
-    'error: closed',
-    'adb: error:',
+    "device offline",
+    "device not found",
+    "device unauthorized",
+    "no devices/emulators found",
+    "no devices found",
+    "closed",
+    "protocol fault",
+    "device still authorizing",
+    "insufficient permissions",
+    "more than one device",
+    "error: closed",
+    "adb: error:",
 ]
 
-def is_adb_transport_error(output: str) -> bool:
-    """Detect if output is an ADB transport/connection error, not real command output."""
-    if not output:
-        return False
-    output_lower = output.lower().strip()
-    # Short output containing ADB error signatures
-    if len(output_lower) > 300:
-        return False  # Real command output is usually longer than ADB errors
-    return any(err in output_lower for err in ADB_TRANSPORT_ERRORS)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  CLI ARGV SHIM — strip extra flags before argparse
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# -------------------------
-# Certificate Audit
-# -------------------------
+try:
+    _cleanArgv = [sys.argv[0]]
+    _idx = 1
+    while _idx < len(sys.argv):
+        flag = sys.argv[_idx]
+        if flag == "--net-debug":
+            os.environ["HARDAX_NET_DEBUG"] = "1"
+        elif flag == "--net-strict":
+            os.environ["HARDAX_NET_STRICT"] = "1"
+        elif flag == "--cert-debug":
+            os.environ["HARDAX_CERT_DEBUG"] = "1"
+        elif flag == "--cert-limit":
+            if _idx + 1 < len(sys.argv):
+                os.environ["HARDAX_CERT_LIMIT"] = sys.argv[_idx + 1]
+                _idx += 1
+        else:
+            _cleanArgv.append(flag)
+        _idx += 1
+    sys.argv = _cleanArgv
+except Exception:
+    pass
 
-def audit_certificates(device: 'Device') -> List[Dict[str, Any]]:
-    """
-    Pull certificates from device and analyze them.
-    Returns list of cert info with expiry/age calculations.
-    """
-    certs = []
-    
-    try:
-        from cryptography import x509
-        from cryptography.hazmat.backends import default_backend
-    except ImportError:
-        print(f"{Colors.YELLOW}⚠ cryptography library not installed. Skipping certificate audit.{Colors.RESET}")
-        print(f"{Colors.DIM}  Install with: pip install cryptography{Colors.RESET}")
-        return []
-    
-    # Get list of system CA certs
-    cert_list_output = device.shell("ls /system/etc/security/cacerts/ 2>/dev/null")
-    if not cert_list_output.strip():
-        return []
-    
-    cert_files = [f.strip() for f in cert_list_output.split('\n') if f.strip().endswith('.0')]
-    
-    print(f"\n{Colors.BRIGHT_CYAN}🔐 Analyzing {len(cert_files)} system certificates...{Colors.RESET}")
-    
-    today = datetime.now()
-    
-    for i, cert_file in enumerate(cert_files[:50]):  # Limit to 50 certs for performance
-        try:
-            # Get cert content directly via shell
-            cert_path = f"/system/etc/security/cacerts/{cert_file}"
-            cert_pem = device.shell(f"cat {cert_path} 2>/dev/null")
-            
-            if "-----BEGIN CERTIFICATE-----" not in cert_pem:
-                continue
-            
-            # Parse certificate
-            cert_data = cert_pem.encode('utf-8')
-            cert = x509.load_pem_x509_certificate(cert_data, default_backend())
-            
-            # Extract info
-            subject = cert.subject.rfc4514_string()
-            issuer = cert.issuer.rfc4514_string()
-            not_before = cert.not_valid_before_utc.replace(tzinfo=None)
-            not_after = cert.not_valid_after_utc.replace(tzinfo=None)
-            
-            # Calculate age and expiry
-            days_old = (today - not_before).days
-            days_until_expiry = (not_after - today).days
-            
-            # Determine status
-            if days_until_expiry < 0:
-                status = "EXPIRED"
-                risk = "critical"
-            elif days_until_expiry < 30:
-                status = "EXPIRING_SOON"
-                risk = "warning"
-            elif days_until_expiry < 90:
-                status = "CHECK"
-                risk = "warning"
-            else:
-                status = "VALID"
-                risk = "safe"
-            
-            # Extract CN from subject
-            cn = "Unknown"
-            for part in subject.split(','):
-                if part.strip().startswith('CN='):
-                    cn = part.strip()[3:]
-                    break
-            
-            certs.append({
-                'filename': cert_file,
-                'cn': cn[:50] + '...' if len(cn) > 50 else cn,
-                'issuer': issuer[:50] + '...' if len(issuer) > 50 else issuer,
-                'not_before': not_before.strftime('%Y-%m-%d'),
-                'not_after': not_after.strftime('%Y-%m-%d'),
-                'days_old': days_old,
-                'days_until_expiry': days_until_expiry,
-                'status': status,
-                'risk': risk,
-            })
-            
-            # Progress indicator
-            if (i + 1) % 10 == 0:
-                print(f"\r{Colors.DIM}  Processed {i + 1}/{len(cert_files[:50])} certs...{Colors.RESET}", end='', flush=True)
-                
-        except Exception as e:
-            continue
-    
-    print(f"\r{Colors.GREEN}  ✓ Analyzed {len(certs)} certificates{Colors.RESET}          ")
-    
-    # Also check for user-installed certs (potential MITM)
-    user_certs = device.shell("ls /data/misc/user/0/cacerts-added/ 2>/dev/null")
-    if user_certs.strip():
-        user_cert_files = [f.strip() for f in user_certs.split('\n') if f.strip()]
-        for cert_file in user_cert_files:
-            certs.append({
-                'filename': cert_file,
-                'cn': 'USER INSTALLED CERT',
-                'issuer': 'Unknown - User Added',
-                'not_before': '-',
-                'not_after': '-',
-                'days_old': 0,
-                'days_until_expiry': 0,
-                'status': 'USER_CERT',
-                'risk': 'critical',
-            })
-    
-    return sorted(certs, key=lambda x: (x['risk'] != 'critical', x['risk'] != 'warning', x['days_until_expiry']))
+NET_DEBUG = bool(os.environ.get("HARDAX_NET_DEBUG"))
+NET_STRICT = bool(os.environ.get("HARDAX_NET_STRICT"))
+CERT_DEBUG = bool(os.environ.get("HARDAX_CERT_DEBUG"))
 
-# -------------------------
-# ANSI Color Codes
-# -------------------------
+try:
+    CERT_LIMIT = int(os.environ.get("HARDAX_CERT_LIMIT", "50"))
+except Exception:
+    CERT_LIMIT = 50
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  TERMINAL COLORS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 class Colors:
-    """ANSI color codes for beautiful terminal output"""
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
-    DIM = '\033[2m'
-    
-    # Standard colors
-    RED = '\033[31m'
-    GREEN = '\033[32m'
-    YELLOW = '\033[33m'
-    BLUE = '\033[34m'
-    MAGENTA = '\033[35m'
-    CYAN = '\033[36m'
-    WHITE = '\033[37m'
-    
-    # Bright colors
-    BRIGHT_RED = '\033[91m'
-    BRIGHT_GREEN = '\033[92m'
-    BRIGHT_YELLOW = '\033[93m'
-    BRIGHT_BLUE = '\033[94m'
-    BRIGHT_MAGENTA = '\033[95m'
-    BRIGHT_CYAN = '\033[96m'
-    BRIGHT_WHITE = '\033[97m'
+    """ANSI escape codes for terminal output."""
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    DIM = "\033[2m"
 
-# Check if terminal supports colors
-def supports_color() -> bool:
-    """Check if terminal supports ANSI colors"""
-    if not hasattr(sys.stdout, 'isatty'):
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    CYAN = "\033[36m"
+    WHITE = "\033[37m"
+
+    BRIGHT_RED = "\033[91m"
+    BRIGHT_GREEN = "\033[92m"
+    BRIGHT_YELLOW = "\033[93m"
+    BRIGHT_BLUE = "\033[94m"
+    BRIGHT_MAGENTA = "\033[95m"
+    BRIGHT_CYAN = "\033[96m"
+    BRIGHT_WHITE = "\033[97m"
+
+
+def supportsColor() -> bool:
+    """Check whether the terminal supports ANSI colour sequences."""
+    if not hasattr(sys.stdout, "isatty"):
         return False
     if not sys.stdout.isatty():
         return False
-    if os.environ.get('TERM') == 'dumb':
+    if os.environ.get("TERM") == "dumb":
         return False
     return True
 
-# Disable colors if not supported
-if not supports_color():
-    for attr in dir(Colors):
-        if not attr.startswith('_'):
-            setattr(Colors, attr, '')
 
-# -------------------------
-# Utilities
-# -------------------------
+if not supportsColor():
+    for attr in dir(Colors):
+        if not attr.startswith("_"):
+            setattr(Colors, attr, "")
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  GENERAL UTILITIES
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def which(prog: str) -> Optional[str]:
     return shutil.which(prog)
 
-def run_local(cmd: List[str], timeout: int = None) -> Tuple[int, str, str]:
+
+def runLocal(cmd: List[str], timeout: int = None) -> Tuple[int, str, str]:
+    """Execute a local subprocess and return (returncode, stdout, stderr)."""
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         out, err = proc.communicate(timeout=timeout)
@@ -217,14 +149,18 @@ def run_local(cmd: List[str], timeout: int = None) -> Tuple[int, str, str]:
         proc.communicate()
         return -1, "", "timeout"
 
-def html_escape(s: str) -> str:
+
+def htmlEscape(s: str) -> str:
     return html.escape(s, quote=False)
 
-def normalize_for_match(s: str) -> str:
-    """Normalize line endings but preserve newlines for multi-line pattern matching"""
+
+def normalizeForMatch(s: str) -> str:
+    """Normalize line endings while preserving newlines for multi-line regex."""
     return (s or "").replace("\r\n", "\n").replace("\r", "\n")
 
-def bucket_from_level(level: str) -> str:
+
+def bucketFromLevel(level: str) -> str:
+    """Map granular severity labels to the three evaluation buckets."""
     lvl = (level or "").strip().lower()
     if lvl in ("critical", "high"):
         return "critical"
@@ -232,15 +168,26 @@ def bucket_from_level(level: str) -> str:
         return "warning"
     return "info"
 
-# -------------------------
-# ADB helpers
-# -------------------------
 
-def list_adb_devices() -> list:
-    code, out, _ = run_local(["adb", "devices", "-l"])
+def isAdbTransportError(output: str) -> bool:
+    """Return True when *output* looks like an ADB transport / connection error."""
+    if not output:
+        return False
+    lower = output.lower().strip()
+    if len(lower) > 300:
+        return False
+    return any(sig in lower for sig in ADB_TRANSPORT_ERRORS)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  ADB HELPERS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def listAdbDevices() -> list:
+    code, out, _ = runLocal(["adb", "devices", "-l"])
     if code != 0:
         return []
-    lines = [l.strip() for l in out.splitlines()[1:] if l.strip()]
+    lines = [ln.strip() for ln in out.splitlines()[1:] if ln.strip()]
     devices = []
     for ln in lines:
         parts = ln.split()
@@ -252,26 +199,30 @@ def list_adb_devices() -> list:
         devices.append({"serial": serial, "state": state, "desc": desc})
     return devices
 
-def pick_default_serial(user_serial: Optional[str]) -> Optional[str]:
-    if user_serial:
-        return user_serial
-    devs = list_adb_devices()
+
+def pickDefaultSerial(userSerial: Optional[str]) -> Optional[str]:
+    if userSerial:
+        return userSerial
+    devs = listAdbDevices()
     healthy = [d for d in devs if d["state"] == "device"]
     if len(healthy) == 1:
         return healthy[0]["serial"]
     return None
 
-def explain_adb_devices_and_exit(exit_code: int = 2):
-    devs = list_adb_devices()
+
+def explainAdbDevicesAndExit(exitCode: int = 2):
+    devs = listAdbDevices()
     if not devs:
-        msg = ("No ADB devices detected.\n\n"
-               "Troubleshooting:\n"
-               "   Enable Developer options and USB debugging on the device\n"
-               "   Trust this computer on the device prompt\n"
-               "   Run: adb kill-server && adb start-server\n"
-               "   Check USB cable/port or try: adb tcpip 5555; adb connect <ip>:5555\n")
+        msg = (
+            "No ADB devices detected.\n\n"
+            "Troubleshooting:\n"
+            "   Enable Developer options and USB debugging on the device\n"
+            "   Trust this computer on the device prompt\n"
+            "   Run: adb kill-server && adb start-server\n"
+            "   Check USB cable/port or try: adb tcpip 5555; adb connect <ip>:5555\n"
+        )
         print(msg, file=sys.stderr)
-        sys.exit(exit_code)
+        sys.exit(exitCode)
     lines = ["Detected ADB endpoints (use --serial <id>):"]
     for d in devs:
         lines.append(f"  - {d['serial']:>24}   {d['state']:<12}   {d['desc']}")
@@ -280,56 +231,59 @@ def explain_adb_devices_and_exit(exit_code: int = 2):
     lines.append("   If you see 'unauthorized', unlock the phone and accept the RSA fingerprint dialog.")
     lines.append("   If multiple 'device' entries exist, pass --serial <id>.")
     print("\n".join(lines), file=sys.stderr)
-    sys.exit(exit_code)
+    sys.exit(exitCode)
 
-# -------------------------
-# Device interfaces
-# -------------------------
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  DEVICE INTERFACES
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 class Device:
-    """Abstract shell runner."""
+    """Abstract shell runner — subclass for ADB or SSH."""
     def shell(self, command: str) -> str:
         raise NotImplementedError()
-    def id_string(self) -> str:
+
+    def idString(self) -> str:
         raise NotImplementedError()
 
-class ADBDevice(Device):
+
+class AdbDevice(Device):
+    """Execute commands on an Android device through ADB."""
+
     def __init__(self, serial: Optional[str]):
         self.serial = serial
 
     def _base(self) -> List[str]:
         return ["adb"] + (["-s", self.serial] if self.serial else [])
 
-    def check_connected(self) -> None:
-        code, _, _ = run_local(self._base() + ["get-state"])
+    def checkConnected(self) -> None:
+        code, _, _ = runLocal(self._base() + ["get-state"])
         if code != 0:
-            _, devs, _ = run_local(["adb", "devices", "-l"])
+            _, devs, _ = runLocal(["adb", "devices", "-l"])
             raise RuntimeError("No ADB device detected or unauthorized. Output:\n" + devs)
 
     def shell(self, command: str) -> str:
-        code, out, err = run_local(self._base() + ["shell", command])
+        code, out, err = runLocal(self._base() + ["shell", command])
         txt = (out or "") + (("\n" + err) if err else "")
         txt = txt.replace("\r", "").strip()
 
-        # Detect ADB transport errors and retry once after reconnect
-        if is_adb_transport_error(txt):
-            # Try to recover the connection
-            run_local(self._base() + ["reconnect"])
+        if isAdbTransportError(txt):
+            runLocal(self._base() + ["reconnect"])
             time.sleep(2)
-            # One more attempt — wait for device
-            run_local(self._base() + ["wait-for-device"], timeout=10)
+            runLocal(self._base() + ["wait-for-device"], timeout=10)
             time.sleep(1)
-            # Retry the command
-            code2, out2, err2 = run_local(self._base() + ["shell", command])
+            code2, out2, err2 = runLocal(self._base() + ["shell", command])
             txt2 = (out2 or "") + (("\n" + err2) if err2 else "")
-            txt2 = txt2.replace("\r", "").strip()
-            return txt2
+            return txt2.replace("\r", "").strip()
         return txt
 
-    def id_string(self) -> str:
+    def idString(self) -> str:
         return self.serial or "(unknown-serial)"
 
-class SSHDevice(Device):
+
+class SshDevice(Device):
+    """Execute commands on a device over SSH (paramiko)."""
+
     def __init__(self, host: str, port: int, user: str, password: str):
         try:
             import paramiko
@@ -346,7 +300,9 @@ class SSHDevice(Device):
         self.client = self.paramiko.SSHClient()
         self.client.set_missing_host_key_policy(self.paramiko.AutoAddPolicy())
         try:
-            self.client.connect(hostname=host, port=port, username=user, password=password, look_for_keys=False, allow_agent=False, timeout=20)
+            self.client.connect(hostname=host, port=port, username=user,
+                                password=password, look_for_keys=False,
+                                allow_agent=False, timeout=20)
         except Exception as e:
             print(f"ERROR: SSH connection failed: {e}", file=sys.stderr)
             sys.exit(1)
@@ -360,7 +316,7 @@ class SSHDevice(Device):
         except Exception as e:
             return f"[SSH Error] {e}"
 
-    def id_string(self) -> str:
+    def idString(self) -> str:
         return f"{self.user}@{self.host}:{self.port}"
 
     def close(self):
@@ -369,333 +325,288 @@ class SSHDevice(Device):
         except Exception:
             pass
 
-# -------------------------
-# Smart Command Execution with -p Fallback (netstat/ss only)
-# -------------------------
 
-def execute_with_p_fallback(device: Device, command: str, show_commands: bool = False, is_rooted: bool = None) -> str:
-    """
-    Smart execution for netstat/ss commands.
-    
-    Strategy:
-    1. If device is rooted → try with su -c first for full info
-    2. If not rooted or su fails → try without su
-    3. If -p flag causes issues → remove -p and retry
-    
-    Returns the best available output.
-    """
-    
-    def is_netstat_or_ss_command(cmd: str) -> bool:
-        """Check if command contains netstat or ss"""
-        cmd_lower = cmd.lower()
-        return 'netstat' in cmd_lower or re.search(r'\bss\b', cmd_lower)
-    
-    def extract_netstat_ss_command(cmd: str) -> str:
-        """Extract the core netstat/ss command from shell wrappers"""
-        # Remove sh -c, sh -lc wrappers
-        cmd = re.sub(r"sh\s+-[a-z]*c\s+'([^']+)'", r'\1', cmd)
-        # Get first command (before ||)
-        if '||' in cmd:
-            cmd = cmd.split('||')[0].strip()
-        # Remove redirections
-        cmd = re.sub(r'\s*2>/dev/null', '', cmd)
-        return cmd.strip()
-    
-    def is_output_valid(output: str) -> bool:
-        """Check if output has actual data (not just header or error)"""
-        if not output or not output.strip():
-            return False
-        # ADB transport errors are never valid output
-        if is_adb_transport_error(output):
-            return False
-        output_lower = output.lower()
-        # Check for errors
-        if any(err in output_lower for err in ['permission denied', 'not found', 'cannot open', 'invalid']):
-            return False
-        # Check if it's just a header line
-        lines = [l for l in output.strip().split('\n') if l.strip()]
-        if len(lines) <= 1:
-            # Might just be header "Proto Recv-Q..."
-            if lines and ('proto' in lines[0].lower() or 'state' in lines[0].lower()):
-                return False
-        return True
-    
-    def has_data_rows(output: str) -> bool:
-        """Check if output has actual data rows (not just header)"""
-        if not output:
-            return False
-        lines = [l.strip() for l in output.strip().split('\n') if l.strip()]
-        # Filter out header lines
-        data_lines = [l for l in lines if not l.lower().startswith('proto') and 
-                      not l.lower().startswith('state') and
-                      not l.lower().startswith('active')]
-        return len(data_lines) > 0
-    
-    # Check if this is a network command
-    if not is_netstat_or_ss_command(command):
-        return device.shell(command)
-    
-    # Extract the core command
-    core_cmd = extract_netstat_ss_command(command)
-    
-    # Determine if we should use netstat or ss
-    use_netstat = 'netstat' in core_cmd.lower()
-    
-    # Build simple commands without wrappers
-    if use_netstat:
-        # Use -anp for all connections with PID
-        simple_cmd = "netstat -anp"
-    else:
-        simple_cmd = "ss -anp"
-    
-    results = []
-    
-    # Strategy 1: If potentially rooted, try with su first
-    if is_rooted or is_rooted is None:
-        su_cmd = f'su -c "{simple_cmd}"'
-        if show_commands:
-            print(f"    {Colors.DIM}→ Trying (root): {su_cmd}{Colors.RESET}")
-        
-        su_result = device.shell(su_cmd)
-        
-        if su_result and "not found" not in su_result.lower() and is_output_valid(su_result):
-            if show_commands:
-                print(f"    {Colors.GREEN}→ Got output via su (root){Colors.RESET}")
-            # Apply original grep filters if any
-            return apply_filters(su_result, command)
-    
-    # Strategy 2: Try without su
-    if show_commands:
-        print(f"    {Colors.DIM}→ Trying (non-root): {simple_cmd}{Colors.RESET}")
-    
-    result = device.shell(simple_cmd)
-    
-    if result and is_output_valid(result):
-        if show_commands:
-            print(f"    {Colors.YELLOW}→ Got output (non-root){Colors.RESET}")
-        return apply_filters(result, command)
-    
-    # Strategy 3: Try without -p flag
-    simple_cmd_no_p = simple_cmd.replace('-anp', '-an').replace('-lntp', '-lnt').replace('-lnup', '-lnu')
-    if simple_cmd_no_p != simple_cmd:
-        if show_commands:
-            print(f"    {Colors.DIM}→ Trying without -p: {simple_cmd_no_p}{Colors.RESET}")
-        
-        no_p_result = device.shell(simple_cmd_no_p)
-        
-        if no_p_result and is_output_valid(no_p_result):
-            if show_commands:
-                print(f"    {Colors.YELLOW}→ Got output without -p (no PID info){Colors.RESET}")
-            return apply_filters(no_p_result, command)
-    
-    # Strategy 4: Try ss as fallback if netstat failed
-    if use_netstat:
-        ss_cmd = "ss -anp"
-        if is_rooted or is_rooted is None:
-            ss_cmd = f'su -c "{ss_cmd}"'
-        
-        if show_commands:
-            print(f"    {Colors.DIM}→ Trying ss fallback: {ss_cmd}{Colors.RESET}")
-        
-        ss_result = device.shell(ss_cmd)
-        
-        if ss_result and is_output_valid(ss_result):
-            return apply_filters(ss_result, command)
-    
-    # Return empty with note about failure
-    return ""
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  COMMAND EXECUTION ENGINE
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-
-def apply_filters(output: str, original: str) -> str:
+def applyFilters(output: str, original: str) -> str:
     """
-    Emulate a simple shell pipeline for the given base+pipeline string:
-      - grep [-i] [-v] [-E] [-F] 'pattern'
-      - head -N / tail -N (applied after greps)
+    Emulate a shell pipeline (grep, head, tail) in Python so we can
+    re-apply filters on locally captured command output.
     """
     if not output:
         return output
 
     lines = output.splitlines()
 
-    # Extract pipeline part (everything after first '|')
-    pipe = ''
-    if '|' in original:
-        pipe = original.split('|', 1)[1]
+    pipe = ""
+    if "|" in original:
+        pipe = original.split("|", 1)[1]
     if not pipe:
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
-    # Tokenize by '|' boundaries
-    stages = [s.strip() for s in pipe.split('|') if s.strip()]
+    stages = [s.strip() for s in pipe.split("|") if s.strip()]
 
-    # Collect greps and optional head/tail
-    head_n = None
-    tail_n = None
+    headN = None
+    tailN = None
     greps = []
+
     for st in stages:
-        if st.startswith('grep'):
-            # flags
-            mflags = re.search(r'(^|\s)-([iEvFv]+)', st)
+        if st.startswith("grep"):
+            mflags = re.search(r"(^|\s)-([iEvFv]+)", st)
             flags = set(mflags.group(2)) if mflags else set()
-            # pattern: '...' or "..." or bare
             pm = re.search(r"""'(.*?)'|"(.*?)"|(\S+)$""", st)
             if not pm:
                 continue
             pattern = pm.group(1) or pm.group(2) or pm.group(3)
             greps.append((flags, pattern))
-        elif st.startswith('head'):
-            m = re.search(r'head\s+-?(\d+)', st)
+        elif st.startswith("head"):
+            m = re.search(r"head\s+-?(\d+)", st)
             if m:
-                head_n = int(m.group(1))
-        elif st.startswith('tail'):
-            m = re.search(r'tail\s+-?(\d+)', st)
+                headN = int(m.group(1))
+        elif st.startswith("tail"):
+            m = re.search(r"tail\s+-?(\d+)", st)
             if m:
-                tail_n = int(m.group(1))
-        else:
-            # ignore unknown stages
-            pass
+                tailN = int(m.group(1))
 
-    # Apply greps in order
     filtered = lines
     for flags, pattern in greps:
-        ignore_case = 'i' in flags
-        invert = 'v' in flags
-        fixed = 'F' in flags
-        extended = 'E' in flags
+        ignoreCase = "i" in flags
+        invert = "v" in flags
+        fixed = "F" in flags
 
         if fixed:
-            needle = pattern if not ignore_case else pattern.lower()
-            def match_fn(s):
-                h = s if not ignore_case else s.lower()
-                return needle in h
+            needle = pattern if not ignoreCase else pattern.lower()
+            def matchFn(s, _n=needle, _ic=ignoreCase):
+                h = s if not _ic else s.lower()
+                return _n in h
         else:
-            pat = pattern if extended else pattern
             try:
-                rx = re.compile(pat, re.IGNORECASE if ignore_case else 0)
-                def match_fn(s):
-                    return bool(rx.search(s))
+                rx = re.compile(pattern, re.IGNORECASE if ignoreCase else 0)
+                def matchFn(s, _rx=rx):
+                    return bool(_rx.search(s))
             except re.error:
-                # Fallback to fixed contains
-                needle = pattern if not ignore_case else pattern.lower()
-                def match_fn(s):
-                    h = s if not ignore_case else s.lower()
-                    return needle in h
+                needle = pattern if not ignoreCase else pattern.lower()
+                def matchFn(s, _n=needle, _ic=ignoreCase):
+                    h = s if not _ic else s.lower()
+                    return _n in h
 
-        filtered = [ln for ln in filtered if (not match_fn(ln))] if invert else [ln for ln in filtered if match_fn(ln)]
+        if invert:
+            filtered = [ln for ln in filtered if not matchFn(ln)]
+        else:
+            filtered = [ln for ln in filtered if matchFn(ln)]
 
-    # Apply tail/head at the end (like shell)
-    if tail_n is not None and tail_n >= 0:
-        filtered = filtered[-tail_n:]
-    if head_n is not None and head_n >= 0:
-        filtered = filtered[:head_n]
+    if tailN is not None and tailN >= 0:
+        filtered = filtered[-tailN:]
+    if headN is not None and headN >= 0:
+        filtered = filtered[:headN]
 
-    return '\n'.join(filtered)
+    return "\n".join(filtered)
 
-def detect_root_status(device: Device) -> Tuple[bool, str]:
+
+def executeWithFallback(device: Device, command: str,
+                        showCommands: bool = False,
+                        isRooted: bool = None) -> str:
     """
-    Returns (is_rooted, method).
-    method ∈ {'adbd-root','magisk','su','su-present-not-working','none'}
-    Augmented with a cut-based 'id' parser: su -c "id | cut -d'(' -f2 | cut -d')' -f1"
+    Smart execution for netstat/ss network commands.
+    Tries multiple strategies: root → non-root → drop -p → swap tool.
+    Non-network commands pass straight through.
     """
-    # 1) Try ADBD root (eng/userdebug) – unchanged
+
+    def isNetOrSs(cmd: str) -> bool:
+        cl = cmd.lower()
+        return ("netstat" in cl) or bool(re.search(r"\bss\b", cl))
+
+    def splitAlternatives(src: str) -> list:
+        s = re.sub(
+            r"^\s*(?:/system/bin/)?sh\s+-[a-z]*c\s+(['\"])(.*?)\1\s*$",
+            r"\2", src.strip(), flags=re.IGNORECASE,
+        )
+        s = s.replace("\r\n", "\n").replace("\r", "\n")
+        blocks = re.split(r"\n\s*\n+", s.strip())
+        return [b for b in blocks if isNetOrSs(b)]
+
+    def splitPipeline(block: str):
+        if "|" not in block:
+            return block.strip(), ""
+        base, rest = block.split("|", 1)
+        return base.strip(), ("|" + rest.strip())
+
+    def dropPidFlag(cmd: str) -> str:
+        def _rmP(m):
+            f = m.group(1)
+            f2 = f.replace("p", "")
+            return "-" + f2 if f2 else ""
+        return re.sub(r"\s-(\w+)", _rmP, cmd)
+
+    def swapTool(cmd: str):
+        if re.match(r"(?i)^\s*netstat\b", cmd):
+            return re.sub(r"(?i)^\s*netstat\b", "ss", cmd, count=1)
+        if re.match(r"(?i)^\s*ss\b", cmd):
+            return re.sub(r"(?i)^\s*ss\b", "netstat", cmd, count=1)
+        return None
+
+    def outputReason(txt: str):
+        if not txt or not txt.strip():
+            return False, "empty output"
+        lower = txt.lower()
+        for bad in ["not found", "invalid", "permission denied", "cannot open", "no such"]:
+            if bad in lower:
+                return False, bad
+        lines = [l for l in txt.strip().split("\n") if l.strip()]
+        if len(lines) <= 1 and lines and ("proto" in lines[0].lower() or "state" in lines[0].lower()):
+            return False, "header-only"
+        return True, "ok"
+
+    # Non-network commands go straight through
+    if not isNetOrSs(command):
+        if NET_DEBUG:
+            print("[net-debug] non-network command -> bypass executor")
+        return device.shell(command)
+
+    blocks = splitAlternatives(command)
+    if NET_DEBUG:
+        print("[net-debug] alternatives: %d block(s)" % len(blocks))
+    if not blocks:
+        return device.shell(command)
+
+    for block in blocks:
+        baseCmd, pipeline = splitPipeline(block)
+
+        candidates = []
+        if isRooted or isRooted is None:
+            candidates.append('su -c "%s"' % baseCmd)
+        candidates.append(baseCmd)
+
+        noP = dropPidFlag(baseCmd)
+        if noP != baseCmd:
+            if isRooted or isRooted is None:
+                candidates.append('su -c "%s"' % noP)
+            candidates.append(noP)
+
+        swapped = swapTool(baseCmd)
+        if swapped:
+            if isRooted or isRooted is None:
+                candidates.append('su -c "%s"' % swapped)
+            candidates.append(swapped)
+            swappedNoP = dropPidFlag(swapped)
+            if swappedNoP != swapped:
+                if isRooted or isRooted is None:
+                    candidates.append('su -c "%s"' % swappedNoP)
+                candidates.append(swappedNoP)
+
+        if NET_DEBUG:
+            print("[net-debug] candidates (%d):" % len(candidates))
+            for c in candidates:
+                print("  - %s" % c)
+
+        for cand in candidates:
+            if showCommands:
+                print("  -> Trying: %s" % cand)
+            raw = device.shell(cand)
+            ok, why = outputReason(raw)
+            if not ok:
+                if NET_DEBUG:
+                    print("[net-debug] reject: %s" % why)
+                continue
+            if NET_DEBUG:
+                print("[net-debug] winner: %s" % cand)
+            pipelineSrc = baseCmd + (" " + pipeline if pipeline else "")
+            return applyFilters(raw, pipelineSrc)
+
+    return ""
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  ROOT DETECTION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def detectRootStatus(device: Device) -> Tuple[bool, str]:
+    """
+    Probe the device for root access.
+    Returns (isRooted, method) where method is one of:
+        adbd-root | magisk | su | su-present-not-working | none
+    """
+
+    # 1. Try ADBD root (eng / userdebug builds)
     try:
-        if isinstance(device, ADBDevice):
-            run_local(["adb", "start-server"])
-            run_local(device._base() + ["root"])
+        if isinstance(device, AdbDevice):
+            runLocal(["adb", "start-server"])
+            runLocal(device._base() + ["root"])
             out = device.shell("id 2>/dev/null")
             if out and ("uid=0(" in out or out.strip() == "0"):
                 return True, "adbd-root"
     except Exception:
         pass
 
-    # 2) Check for su presence (existence only)
-    su_path = device.shell("command -v su 2>/dev/null || which su 2>/dev/null").strip()
-    has_su = bool(su_path and "not found" not in su_path.lower())
+    # 2. Check for su binary existence
+    suPath = device.shell("command -v su 2>/dev/null || which su 2>/dev/null").strip()
+    hasSu = bool(suPath and "not found" not in suPath.lower())
 
     # Feature-detect timeout and cut
     try:
-        has_timeout = "yes" in device.shell("command -v timeout >/dev/null 2>&1 && echo yes || echo no").strip().lower()
+        hasTimeout = "yes" in device.shell(
+            "command -v timeout >/dev/null 2>&1 && echo yes || echo no"
+        ).strip().lower()
     except Exception:
-        has_timeout = False
+        hasTimeout = False
     try:
-        has_cut = "yes" in device.shell("command -v cut >/dev/null 2>&1 && echo yes || echo no").strip().lower()
+        hasCut = "yes" in device.shell(
+            "command -v cut >/dev/null 2>&1 && echo yes || echo no"
+        ).strip().lower()
     except Exception:
-        has_cut = False
+        hasCut = False
 
-    def su_cmd(cmd: str, seconds: int = 2) -> str:
-        if has_timeout:
+    def suCmd(cmd: str, seconds: int = 2) -> str:
+        if hasTimeout:
             return device.shell(f"timeout {seconds} su -c '{cmd}' 2>/dev/null")
         return device.shell(f"su -c '{cmd}' 2>/dev/null")
 
-    if has_su:
-        # 3a) Proof by UID number
-        out = su_cmd("id -u", 2).strip()
+    if hasSu:
+        # 3a. Proof by UID
+        out = suCmd("id -u", 2).strip()
         if out == "0":
-            ver = su_cmd("magisk --version", 2).strip() or su_cmd("magisk -v", 2).strip()
+            ver = suCmd("magisk --version", 2).strip() or suCmd("magisk -v", 2).strip()
             return (True, "magisk") if ver else (True, "su")
 
-        # 3b) Proof by canonical 'id' string (also captures Magisk SELinux context)
-        id_out = su_cmd("id", 2)
-        if id_out and ("uid=0(" in id_out or "uid=0" in id_out):
-            if "context=u:r:magisk:s0" in id_out:
+        # 3b. Proof by canonical id string
+        idOut = suCmd("id", 2)
+        if idOut and ("uid=0(" in idOut or "uid=0" in idOut):
+            if "context=u:r:magisk:s0" in idOut:
                 return True, "magisk"
-            ver = su_cmd("magisk --version", 2).strip() or su_cmd("magisk -v", 2).strip()
+            ver = suCmd("magisk --version", 2).strip() or suCmd("magisk -v", 2).strip()
             return (True, "magisk") if ver else (True, "su")
 
-        # 3c) NEW: Proof by cut-parsed username from id output (your method)
-        if has_cut:
-            who = su_cmd("id | cut -d'(' -f2 | cut -d')' -f1", 2).strip()
-            # Accept 'root' as confirmation of effective root
+        # 3c. Proof by cut-parsed username
+        if hasCut:
+            who = suCmd("id | cut -d'(' -f2 | cut -d')' -f1", 2).strip()
             if who.lower() == "root":
-                # Try to mark Magisk if possible
-                # (reuse last id_out if available, else re-run once to inspect context)
-                if not id_out:
-                    id_out = su_cmd("id", 2)
-                if id_out and "context=u:r:magisk:s0" in id_out:
+                if not idOut:
+                    idOut = suCmd("id", 2)
+                if idOut and "context=u:r:magisk:s0" in idOut:
                     return True, "magisk"
-                ver = su_cmd("magisk --version", 2).strip() or su_cmd("magisk -v", 2).strip()
+                ver = suCmd("magisk --version", 2).strip() or suCmd("magisk -v", 2).strip()
                 return (True, "magisk") if ver else (True, "su")
 
-        # su exists but didn’t return root in time / denied / stub
         return False, "su-present-not-working"
 
-    # 4) Not rooted by any method we can prove
     return False, "none"
 
-# -------------------------
-# Banner
-# -------------------------
 
-def print_banner(id_line: Optional[str]) -> None:
-    """Print beautiful ASCII art banner with colors"""
-    print(f"""
-{Colors.BRIGHT_CYAN}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  {Colors.BRIGHT_WHITE}██   ██  █████  ██████  ██████   █████  ██   ██{Colors.BRIGHT_CYAN}               ┃
-┃  {Colors.BRIGHT_WHITE}██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██{Colors.BRIGHT_CYAN}                ┃
-┃  {Colors.BRIGHT_WHITE}███████ ███████ ██████  ██   ██ ███████   ███{Colors.BRIGHT_CYAN}                 ┃
-┃  {Colors.BRIGHT_WHITE}██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██{Colors.BRIGHT_CYAN}                ┃
-┃  {Colors.BRIGHT_WHITE}██   ██ ██   ██ ██   ██ ██████  ██   ██ ██   ██{Colors.BRIGHT_CYAN}               ┃
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃  {Colors.BOLD}Hardening Audit eXaminer{Colors.RESET}{Colors.BRIGHT_CYAN} v{__version__}                               ┃
-┃  {Colors.DIM}Android OS based IoT Devices Security Configuration Auditor{Colors.BRIGHT_CYAN}   ┃
-┃  {Colors.YELLOW}[488 Checks]{Colors.RESET} {Colors.GREEN}[18 Categories]{Colors.BRIGHT_CYAN}                                   ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛{Colors.RESET}
-""")
-    
-    if id_line:
-        print(f"{Colors.BRIGHT_WHITE}📱 Target Device: {Colors.BOLD}{Colors.BRIGHT_CYAN}{id_line}{Colors.RESET}\n")
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  DEVICE INFORMATION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# -------------------------
-# Device info (Android-friendly)
-# -------------------------
-
-def _get_prop_fallback(device: Device, props: List[str]) -> str:
+def _getPropFallback(device: Device, props: List[str]) -> str:
     for p in props:
         v = device.shell(f"getprop {p}").strip()
         if v:
             return f"{v} (from {p})"
     return "(unknown)"
 
-def _get_prop_fallback_with_cpuinfo(device: Device, props: List[str]) -> str:
+
+def _getPropWithCpuinfo(device: Device, props: List[str]) -> str:
     for p in props:
         v = device.shell(f"getprop {p}").strip()
         if v:
@@ -706,16 +617,18 @@ def _get_prop_fallback_with_cpuinfo(device: Device, props: List[str]) -> str:
         return m.group(1).strip() + " (from /proc/cpuinfo)"
     return "(unknown)"
 
-def collect_device_info(device: Device) -> Dict[str, str]:
-    model = _get_prop_fallback(device, ["ro.product.model", "ro.product.device", "ro.product.name"])
-    brand = _get_prop_fallback(device, ["ro.product.brand", "ro.product.manufacturer"])
-    manufacturer = _get_prop_fallback(device, ["ro.product.manufacturer", "ro.product.brand"])
-    name = _get_prop_fallback(device, ["ro.product.name", "ro.product.model"])
-    soc_manufacturer = _get_prop_fallback(device, ["ro.soc.manufacturer", "ro.board.platform", "ro.hardware"])
-    soc_model = _get_prop_fallback_with_cpuinfo(device, ["ro.soc.model", "ro.hardware", "ro.board.platform"])
-    android_version = device.shell("getprop ro.build.version.release").strip()
-    sdk_level = device.shell("getprop ro.build.version.sdk").strip()
-    build_id = device.shell("getprop ro.build.display.id").strip()
+
+def collectDeviceInfo(device: Device) -> Dict[str, str]:
+    """Pull essential device metadata for the report header."""
+    model = _getPropFallback(device, ["ro.product.model", "ro.product.device", "ro.product.name"])
+    brand = _getPropFallback(device, ["ro.product.brand", "ro.product.manufacturer"])
+    manufacturer = _getPropFallback(device, ["ro.product.manufacturer", "ro.product.brand"])
+    name = _getPropFallback(device, ["ro.product.name", "ro.product.model"])
+    socManufacturer = _getPropFallback(device, ["ro.soc.manufacturer", "ro.board.platform", "ro.hardware"])
+    socModel = _getPropWithCpuinfo(device, ["ro.soc.model", "ro.hardware", "ro.board.platform"])
+    androidVersion = device.shell("getprop ro.build.version.release").strip()
+    sdkLevel = device.shell("getprop ro.build.version.sdk").strip()
+    buildId = device.shell("getprop ro.build.display.id").strip()
     fingerprint = device.shell("getprop ro.build.fingerprint").strip()
     serialno = device.shell("getprop ro.serialno").strip() or device.shell("getprop ro.boot.serialno").strip()
     timezone = device.shell("getprop persist.sys.timezone").strip()
@@ -729,23 +642,22 @@ def collect_device_info(device: Device) -> Dict[str, str]:
         "brand": clean(brand),
         "manufacturer": clean(manufacturer),
         "name": clean(name),
-        "soc_manufacturer": clean(soc_manufacturer),
-        "soc_model": clean(soc_model),
-        "android_version": android_version,
-        "sdk_level": sdk_level,
-        "build_id": build_id,
+        "soc_manufacturer": clean(socManufacturer),
+        "soc_model": clean(socModel),
+        "android_version": androidVersion,
+        "sdk_level": sdkLevel,
+        "build_id": buildId,
         "fingerprint": fingerprint,
         "serialno": serialno,
         "timezone": timezone,
     }
 
-# -------------------------
-# Checks loading
-# -------------------------
 
-REQUIRED_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  JSON CHECK LOADING & VALIDATION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-def _load_checks_from_file(path: str) -> List[Dict[str, Any]]:
+def _loadChecksFromFile(path: str) -> List[Dict[str, Any]]:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
     if isinstance(data, list):
@@ -759,35 +671,37 @@ def _load_checks_from_file(path: str) -> List[Dict[str, Any]]:
     for i, c in enumerate(checks, start=1):
         if not isinstance(c, dict):
             continue
-        if not REQUIRED_KEYS.issubset(c.keys()):
-            missing = REQUIRED_KEYS - set(c.keys())
+        if not REQUIRED_CHECK_KEYS.issubset(c.keys()):
+            missing = REQUIRED_CHECK_KEYS - set(c.keys())
             raise ValueError(f"{os.path.basename(path)}: check #{i} missing keys: {', '.join(sorted(missing))}")
         valid.append(c)
     return valid
 
-def load_checks(json_path: Optional[str], json_dir: Optional[str]) -> List[Dict[str, Any]]:
+
+def loadChecks(jsonPath: Optional[str], jsonDir: Optional[str]) -> List[Dict[str, Any]]:
+    """Load and merge security checks from JSON file(s)."""
     merged: List[Dict[str, Any]] = []
 
-    if json_path:
-        if not os.path.isfile(json_path):
-            print(f"ERROR: JSON file not found: {json_path}", file=sys.stderr)
+    if jsonPath:
+        if not os.path.isfile(jsonPath):
+            print(f"ERROR: JSON file not found: {jsonPath}", file=sys.stderr)
             sys.exit(1)
         try:
-            merged.extend(_load_checks_from_file(json_path))
+            merged.extend(_loadChecksFromFile(jsonPath))
         except Exception as e:
-            print(f"ERROR parsing {json_path}: {e}", file=sys.stderr)
+            print(f"ERROR parsing {jsonPath}: {e}", file=sys.stderr)
             sys.exit(1)
 
-    if json_dir:
-        if not os.path.isdir(json_dir):
-            print(f"ERROR: JSON directory not found: {json_dir}", file=sys.stderr)
+    if jsonDir:
+        if not os.path.isdir(jsonDir):
+            print(f"ERROR: JSON directory not found: {jsonDir}", file=sys.stderr)
             sys.exit(1)
-        for fname in sorted(os.listdir(json_dir)):
+        for fname in sorted(os.listdir(jsonDir)):
             if not fname.lower().endswith(".json"):
                 continue
-            fpath = os.path.join(json_dir, fname)
+            fpath = os.path.join(jsonDir, fname)
             try:
-                merged.extend(_load_checks_from_file(fpath))
+                merged.extend(_loadChecksFromFile(fpath))
             except Exception as e:
                 print(f"ERROR parsing {fpath}: {e}", file=sys.stderr)
                 sys.exit(1)
@@ -798,891 +712,104 @@ def load_checks(json_path: Optional[str], json_dir: Optional[str]) -> List[Dict[
 
     return merged
 
-# -------------------------
-# Pattern validation
-# -------------------------
 
-def validate_check_pattern(check: Dict[str, Any]) -> List[str]:
-    """Validate pattern for common issues"""
+def validateCheckPattern(check: Dict[str, Any]) -> List[str]:
+    """Validate safe_pattern regex for a single check definition."""
     issues = []
     pattern = check.get("safe_pattern", "")
     label = check.get("label", "unknown")
-    
     if not pattern:
         return issues
-    
-    # Check for common regex issues
     try:
         re.compile(pattern, re.IGNORECASE | re.MULTILINE | re.DOTALL)
     except re.error as e:
         issues.append(f"[{label}] Invalid regex: {e}")
-    
     return issues
 
-# -------------------------
-# Reporting
-# -------------------------
 
-def write_csv(csv_path: str, rows: List[Dict[str, Any]]) -> None:
-    fieldnames = ["timestamp", "category", "label", "level", "bucket", "status",
-                  "matched", "command", "result", "description"]
-    with open(csv_path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames)
-        w.writeheader()
-        for r in rows:
-            w.writerow({k: r.get(k, "") for k in fieldnames})
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  CHECK EVALUATION ENGINE
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-def write_html(html_path: str, device: Dict[str, str], rows: List[Dict[str, Any]], counts: Dict[str, int], certs: List[Dict[str, Any]] = None) -> None:
-    """Write modern HTML report with collapsible category sections and certificate table"""
-    
-    # --- Certificate table (always render; show empty-state when none) ---
-    cert_table_html = ""
-    cert_rows_html = ""
-    expired_count = expiring_count = user_count = valid_count = 0
-
-    if certs:
-        cert_rows = []
-        for c in certs:
-            risk_class = c['risk']
-            status_emoji = {
-                'EXPIRED': '\U0001F534',
-                'EXPIRING_SOON': '\U0001F7E1',
-                'CHECK': '\U0001F7E1',
-                'USER_CERT': '⚠️',
-                'VALID': '\U0001F7E2'
-            }.get(c['status'], '⚪')
-            days_info = f"{c['days_old']:,}" if isinstance(c['days_old'], int) else '-'
-            expiry_info = f"{c['days_until_expiry']:,}" if isinstance(c['days_until_expiry'], int) else '-'
-            cert_rows.append(
-                f"<tr class=\"cert-row {risk_class}\">\n"
-                f"<td>{html_escape(c['cn'])}</td>\n"
-                f"<td>{html_escape(c['not_before'])}</td>\n"
-                f"<td>{html_escape(c['not_after'])}</td>\n"
-                f"<td class=\"days-old\">{days_info}</td>\n"
-                f"<td class=\"days-expiry\">{expiry_info}</td>\n"
-                f"<td><span class=\"cert-status {risk_class}\">{status_emoji} {c['status']}</span></td>\n"
-                f"</tr>"
-            )
-        cert_rows_html = "\n".join(cert_rows)
-        expired_count = sum(1 for c in certs if c['status'] == 'EXPIRED')
-        expiring_count = sum(1 for c in certs if c['status'] in ('EXPIRING_SOON', 'CHECK'))
-        user_count = sum(1 for c in certs if c['status'] == 'USER_CERT')
-        valid_count = sum(1 for c in certs if c['status'] == 'VALID')
-
-    cert_table_html = (
-        f"<div class=\"cert-section category-section\" id=\"cert_section\">\n"
-        f"  <div class=\"category-header\" onclick=\"toggleCategory('cert_section')\">\n"
-        f"    <div class=\"category-title\">\n"
-        f"      <span class=\"toggle-icon\">▶</span>\n"
-        f"      <span class=\"category-name\">\U0001F510 CERTIFICATE AUDIT</span>\n"
-        f"      <span class=\"check-count\">({len(certs) if certs else 0} certificates)</span>\n"
-        f"    </div>\n"
-        f"    <div class=\"category-stats\">\n"
-        f"      <span class=\"cat-badge critical\">{expired_count} Expired</span>\n"
-        f"      <span class=\"cat-badge warning\">{expiring_count} Expiring</span>\n"
-        f"      <span class=\"cat-badge critical\">{user_count} User Installed</span>\n"
-        f"      <span class=\"cat-badge safe\">{valid_count} Valid</span>\n"
-        f"    </div>\n"
-        f"  </div>\n"
-        f"  <div class=\"category-content\">\n"
-        f"    <div class=\"cert-table-container\">\n"
-        f"      <table class=\"cert-table\">\n"
-        f"        <thead>\n"
-        f"          <tr>\n"
-        f"            <th>Common Name (CN)</th>\n"
-        f"            <th>Valid From</th>\n"
-        f"            <th>Valid Until</th>\n"
-        f"            <th>Days Old</th>\n"
-        f"            <th>Days to Expiry</th>\n"
-        f"            <th>Status</th>\n"
-        f"          </tr>\n"
-        f"        </thead>\n"
-        f"        <tbody>\n"
-        f"          {cert_rows_html if certs else '<tr><td colspan=\"6\" style=\"color:#a3a3a3;\">No certificates parsed. (Tip: ensure cryptography is installed/updated and the device exposes APEX Conscrypt CA store.)</td></tr>'}\n"
-        f"        </tbody>\n"
-        f"      </table>\n"
-        f"    </div>\n"
-        f"  </div>\n"
-        f"</div>"
-        )
-    # Group rows by category
-    categories = {}
-    for r in rows:
-        cat = r["category"]
-        if cat not in categories:
-            categories[cat] = {"rows": [], "stats": {"CRITICAL": 0, "WARNING": 0, "VERIFY": 0, "SAFE": 0, "INFO": 0, "SKIPPED": 0}}
-        categories[cat]["rows"].append(r)
-        status = r["status"]
-        if status in categories[cat]["stats"]:
-            categories[cat]["stats"][status] += 1
-        else:
-            categories[cat]["stats"]["INFO"] += 1
-    
-    # Build category sections HTML
-    category_sections = []
-    for cat_idx, (cat_name, cat_data) in enumerate(sorted(categories.items())):
-        stats = cat_data["stats"]
-        cat_rows = cat_data["rows"]
-        
-        # Build stats badges
-        badges = []
-        if stats["CRITICAL"] > 0:
-            badges.append(f'<span class="cat-badge critical">{stats["CRITICAL"]} Critical</span>')
-        if stats["WARNING"] > 0:
-            badges.append(f'<span class="cat-badge warning">{stats["WARNING"]} Warning</span>')
-        if stats["VERIFY"] > 0:
-            badges.append(f'<span class="cat-badge verify">{stats["VERIFY"]} Verify</span>')
-        if stats["SAFE"] > 0:
-            badges.append(f'<span class="cat-badge safe">{stats["SAFE"]} Safe</span>')
-        if stats["INFO"] > 0:
-            badges.append(f'<span class="cat-badge info">{stats["INFO"]} Info</span>')
-        if stats.get("SKIPPED", 0) > 0:
-            badges.append(f'<span class="cat-badge skipped">{stats["SKIPPED"]} Skipped</span>')
-        badges_html = " ".join(badges)
-        
-        # Build check items
-        items_html = []
-        for r in cat_rows:
-            cmd_esc = html_escape(r["command"])
-            res_esc = html_escape(r["result"])
-            desc_esc = html_escape(r["description"])
-            label_esc = html_escape(r["label"])
-            status = r["status"]
-            css_class = {"SAFE": "safe", "WARNING": "warning", "CRITICAL": "critical", "VERIFY": "verify", "SKIPPED": "skipped"}.get(status, "info")
-            
-            items_html.append(f'''
-        <div class="check-item {css_class}" data-search="{html_escape(r['label'].lower())} {html_escape(r['description'].lower())}">
-          <div class="check-header">
-            <span class="check-label">{label_esc}</span>
-            <span class="status-badge {css_class}">{status}</span>
-          </div>
-          <p class="check-desc">{desc_esc}</p>
-          <div class="check-details">
-            <div class="detail-block">
-              <span class="detail-label">Command:</span>
-              <pre><code>{cmd_esc}</code></pre>
-            </div>
-            <div class="detail-block">
-              <span class="detail-label">Result:</span>
-              <pre><code>{res_esc if res_esc else "(empty)"}</code></pre>
-            </div>
-          </div>
-        </div>''')
-        
-        items_joined = "\n".join(items_html)
-        
-        category_sections.append(f'''
-    <div class="category-section" id="cat_{cat_idx}">
-      <div class="category-header" onclick="toggleCategory('cat_{cat_idx}')">
-        <div class="category-title">
-          <span class="toggle-icon">▶</span>
-          <span class="category-name">{html_escape(cat_name)}</span>
-          <span class="check-count">({len(cat_rows)} checks)</span>
-        </div>
-        <div class="category-stats">
-          {badges_html}
-        </div>
-      </div>
-      <div class="category-content">
-        {items_joined}
-      </div>
-    </div>''')
-    
-    categories_html = "\n".join(category_sections)
-    
-    # Device info items
-    device_items = []
-    for key, label in [("model", "Model"), ("brand", "Brand"), ("manufacturer", "Manufacturer"),
-                       ("android_version", "Android"), ("sdk_level", "SDK"), ("build_id", "Build"),
-                       ("serialno", "Serial"), ("soc_model", "SoC")]:
-        val = device.get(key, "")
-        if val and val != "(unknown)":
-            device_items.append(f'<div class="device-item"><span class="device-label">{label}</span><span class="device-value">{html_escape(val)}</span></div>')
-    device_html = "\n".join(device_items)
-    
-    total_checks = len(rows)
-    
-    doc = f'''<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HARDAX - Security Audit Report</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    :root {{
-      --bg-primary: #0a0a0a;
-      --bg-secondary: #141414;
-      --bg-tertiary: #1f1f1f;
-      --text-primary: #e5e5e5;
-      --text-secondary: #a3a3a3;
-      --border-color: #2a2a2a;
-      --accent: #3b82f6;
-      --critical: #ef4444;
-      --warning: #f59e0b;
-      --safe: #22c55e;
-      --info: #3b82f6;
-      --verify: #a855f7;
-    }}
-    
-    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-    
-    body {{
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      line-height: 1.6;
-    }}
-    
-    .container {{ max-width: 1400px; margin: 0 auto; padding: 20px; }}
-    
-    /* Toolbar */
-    .toolbar {{
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
-      padding: 16px 24px;
-      border-radius: 12px;
-      margin-bottom: 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-    }}
-    
-    .toolbar-brand {{
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }}
-    
-    .toolbar-brand h1 {{
-      color: #fff;
-      font-size: 1.5rem;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-    }}
-    
-    .toolbar-brand .version {{
-      background: rgba(255,255,255,0.15);
-      color: #94a3b8;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-    }}
-    
-    .toolbar-controls {{
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }}
-    
-    .search-box {{
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 8px;
-      padding: 10px 16px;
-      color: #fff;
-      font-size: 0.9rem;
-      width: 280px;
-      outline: none;
-      transition: all 0.2s;
-    }}
-    
-    .search-box::placeholder {{ color: rgba(255,255,255,0.5); }}
-    .search-box:focus {{ background: rgba(255,255,255,0.15); border-color: var(--accent); }}
-    
-    .btn {{
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
-      color: #fff;
-      padding: 10px 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      font-weight: 500;
-      transition: all 0.2s;
-    }}
-    
-    .btn:hover {{ background: rgba(255,255,255,0.2); }}
-    
-    /* Summary Cards */
-    .summary-grid {{
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }}
-    
-    .summary-card {{
-      background: var(--bg-secondary);
-      border-radius: 12px;
-      padding: 20px;
-      border: 1px solid var(--border-color);
-      text-align: center;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }}
-    
-    .summary-card:hover {{ transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }}
-    
-    .summary-card.critical {{ border-left: 4px solid var(--critical); }}
-    .summary-card.warning {{ border-left: 4px solid var(--warning); }}
-    .summary-card.verify {{ border-left: 4px solid var(--verify); }}
-    .summary-card.safe {{ border-left: 4px solid var(--safe); }}
-    .summary-card.info {{ border-left: 4px solid var(--info); }}
-    .summary-card.skipped {{ border-left: 4px solid #6b7280; }}
-    .summary-card.total {{ border-left: 4px solid var(--accent); }}
-    
-    .summary-card .number {{
-      font-size: 2.5rem;
-      font-weight: 700;
-      line-height: 1;
-      margin-bottom: 8px;
-    }}
-    
-    .summary-card.critical .number {{ color: var(--critical); }}
-    .summary-card.warning .number {{ color: var(--warning); }}
-    .summary-card.verify .number {{ color: var(--verify); }}
-    .summary-card.safe .number {{ color: var(--safe); }}
-    .summary-card.info .number {{ color: var(--info); }}
-    .summary-card.skipped .number {{ color: #9ca3af; }}
-    .summary-card.total .number {{ color: var(--accent); }}
-    
-    .summary-card .label {{
-      color: var(--text-secondary);
-      font-size: 0.9rem;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }}
-    
-    /* Device Info & Chart Row */
-    .info-row {{
-      display: grid;
-      grid-template-columns: 1fr 300px;
-      gap: 24px;
-      margin-bottom: 24px;
-    }}
-    
-    @media (max-width: 900px) {{
-      .info-row {{ grid-template-columns: 1fr; }}
-    }}
-    
-    .device-card {{
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 12px;
-      padding: 24px;
-      color: #fff;
-    }}
-    
-    .device-card h2 {{
-      font-size: 1.1rem;
-      margin-bottom: 16px;
-      opacity: 0.9;
-    }}
-    
-    .device-grid {{
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
-    }}
-    
-    .device-item {{
-      background: rgba(255,255,255,0.15);
-      padding: 12px;
-      border-radius: 8px;
-    }}
-    
-    .device-label {{
-      display: block;
-      font-size: 0.75rem;
-      opacity: 0.8;
-      margin-bottom: 4px;
-    }}
-    
-    .device-value {{
-      font-weight: 600;
-      font-size: 0.9rem;
-    }}
-    
-    .chart-card {{
-      background: var(--bg-secondary);
-      border-radius: 12px;
-      padding: 20px;
-      border: 1px solid var(--border-color);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }}
-    
-    /* Category Sections */
-    .category-section {{
-      background: var(--bg-secondary);
-      border-radius: 12px;
-      margin-bottom: 16px;
-      border: 1px solid var(--border-color);
-      overflow: hidden;
-    }}
-    
-    .category-header {{
-      background: var(--bg-tertiary);
-      padding: 16px 20px;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      transition: background 0.2s;
-      user-select: none;
-    }}
-    
-    .category-header:hover {{ background: var(--border-color); }}
-    
-    .category-title {{
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }}
-    
-    .toggle-icon {{
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      transition: transform 0.3s;
-    }}
-    
-    .category-section.expanded .toggle-icon {{ transform: rotate(90deg); }}
-    
-    .category-name {{
-      font-weight: 600;
-      font-size: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }}
-    
-    .check-count {{
-      color: var(--text-secondary);
-      font-size: 0.85rem;
-      font-weight: normal;
-    }}
-    
-    .category-stats {{
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }}
-    
-    .cat-badge {{
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }}
-    
-    .cat-badge.critical {{ background: rgba(239,68,68,0.15); color: var(--critical); }}
-    .cat-badge.warning {{ background: rgba(245,158,11,0.15); color: var(--warning); }}
-    .cat-badge.verify {{ background: rgba(168,85,247,0.15); color: var(--verify); }}
-    .cat-badge.safe {{ background: rgba(34,197,94,0.15); color: var(--safe); }}
-    .cat-badge.info {{ background: rgba(59,130,246,0.15); color: var(--info); }}
-    .cat-badge.skipped {{ background: rgba(107,114,128,0.15); color: #9ca3af; }}
-    
-    .category-content {{
-      display: none;
-      padding: 16px 20px;
-    }}
-    
-    .category-section.expanded .category-content {{ display: block; }}
-    
-    /* Check Items */
-    .check-item {{
-      background: var(--bg-tertiary);
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 12px;
-      border-left: 4px solid var(--border-color);
-    }}
-    
-    .check-item.critical {{ border-left-color: var(--critical); }}
-    .check-item.warning {{ border-left-color: var(--warning); }}
-    .check-item.verify {{ border-left-color: var(--verify); }}
-    .check-item.safe {{ border-left-color: var(--safe); }}
-    .check-item.info {{ border-left-color: var(--info); }}
-    .check-item.skipped {{ border-left-color: #6b7280; opacity: 0.7; }}
-    
-    .check-item:last-child {{ margin-bottom: 0; }}
-    
-    .check-header {{
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }}
-    
-    .check-label {{
-      font-weight: 600;
-      font-size: 0.95rem;
-    }}
-    
-    .status-badge {{
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-    }}
-    
-    .status-badge.critical {{ background: var(--critical); color: #fff; }}
-    .status-badge.warning {{ background: var(--warning); color: #fff; }}
-    .status-badge.verify {{ background: var(--verify); color: #fff; }}
-    .status-badge.safe {{ background: var(--safe); color: #fff; }}
-    .status-badge.info {{ background: var(--info); color: #fff; }}
-    .status-badge.skipped {{ background: #6b7280; color: #fff; }}
-    
-    .check-desc {{
-      color: var(--text-secondary);
-      font-size: 0.85rem;
-      margin-bottom: 12px;
-    }}
-    
-    .detail-block {{
-      margin-bottom: 10px;
-    }}
-    
-    .detail-label {{
-      display: block;
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-      margin-bottom: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }}
-    
-    pre {{
-      background: #1e293b;
-      color: #a5d6a7;
-      padding: 12px;
-      border-radius: 6px;
-      overflow-x: auto;
-      font-size: 0.8rem;
-      max-height: 200px;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }}
-    
-    /* Footer */
-    footer {{
-      text-align: center;
-      padding: 24px;
-      color: var(--text-secondary);
-      font-size: 0.85rem;
-      border-top: 1px solid var(--border-color);
-      margin-top: 40px;
-    }}
-    
-    .hidden {{ display: none !important; }}
-    
-    /* Certificate Table Styles */
-    .cert-section {{
-      background: var(--bg-secondary);
-      border-radius: 12px;
-      margin-bottom: 24px;
-      border: 1px solid var(--border-color);
-      overflow: hidden;
-    }}
-    
-    .cert-section .category-content {{
-      padding: 16px 20px;
-    }}
-    
-    .cert-table-container {{
-      overflow-x: auto;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-    }}
-    
-    .cert-table {{
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.85rem;
-    }}
-    
-    .cert-table th {{
-      background: var(--bg-tertiary);
-      padding: 12px 16px;
-      text-align: left;
-      font-weight: 600;
-      text-transform: uppercase;
-      font-size: 0.75rem;
-      letter-spacing: 0.5px;
-      color: var(--text-secondary);
-      border-bottom: 2px solid var(--border-color);
-    }}
-    
-    .cert-table td {{
-      padding: 10px 16px;
-      border-bottom: 1px solid var(--border-color);
-    }}
-    
-    .cert-row:hover {{
-      background: var(--bg-tertiary);
-    }}
-    
-    .cert-row.critical {{
-      background: rgba(239,68,68,0.08);
-    }}
-    
-    .cert-row.warning {{
-      background: rgba(245,158,11,0.08);
-    }}
-    
-    .days-old, .days-expiry {{
-      font-family: monospace;
-      text-align: right;
-    }}
-    
-    .cert-status {{
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      white-space: nowrap;
-    }}
-    
-    .cert-status.critical {{ background: rgba(239,68,68,0.2); color: var(--critical); }}
-    .cert-status.warning {{ background: rgba(245,158,11,0.2); color: var(--warning); }}
-    .cert-status.safe {{ background: rgba(34,197,94,0.2); color: var(--safe); }}
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="toolbar">
-      <div class="toolbar-brand">
-        <h1>🛡️ HARDAX</h1>
-        <span class="version">v{__version__}</span>
-      </div>
-      <div class="toolbar-controls">
-        <input type="text" class="search-box" id="searchInput" placeholder="🔍 Search checks...">
-        <button class="btn" onclick="expandAll()">Expand All</button>
-        <button class="btn" onclick="collapseAll()">Collapse All</button>
-      </div>
-    </div>
-    
-    <div class="summary-grid">
-      <div class="summary-card critical">
-        <div class="number">{counts.get("critical", 0)}</div>
-        <div class="label">Critical</div>
-      </div>
-      <div class="summary-card warning">
-        <div class="number">{counts.get("warning", 0)}</div>
-        <div class="label">Warnings</div>
-      </div>
-      <div class="summary-card verify">
-        <div class="number">{counts.get("verify", 0)}</div>
-        <div class="label">Verify</div>
-      </div>
-      <div class="summary-card safe">
-        <div class="number">{counts.get("safe", 0)}</div>
-        <div class="label">Safe</div>
-      </div>
-      <div class="summary-card info">
-        <div class="number">{counts.get("info", 0)}</div>
-        <div class="label">Info</div>
-      </div>
-      <div class="summary-card skipped">
-        <div class="number">{counts.get("skipped", 0)}</div>
-        <div class="label">Skipped</div>
-      </div>
-      <div class="summary-card total">
-        <div class="number">{total_checks}</div>
-        <div class="label">Total Checks</div>
-      </div>
-    </div>
-    
-    <div class="info-row">
-      <div class="device-card">
-        <h2>📱 Device Information</h2>
-        <div class="device-grid">
-          {device_html}
-        </div>
-      </div>
-      <div class="chart-card">
-        <canvas id="summaryChart" width="250" height="250"></canvas>
-      </div>
-    </div>
-    
-    {cert_table_html}
-    
-    <div id="categoriesContainer">
-      {categories_html}
-    </div>
-    
-    <footer>
-      <p><strong>HARDAX</strong> - Hardening Audit eXaminer | Report generated: {time.strftime("%Y-%m-%d %H:%M:%S")}</p>
-      <p>Android OS based IoT Devices Security Configuration Auditor</p>
-    </footer>
-  </div>
-  
-  <script>
-    // Category toggle
-    function toggleCategory(catId) {{
-      const section = document.getElementById(catId);
-      section.classList.toggle('expanded');
-    }}
-    
-    // Expand/Collapse all
-    function expandAll() {{
-      document.querySelectorAll('.category-section').forEach(s => s.classList.add('expanded'));
-    }}
-    
-    function collapseAll() {{
-      document.querySelectorAll('.category-section').forEach(s => s.classList.remove('expanded'));
-    }}
-    
-    // Search functionality
-    document.getElementById('searchInput').addEventListener('input', function(e) {{
-      const query = e.target.value.toLowerCase().trim();
-      
-      document.querySelectorAll('.category-section').forEach(section => {{
-        const items = section.querySelectorAll('.check-item');
-        let visibleCount = 0;
-        
-        items.forEach(item => {{
-          const searchText = item.getAttribute('data-search') || '';
-          const matches = !query || searchText.includes(query);
-          item.classList.toggle('hidden', !matches);
-          if (matches) visibleCount++;
-        }});
-        
-        section.classList.toggle('hidden', visibleCount === 0);
-        if (query && visibleCount > 0) {{
-          section.classList.add('expanded');
-        }}
-      }});
-    }});
-    
-    // Chart
-    window.addEventListener('load', function() {{
-      const ctx = document.getElementById('summaryChart').getContext('2d');
-      new Chart(ctx, {{
-        type: 'doughnut',
-        data: {{
-          labels: ['Critical', 'Warning', 'Verify', 'Safe', 'Info', 'Skipped'],
-          datasets: [{{
-            data: [{counts.get("critical", 0)}, {counts.get("warning", 0)}, {counts.get("verify", 0)}, {counts.get("safe", 0)}, {counts.get("info", 0)}, {counts.get("skipped", 0)}],
-            backgroundColor: ['#ef4444', '#f59e0b', '#a855f7', '#22c55e', '#3b82f6', '#6b7280'],
-            borderWidth: 0
-          }}]
-        }},
-        options: {{
-          responsive: true,
-          cutout: '65%',
-          plugins: {{
-            legend: {{
-              position: 'bottom',
-              labels: {{
-                padding: 15,
-                usePointStyle: true,
-                font: {{ size: 11 }}
-              }}
-            }}
-          }}
-        }}
-      }});
-    }});
-  </script>
-</body>
-</html>'''
-    
-    with open(html_path, "w", encoding="utf-8") as f:
-        f.write(doc)
-
-# -------------------------
-# Check execution
-# -------------------------
-
-def is_null_response(output: str) -> bool:
-    """Check if output is specifically 'null' - needs manual verification"""
+def isNullResponse(output: str) -> bool:
+    """Detect settings/getprop returning literal 'null'."""
     if not output:
         return False
-    output_lower = output.lower().strip()
-    return output_lower in ['null', 'none', '(null)', '(none)']
+    return output.lower().strip() in ["null", "none", "(null)", "(none)"]
 
-def is_empty_or_error(output: str) -> bool:
-    """Check if output is empty or indicates an error/unsupported command"""
+
+def isEmptyOrError(output: str) -> bool:
+    """Detect empty output or common error strings from the device."""
     if not output:
         return True
-    # ADB transport errors are not real output
-    if is_adb_transport_error(output):
+    if isAdbTransportError(output):
         return True
-    output_lower = output.lower().strip()
-    # Common indicators of no data / unsupported command
-    error_indicators = [
-        'not found', 'no such', 'error', 'exception',
-        'permission denied', 'unknown', 'invalid', 'failed',
-        'inaccessible', 'cmd: can\'t find', 'not supported',
-        'service not found', 'does not exist', 'no output'
+    lower = output.lower().strip()
+    errorIndicators = [
+        "not found", "no such", "error", "exception",
+        "permission denied", "unknown", "invalid", "failed",
+        "inaccessible", "cmd: can't find", "not supported",
+        "service not found", "does not exist", "no output",
     ]
-    if output_lower in ['', '(empty)']:
+    if lower in ["", "(empty)"]:
         return True
-    for indicator in error_indicators:
-        if indicator in output_lower and len(output_lower) < 100:
+    for indicator in errorIndicators:
+        if indicator in lower and len(lower) < 100:
             return True
     return False
 
-def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, show_commands: bool = False, is_rooted: bool = False) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
+
+def runChecks(device: Device, checks: List[Dict[str, Any]],
+              onProgress=None, showCommands: bool = False,
+              isRooted: bool = False) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
+    """
+    Execute every check against the device and classify the result.
+    Returns (rows, counts) where rows is the full audit data.
+    """
     rows: List[Dict[str, Any]] = []
     counts = {"safe": 0, "warning": 0, "critical": 0, "info": 0, "verify": 0, "skipped": 0}
     total = len(checks)
-    start_time = time.time()
-    consecutive_adb_errors = 0  # Track consecutive ADB failures
+    startTime = time.time()
+    consecutiveAdbErrors = 0
 
     for idx, chk in enumerate(checks, start=1):
         category = chk.get("category", "General")
         label = chk.get("label", "Unnamed")
         command = chk.get("command", "")
-        safe_pattern = chk.get("safe_pattern", "")
+        safePattern = chk.get("safe_pattern", "")
         level = chk.get("level", "info")
         desc = chk.get("description", "")
-        # New: allow checks to specify if empty means safe
-        empty_is_safe = chk.get("empty_is_safe", False)
-        # New: allow checks to require output (empty = verify)
-        requires_output = chk.get("requires_output", True)
-        # New: allow checks to specify if null means safe
-        null_is_safe = chk.get("null_is_safe", False)
+        emptyIsSafe = chk.get("empty_is_safe", False)
+        requiresOutput = chk.get("requires_output", True)
+        nullIsSafe = chk.get("null_is_safe", False)
 
-        raw = execute_with_p_fallback(device, command, show_commands, is_rooted=is_rooted) if command else ""
+        raw = executeWithFallback(device, command, showCommands, isRooted=isRooted) if command else ""
 
-        # ── ADB transport error detection ──
-        # If the ADB connection dropped, mark SKIPPED instead of false-flagging
-        if raw and is_adb_transport_error(raw):
-            consecutive_adb_errors += 1
+        # ── ADB transport error → SKIPPED ──
+        if raw and isAdbTransportError(raw):
+            consecutiveAdbErrors += 1
             status = "SKIPPED"
             counts["skipped"] += 1
             raw = f"[ADB ERROR] {raw.strip()}"
-            # Defaults for SKIPPED — prevent NameError in rows.append
             matched = False
-            needs_verification = False
-            bucket = bucket_from_level(level)
-            output_is_null = False
+            needsVerification = False
+            bucket = bucketFromLevel(level)
+            outputIsNull = False
 
-            # If 5+ consecutive ADB errors, device is truly gone — abort early
-            if consecutive_adb_errors >= 5:
-                print(f"\n  {Colors.BRIGHT_RED}✗ Device unresponsive after {consecutive_adb_errors} consecutive ADB errors.{Colors.RESET}")
+            if consecutiveAdbErrors >= 5:
+                print(f"\n  {Colors.BRIGHT_RED}✗ Device unresponsive after {consecutiveAdbErrors} consecutive ADB errors.{Colors.RESET}")
                 print(f"  {Colors.YELLOW}  Attempting reconnect...{Colors.RESET}")
-                if isinstance(device, ADBDevice):
-                    run_local(device._base() + ["reconnect"])
+                if isinstance(device, AdbDevice):
+                    runLocal(device._base() + ["reconnect"])
                     time.sleep(3)
-                    run_local(device._base() + ["wait-for-device"], timeout=15)
+                    runLocal(device._base() + ["wait-for-device"], timeout=15)
                     time.sleep(2)
-                    # Test with a simple command
-                    test_code, test_out, _ = run_local(device._base() + ["shell", "echo HARDAX_ALIVE"], timeout=5)
-                    if "HARDAX_ALIVE" in (test_out or ""):
+                    testCode, testOut, _ = runLocal(device._base() + ["shell", "echo HARDAX_ALIVE"], timeout=5)
+                    if "HARDAX_ALIVE" in (testOut or ""):
                         print(f"  {Colors.GREEN}  ✓ Device reconnected! Resuming...{Colors.RESET}")
-                        consecutive_adb_errors = 0
+                        consecutiveAdbErrors = 0
                     else:
                         print(f"  {Colors.BRIGHT_RED}  ✗ Device still offline. Skipping remaining checks.{Colors.RESET}")
-                        # Append current check first
                         rows.append({
                             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
                             "category": category, "label": label, "level": level,
@@ -1691,69 +818,59 @@ def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, s
                             "description": desc + " [⊘ Skipped — ADB connection lost]",
                             "needs_verification": False,
                         })
-                        # Skip all remaining checks
-                        for remaining_chk in checks[idx:]:
+                        for remainingChk in checks[idx:]:
                             rows.append({
-                                "category": remaining_chk.get("category", "General"),
-                                "label": remaining_chk.get("label", "Unnamed"),
-                                "command": remaining_chk.get("command", ""),
+                                "category": remainingChk.get("category", "General"),
+                                "label": remainingChk.get("label", "Unnamed"),
+                                "command": remainingChk.get("command", ""),
                                 "result": "[SKIPPED] Device offline — ADB connection lost",
                                 "status": "SKIPPED",
-                                "description": remaining_chk.get("description", ""),
+                                "description": remainingChk.get("description", ""),
                             })
                             counts["skipped"] += 1
                         break
         else:
-            consecutive_adb_errors = 0  # Reset on successful command
-
-            normalized = normalize_for_match(raw)
-            bucket = bucket_from_level(level)
-
+            consecutiveAdbErrors = 0
+            normalized = normalizeForMatch(raw)
+            bucket = bucketFromLevel(level)
             matched = False
-            needs_verification = False
-            
-            # Check if output is empty, error, or null
-            output_empty = is_empty_or_error(raw)
-            output_is_null = is_null_response(raw)
-            
-            if safe_pattern:
-                try:
-                    matched = bool(re.search(safe_pattern, normalized, re.IGNORECASE | re.MULTILINE | re.DOTALL))
-                except re.error:
-                    matched = safe_pattern.lower() in normalized.lower()
+            needsVerification = False
 
-            # Determine status with improved logic
-            if output_is_null:
-                # NULL output - check if null is explicitly allowed in safe_pattern
-                null_in_pattern = safe_pattern and 'null' in safe_pattern.lower()
-                if null_is_safe or null_in_pattern:
+            outputEmpty = isEmptyOrError(raw)
+            outputIsNull = isNullResponse(raw)
+
+            if safePattern:
+                try:
+                    matched = bool(re.search(safePattern, normalized,
+                                             re.IGNORECASE | re.MULTILINE | re.DOTALL))
+                except re.error:
+                    matched = safePattern.lower() in normalized.lower()
+
+            # ── Determine status ──
+            if outputIsNull:
+                nullInPattern = safePattern and "null" in safePattern.lower()
+                if nullIsSafe or nullInPattern:
                     status = "SAFE"
                     counts["safe"] += 1
                 else:
-                    # NULL without explicit allowance = needs manual verification
                     status = "VERIFY"
                     counts["verify"] += 1
-                    needs_verification = True
+                    needsVerification = True
             elif matched:
                 status = "SAFE"
                 counts["safe"] += 1
-            elif output_empty:
-                # Empty output handling
-                if empty_is_safe:
-                    # Some checks consider empty as safe (e.g., "no bad apps found")
+            elif outputEmpty:
+                if emptyIsSafe:
                     status = "SAFE"
                     counts["safe"] += 1
-                elif requires_output and bucket in ("critical", "warning"):
-                    # Empty output for critical/warning checks = needs manual verification
+                elif requiresOutput and bucket in ("critical", "warning"):
                     status = "VERIFY"
                     counts["verify"] += 1
-                    needs_verification = True
+                    needsVerification = True
                 else:
-                    # For info-level checks, empty is just info
                     status = "INFO"
                     counts["info"] += 1
             else:
-                # We have actual output that doesn't match safe pattern
                 if bucket == "critical":
                     status = "CRITICAL"
                     counts["critical"] += 1
@@ -1764,70 +881,66 @@ def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, s
                     status = "INFO"
                     counts["info"] += 1
 
-        # Progress display
-        if on_progress or show_commands:
+        # ── Progress display ──
+        if onProgress or showCommands:
             try:
-                elapsed = time.time() - start_time
-                avg_time = elapsed / idx if idx > 0 else 0
-                remaining = int(avg_time * (total - idx))
-                eta_str = f"{remaining // 60}m {remaining % 60}s" if remaining > 60 else f"{remaining}s"
+                elapsed = time.time() - startTime
+                avgTime = elapsed / idx if idx > 0 else 0
+                remaining = int(avgTime * (total - idx))
+                etaStr = f"{remaining // 60}m {remaining % 60}s" if remaining > 60 else f"{remaining}s"
                 percentage = (idx / total) * 100
-                
-                # Status colors
-                if status == "SAFE":
-                    status_color = Colors.GREEN
-                    status_symbol = "✓"
-                elif status == "CRITICAL":
-                    status_color = Colors.BRIGHT_RED
-                    status_symbol = "✗"
-                elif status == "WARNING":
-                    status_color = Colors.YELLOW
-                    status_symbol = "⚠"
-                elif status == "VERIFY":
-                    status_color = Colors.BRIGHT_MAGENTA
-                    status_symbol = "?"
-                elif status == "SKIPPED":
-                    status_color = Colors.DIM
-                    status_symbol = "⊘"
-                else:
-                    status_color = Colors.CYAN
-                    status_symbol = "ℹ"
-                
-                # Progress bar
-                bar_width = 30
-                filled = int((idx / total) * bar_width)
-                bar = '█' * filled + '░' * (bar_width - filled)
-                
-                print(f"\r{Colors.CYAN}[{idx:3d}/{total:3d}]{Colors.RESET} "
-                      f"{Colors.BRIGHT_BLUE}[{bar}]{Colors.RESET} "
-                      f"{Colors.BRIGHT_WHITE}{percentage:5.1f}%{Colors.RESET} "
-                      f"{Colors.DIM}ETA: {eta_str}{Colors.RESET}", end='', flush=True)
-                
-                if show_commands:
+
+                statusColor = {
+                    "SAFE": Colors.GREEN,
+                    "CRITICAL": Colors.BRIGHT_RED,
+                    "WARNING": Colors.YELLOW,
+                    "VERIFY": Colors.BRIGHT_MAGENTA,
+                    "SKIPPED": Colors.DIM,
+                }.get(status, Colors.CYAN)
+                statusSymbol = {
+                    "SAFE": "✓", "CRITICAL": "✗", "WARNING": "⚠",
+                    "VERIFY": "?", "SKIPPED": "⊘",
+                }.get(status, "ℹ")
+
+                barWidth = 30
+                filled = int((idx / total) * barWidth)
+                bar = "█" * filled + "░" * (barWidth - filled)
+
+                print(
+                    f"\r{Colors.CYAN}[{idx:3d}/{total:3d}]{Colors.RESET} "
+                    f"{Colors.BRIGHT_BLUE}[{bar}]{Colors.RESET} "
+                    f"{Colors.BRIGHT_WHITE}{percentage:5.1f}%{Colors.RESET} "
+                    f"{Colors.DIM}ETA: {etaStr}{Colors.RESET}",
+                    end="", flush=True,
+                )
+
+                if showCommands:
                     print()
-                    label_display = label[:50] + "..." if len(label) > 50 else label
-                    print(f"  {Colors.BRIGHT_CYAN}▶{Colors.RESET} {Colors.BOLD}{label_display}{Colors.RESET} "
-                          f"{status_color}[{status_symbol} {status}]{Colors.RESET}")
-                    cmd_display = command[:70] + "..." if len(command) > 70 else command
-                    print(f"    {Colors.DIM}$ {cmd_display}{Colors.RESET}", flush=True)
-                
-                if on_progress:
-                    on_progress(idx, total)
+                    labelDisplay = label[:50] + "..." if len(label) > 50 else label
+                    print(
+                        f"  {Colors.BRIGHT_CYAN}▶{Colors.RESET} {Colors.BOLD}{labelDisplay}{Colors.RESET} "
+                        f"{statusColor}[{statusSymbol} {status}]{Colors.RESET}"
+                    )
+                    cmdDisplay = command[:70] + "..." if len(command) > 70 else command
+                    print(f"    {Colors.DIM}$ {cmdDisplay}{Colors.RESET}", flush=True)
+
+                if onProgress:
+                    onProgress(idx, total)
             except Exception:
                 pass
 
-        # For VERIFY status, add note to description
-        display_desc = desc
-        display_result = raw
-        if needs_verification:
-            if output_is_null:
-                display_desc = desc + " [⚠ Manual verification required - value is NULL]"
-                display_result = "null (Setting may not exist or is not configured)"
+        # ── Build row ──
+        displayDesc = desc
+        displayResult = raw
+        if needsVerification:
+            if outputIsNull:
+                displayDesc = desc + " [⚠ Manual verification required - value is NULL]"
+                displayResult = "null (Setting may not exist or is not configured)"
             else:
-                display_desc = desc + " [⚠ Manual verification required - empty/unsupported output]"
+                displayDesc = desc + " [⚠ Manual verification required - empty/unsupported output]"
                 if not raw.strip():
-                    display_result = "(No output - command may not be supported on this device)"
-        
+                    displayResult = "(No output - command may not be supported on this device)"
+
         rows.append({
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
             "category": category,
@@ -1837,172 +950,194 @@ def run_checks(device: Device, checks: List[Dict[str, Any]], on_progress=None, s
             "status": status,
             "matched": str(matched),
             "command": command,
-            "result": display_result,
-            "description": display_desc,
-            "needs_verification": needs_verification,
+            "result": displayResult,
+            "description": displayDesc,
+            "needs_verification": needsVerification,
         })
-    
+
     print()
     return rows, counts
 
-# -------------------------
-# Main
-# -------------------------
 
-def main():
-    ap = argparse.ArgumentParser(
-        description="HARDAX - Hardening Audit eXaminer for Android/IoT",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  %(prog)s --json-dir ./commands
-  %(prog)s --json-dir ./commands --serial DEVICE123
-  %(prog)s --mode ssh --host 192.168.1.100 --ssh-user root --ssh-pass password
-        """
-    )
-    ap.add_argument("--version", action="version", version=f"HARDAX v{__version__}")
-    ap.add_argument("--mode", choices=["adb", "ssh"], default="adb", help="How to run commands (default: adb)")
-    # ADB
-    ap.add_argument("--json", help="Path to single commands JSON")
-    ap.add_argument("--json-dir", help="Folder with *.json files to merge")
-    ap.add_argument("--serial", default=os.environ.get("ANDROID_SERIAL", ""), help="ADB serial")
-    # SSH
-    ap.add_argument("--host", help="SSH host")
-    ap.add_argument("--port", type=int, default=22, help="SSH port")
-    ap.add_argument("--ssh-user", help="SSH username")
-    ap.add_argument("--ssh-pass", help="SSH password")
-    # Output
-    ap.add_argument("--out", default="hardax_output", help="Output directory")
-    ap.add_argument("--progress-numbers", action="store_true", help="Show progress counter")
-    ap.add_argument("--show-commands", action="store_true", help="Display each command")
-    ap.add_argument("--skip-certs", action="store_true", help="Skip certificate audit")
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  CERTIFICATE AUDIT
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    args = ap.parse_args()
+def _findCertFiles(device: Device) -> List[str]:
+    """Search standard Android CA directories for certificate files."""
+    candidates = [
+        "/system/etc/security/cacerts",
+        "/system/etc/security/cacerts_google",
+        "/apex/com.android.conscrypt/cacerts",
+        "/apex/com.android.conscrypt/etc/security/cacerts",
+    ]
+    files = []
+    for base in candidates:
+        listing = device.shell(f"ls -1 {base} 2>/dev/null")
+        names = [n.strip() for n in (listing.splitlines() if listing else []) if n.strip()]
+        matched = []
+        for n in names:
+            if n.endswith(".0") or re.fullmatch(r"[0-9a-fA-F]{1,8}", n):
+                matched.append(f"{base}/{n}")
+        files.extend(matched)
+        if CERT_DEBUG:
+            print(f"[cert-debug] {base}: {len(matched)} files matched")
+    return files
 
-    # Auto-detect json-dir if not specified
-    if not args.json and not args.json_dir:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        default_cmd_dir = os.path.join(script_dir, "commands")
-        if os.path.isdir(default_cmd_dir):
-            args.json_dir = default_cmd_dir
 
-    # Load checks
-    checks = load_checks(args.json, args.json_dir)
-
-    # Device selection
-    device: Device
-    if args.mode == "adb":
-        if which("adb") is None:
-            print("ERROR: 'adb' not found in PATH.", file=sys.stderr)
-            sys.exit(1)
-        run_local(["adb", "start-server"])
-
-        serial = (args.serial or "").strip() or None
-        serial = pick_default_serial(serial)
-        if not serial:
-            explain_adb_devices_and_exit(exit_code=2)
-
-        adb_dev = ADBDevice(serial)
+def _readCertBytes(device: Device, path: str):
+    """Read certificate bytes from device, trying PEM first then DER via base64."""
+    txt = device.shell(f"cat {path} 2>/dev/null")
+    if txt and "-----BEGIN CERTIFICATE-----" in txt:
+        return txt.encode("utf-8"), "PEM"
+    b64 = device.shell(f"base64 {path} 2>/dev/null")
+    if b64 and "not found" not in b64.lower() and b64.strip():
         try:
-            adb_dev.check_connected()
-        except RuntimeError as e:
-            print(str(e), file=sys.stderr)
-            explain_adb_devices_and_exit(exit_code=3)
-        device = adb_dev
+            cleaned = "".join(b64.strip().split())
+            return base64.b64decode(cleaned, validate=False), "DER"
+        except Exception:
+            return None, None
+    return None, None
 
-    else:  # SSH mode
-        missing = []
-        if not args.host: missing.append("--host")
-        if not args.ssh_user: missing.append("--ssh-user")
-        if not args.ssh_pass: missing.append("--ssh-pass")
-        if missing:
-            print("ERROR: For --mode ssh you must provide: " + ", ".join(missing), file=sys.stderr)
-            sys.exit(1)
-        device = SSHDevice(args.host, args.port, args.ssh_user, args.ssh_pass)
 
-    # Banner
-    print_banner(device.id_string())
+def auditCertificates(device: Device) -> List[Dict[str, Any]]:
+    """Pull and analyze system + user certificates from the device."""
+    certs: List[Dict[str, Any]] = []
+    try:
+        from cryptography import x509
+        from cryptography.hazmat.backends import default_backend
+    except Exception:
+        if CERT_DEBUG:
+            print("[cert-debug] cryptography not available; skipping cert parse")
+        return []
 
-    # Progress callback
-    def _progress(idx: int, total: int):
-        if args.progress_numbers:
-            sys.stdout.write("\r" + f"{idx}/{total}")
-            sys.stdout.flush()
+    certFiles = _findCertFiles(device)
+    if CERT_DEBUG:
+        print(f"[cert-debug] discovered total: {len(certFiles)}")
+    today = datetime.now()
 
-    # Output paths
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
-    txt_dir = os.path.join(args.out, f"txt_report_{timestamp}")
-    html_dir = os.path.join(args.out, f"html_report_{timestamp}")
-    os.makedirs(txt_dir, exist_ok=True)
-    os.makedirs(html_dir, exist_ok=True)
-    txt_file = os.path.join(txt_dir, "audit_report.txt")
-    html_file = os.path.join(html_dir, "audit_report.html")
-    csv_file = os.path.join(html_dir, "audit_report.csv")
+    for i, certPath in enumerate(certFiles[:CERT_LIMIT]):
+        try:
+            rawBytes, kind = _readCertBytes(device, certPath)
+            if not rawBytes:
+                continue
 
-    # Run audit
-    print(f"\n{Colors.BRIGHT_CYAN}🔍 Starting security audit with {len(checks)} checks...{Colors.RESET}\n")
-    
-    # Detect root status first
-    is_rooted, root_method = detect_root_status(device)
-    if is_rooted:
-        print(f"{Colors.GREEN}✓ Root detected ({root_method}) - will use su for privileged commands{Colors.RESET}")
-    else:
-        print(f"{Colors.YELLOW}⚠ Device not rooted - some checks may have limited output{Colors.RESET}")
-    print()
-    
-    device_info = collect_device_info(device)
+            cert = None
+            if kind == "PEM":
+                try:
+                    cert = x509.load_pem_x509_certificate(rawBytes, default_backend())
+                except Exception:
+                    cert = None
+            if cert is None:
+                try:
+                    cert = x509.load_der_x509_certificate(rawBytes, default_backend())
+                except Exception:
+                    cert = None
+            if cert is None:
+                continue
 
-    # Pre-flight: verify ADB connection is healthy before scanning
-    if isinstance(device, ADBDevice):
-        preflight = device.shell("echo HARDAX_PREFLIGHT_OK")
-        if "HARDAX_PREFLIGHT_OK" not in preflight:
-            print(f"{Colors.BRIGHT_RED}✗ ADB pre-flight check failed!{Colors.RESET}")
-            print(f"  Response: {preflight}")
-            print(f"  {Colors.YELLOW}Attempting reconnect...{Colors.RESET}")
-            run_local(device._base() + ["reconnect"])
-            time.sleep(3)
-            run_local(device._base() + ["wait-for-device"], timeout=15)
-            time.sleep(2)
-            preflight2 = device.shell("echo HARDAX_PREFLIGHT_OK")
-            if "HARDAX_PREFLIGHT_OK" not in preflight2:
-                print(f"  {Colors.BRIGHT_RED}✗ Device still not responding. Please check:  {Colors.RESET}")
-                print(f"    • USB cable connected and device unlocked")
-                print(f"    • Run: adb kill-server && adb start-server")
-                print(f"    • Accept USB debugging prompt on device")
-                sys.exit(1)
-            print(f"  {Colors.GREEN}✓ Reconnected successfully!{Colors.RESET}")
-        else:
-            print(f"{Colors.GREEN}✓ ADB connection verified{Colors.RESET}")
-        print()
+            subject = getattr(cert, "subject", None)
+            issuer = getattr(cert, "issuer", None)
+            try:
+                notBefore = getattr(cert, "not_valid_before")
+                notAfter = getattr(cert, "not_valid_after")
+            except Exception:
+                notBefore = getattr(cert, "not_valid_before_utc", None)
+                notAfter = getattr(cert, "not_valid_after_utc", None)
+            if notBefore is None or notAfter is None:
+                continue
 
-    rows, counts = run_checks(device, checks, on_progress=_progress, show_commands=args.show_commands or not args.progress_numbers, is_rooted=is_rooted)
+            try:
+                subjectStr = subject.rfc4514_string() if subject else "Unknown"
+                issuerStr = issuer.rfc4514_string() if issuer else "Unknown"
+            except Exception:
+                subjectStr = "Unknown"
+                issuerStr = "Unknown"
 
-    if args.progress_numbers:
-        print()
+            daysOld = (today - notBefore.replace(tzinfo=None)).days
+            daysUntilExpiry = (notAfter.replace(tzinfo=None) - today).days
 
-    # Certificate Audit
-    certs = []
-    if args.mode == "adb" and not args.skip_certs:
-        certs = audit_certificates(device)
+            if daysUntilExpiry < 0:
+                status, risk = "EXPIRED", "critical"
+            elif daysUntilExpiry < 30:
+                status, risk = "EXPIRING_SOON", "warning"
+            elif daysUntilExpiry < 90:
+                status, risk = "CHECK", "warning"
+            else:
+                status, risk = "VALID", "safe"
 
-    # TXT Report
-    with open(txt_file, "w", encoding="utf-8") as f:
-        f.write(f"HARDAX - Hardening Audit eXaminer Report\nGenerated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            cn = "Unknown"
+            for part in subjectStr.split(","):
+                p = part.strip()
+                if p.startswith("CN="):
+                    cn = p[3:]
+                    break
+
+            certs.append({
+                "filename": certPath.split("/")[-1],
+                "cn": cn[:50] + "..." if len(cn) > 50 else cn,
+                "issuer": issuerStr[:50] + "..." if len(issuerStr) > 50 else issuerStr,
+                "not_before": notBefore.strftime("%Y-%m-%d"),
+                "not_after": notAfter.strftime("%Y-%m-%d"),
+                "days_old": daysOld,
+                "days_until_expiry": daysUntilExpiry,
+                "status": status,
+                "risk": risk,
+            })
+        except Exception:
+            continue
+
+    # User-installed certs across all profiles
+    try:
+        userRoots = device.shell("ls -d /data/misc/user/*/cacerts-added 2>/dev/null")
+        userDirs = [d.strip() for d in (userRoots.split("\n") if userRoots else []) if d.strip()]
+        if not userDirs:
+            userDirs = ["/data/misc/user/0/cacerts-added"]
+        for d in userDirs:
+            ulist = device.shell(f"ls -1 {d} 2>/dev/null")
+            if ulist.strip():
+                for cf in [x.strip() for x in ulist.split("\n") if x.strip()]:
+                    certs.append({
+                        "filename": cf,
+                        "cn": "USER INSTALLED CERT",
+                        "issuer": "Unknown - User Added",
+                        "not_before": "-",
+                        "not_after": "-",
+                        "days_old": 0,
+                        "days_until_expiry": 0,
+                        "status": "USER_CERT",
+                        "risk": "critical",
+                    })
+    except Exception:
+        pass
+
+    return sorted(certs, key=lambda x: (x["risk"] != "critical", x["risk"] != "warning", x["days_until_expiry"]))
+
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  REPORT GENERATION — TXT
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def writeTxtReport(path: str, deviceInfo: Dict[str, str],
+                   rows: List[Dict[str, Any]], counts: Dict[str, int],
+                   certs: List[Dict[str, Any]], deviceIdStr: str) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(f"HARDAX — Hardening Audit eXaminer Report\nGenerated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
         f.write("Device Information\n" + "=" * 40 + "\n")
         for k in ["model", "brand", "manufacturer", "name", "soc_manufacturer", "soc_model",
-                  "android_version", "sdk_level", "build_id", "fingerprint", "serialno", "timezone"]:
-            f.write(f"{k.replace('_', ' ').title()}: {device_info.get(k, '')}\n")
-        
-        # Certificate section in TXT
+                   "android_version", "sdk_level", "build_id", "fingerprint", "serialno", "timezone"]:
+            f.write(f"{k.replace('_', ' ').title()}: {deviceInfo.get(k, '')}\n")
+
         if certs:
             f.write("\n" + "=" * 40 + "\nCertificate Audit\n" + "=" * 40 + "\n")
             f.write(f"{'CN':<40} {'Valid From':<12} {'Valid Until':<12} {'Days Old':>10} {'Expiry':>10} {'Status':<15}\n")
             f.write("-" * 100 + "\n")
             for c in certs:
-                days_old = str(c['days_old']) if isinstance(c['days_old'], int) else '-'
-                days_exp = str(c['days_until_expiry']) if isinstance(c['days_until_expiry'], int) else '-'
-                f.write(f"{c['cn']:<40} {c['not_before']:<12} {c['not_after']:<12} {days_old:>10} {days_exp:>10} {c['status']:<15}\n")
-        
+                daysOld = str(c["days_old"]) if isinstance(c["days_old"], int) else "-"
+                daysExp = str(c["days_until_expiry"]) if isinstance(c["days_until_expiry"], int) else "-"
+                f.write(f"{c['cn']:<40} {c['not_before']:<12} {c['not_after']:<12} {daysOld:>10} {daysExp:>10} {c['status']:<15}\n")
+
         f.write("\n" + "=" * 40 + "\nFindings\n" + "=" * 40 + "\n")
         for r in rows:
             f.write(f"\n[{r['category']}] {r['label']}\n")
@@ -2014,338 +1149,1054 @@ Examples:
 
         f.write("\n" + "=" * 40 + "\n")
         f.write("AUDIT SUMMARY\n")
-        f.write(f"Target: {device.id_string()}\n")
+        f.write(f"Target: {deviceIdStr}\n")
         f.write(f"Safe: {counts['safe']} | Warnings: {counts['warning']} | Critical: {counts['critical']} | Info: {counts['info']} | Skipped: {counts.get('skipped', 0)}\n")
         if certs:
-            expired = sum(1 for c in certs if c['status'] == 'EXPIRED')
-            user_certs = sum(1 for c in certs if c['status'] == 'USER_CERT')
-            f.write(f"Certificates: {len(certs)} total | {expired} expired | {user_certs} user-installed\n")
+            expired = sum(1 for c in certs if c["status"] == "EXPIRED")
+            userCerts = sum(1 for c in certs if c["status"] == "USER_CERT")
+            f.write(f"Certificates: {len(certs)} total | {expired} expired | {userCerts} user-installed\n")
         f.write("=" * 40 + "\n")
 
-    # CSV + HTML
-    write_csv(csv_file, rows)
-    write_html(html_file, device_info, rows, counts, certs)
 
-    # Close SSH if used
-    if isinstance(device, SSHDevice):
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  REPORT GENERATION — CSV
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def writeCsvReport(path: str, rows: List[Dict[str, Any]]) -> None:
+    fieldnames = ["timestamp", "category", "label", "level", "bucket", "status",
+                  "matched", "command", "result", "description"]
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: r.get(k, "") for k in fieldnames})
+
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  REPORT GENERATION — HTML (Hacker Aesthetic)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
+                    rows: List[Dict[str, Any]], counts: Dict[str, int],
+                    certs: List[Dict[str, Any]] = None) -> None:
+    """Generate an interactive HTML report with hacker aesthetic and severity toggles."""
+
+    # ── Certificate section ──
+    certRowsHtml = ""
+    expiredCount = expiringCount = userCount = validCount = 0
+
+    if certs:
+        certParts = []
+        for c in certs:
+            riskClass = c["risk"]
+            statusEmoji = {"EXPIRED": "🔴", "EXPIRING_SOON": "🟡", "CHECK": "🟡",
+                           "USER_CERT": "⚠️", "VALID": "🟢"}.get(c["status"], "⚪")
+            daysInfo = f"{c['days_old']:,}" if isinstance(c["days_old"], int) else "-"
+            expiryInfo = f"{c['days_until_expiry']:,}" if isinstance(c["days_until_expiry"], int) else "-"
+            certParts.append(
+                f'<tr class="cert-row {riskClass}">'
+                f'<td>{htmlEscape(c["cn"])}</td>'
+                f'<td>{htmlEscape(c["not_before"])}</td>'
+                f'<td>{htmlEscape(c["not_after"])}</td>'
+                f'<td class="mono-right">{daysInfo}</td>'
+                f'<td class="mono-right">{expiryInfo}</td>'
+                f'<td><span class="cert-status {riskClass}">{statusEmoji} {c["status"]}</span></td>'
+                f"</tr>"
+            )
+        certRowsHtml = "\n".join(certParts)
+        expiredCount = sum(1 for c in certs if c["status"] == "EXPIRED")
+        expiringCount = sum(1 for c in certs if c["status"] in ("EXPIRING_SOON", "CHECK"))
+        userCount = sum(1 for c in certs if c["status"] == "USER_CERT")
+        validCount = sum(1 for c in certs if c["status"] == "VALID")
+
+    certTableHtml = (
+        f'<div class="category-section cert-section" id="cert_section">'
+        f'  <div class="cat-header" onclick="toggleCat(\'cert_section\')">'
+        f'    <div class="cat-title">'
+        f'      <span class="toggle-arrow">▶</span>'
+        f'      <span class="cat-name">🔐 CERTIFICATE AUDIT</span>'
+        f'      <span class="cat-count">({len(certs) if certs else 0} certificates)</span>'
+        f'    </div>'
+        f'    <div class="cat-badges">'
+        f'      <span class="badge critical">{expiredCount} Expired</span>'
+        f'      <span class="badge warning">{expiringCount} Expiring</span>'
+        f'      <span class="badge critical">{userCount} User Installed</span>'
+        f'      <span class="badge safe">{validCount} Valid</span>'
+        f'    </div>'
+        f'  </div>'
+        f'  <div class="cat-body">'
+        f'    <div class="cert-table-wrap">'
+        f'      <table class="cert-table">'
+        f'        <thead><tr>'
+        f'          <th>Common Name (CN)</th><th>Valid From</th><th>Valid Until</th>'
+        f'          <th>Days Old</th><th>Days to Expiry</th><th>Status</th>'
+        f'        </tr></thead>'
+        f'        <tbody>'
+        f'          {certRowsHtml if certs else "<tr><td colspan=6 class=empty-note>No certificates parsed.</td></tr>"}'
+        f'        </tbody>'
+        f'      </table>'
+        f'    </div>'
+        f'  </div>'
+        f'</div>'
+    )
+
+    # ── Group rows by category ──
+    categories = {}
+    for r in rows:
+        cat = r["category"]
+        if cat not in categories:
+            categories[cat] = {"rows": [], "stats": {"CRITICAL": 0, "WARNING": 0, "VERIFY": 0, "SAFE": 0, "INFO": 0, "SKIPPED": 0}}
+        categories[cat]["rows"].append(r)
+        st = r["status"]
+        if st in categories[cat]["stats"]:
+            categories[cat]["stats"][st] += 1
+        else:
+            categories[cat]["stats"]["INFO"] += 1
+
+    # ── Build category sections ──
+    categorySections = []
+    for catIdx, (catName, catData) in enumerate(sorted(categories.items())):
+        stats = catData["stats"]
+        catRows = catData["rows"]
+
+        badges = []
+        for key, cls in [("CRITICAL", "critical"), ("WARNING", "warning"), ("VERIFY", "verify"),
+                         ("SAFE", "safe"), ("INFO", "info"), ("SKIPPED", "skipped")]:
+            if stats[key] > 0:
+                badges.append(f'<span class="badge {cls}">{stats[key]} {key.title()}</span>')
+        badgesHtml = " ".join(badges)
+
+        itemsHtml = []
+        for r in catRows:
+            cmdEsc = htmlEscape(r["command"])
+            resEsc = htmlEscape(r["result"])
+            descEsc = htmlEscape(r["description"])
+            labelEsc = htmlEscape(r["label"])
+            st = r["status"]
+            cssClass = {"SAFE": "safe", "WARNING": "warning", "CRITICAL": "critical",
+                        "VERIFY": "verify", "SKIPPED": "skipped"}.get(st, "info")
+
+            itemsHtml.append(f'''
+        <div class="check-item {cssClass}" data-status="{st}" data-search="{htmlEscape(r['label'].lower())} {htmlEscape(r['description'].lower())}">
+          <div class="check-head">
+            <span class="check-label">{labelEsc}</span>
+            <span class="status-pill {cssClass}">{st}</span>
+          </div>
+          <p class="check-desc">{descEsc}</p>
+          <div class="check-detail">
+            <div class="detail-group">
+              <span class="detail-tag">Command</span>
+              <pre><code>{cmdEsc}</code></pre>
+            </div>
+            <div class="detail-group">
+              <span class="detail-tag">Output</span>
+              <pre><code>{resEsc if resEsc else "(empty)"}</code></pre>
+            </div>
+          </div>
+        </div>''')
+
+        itemsJoined = "\n".join(itemsHtml)
+        categorySections.append(f'''
+    <div class="category-section" id="cat_{catIdx}">
+      <div class="cat-header" onclick="toggleCat('cat_{catIdx}')">
+        <div class="cat-title">
+          <span class="toggle-arrow">▶</span>
+          <span class="cat-name">{htmlEscape(catName)}</span>
+          <span class="cat-count">({len(catRows)} checks)</span>
+        </div>
+        <div class="cat-badges">{badgesHtml}</div>
+      </div>
+      <div class="cat-body">{itemsJoined}</div>
+    </div>''')
+
+    categoriesHtml = "\n".join(categorySections)
+
+    # ── Device info ──
+    deviceItems = []
+    for key, label in [("model", "Model"), ("brand", "Brand"), ("manufacturer", "Manufacturer"),
+                       ("android_version", "Android"), ("sdk_level", "SDK"), ("build_id", "Build"),
+                       ("serialno", "Serial"), ("soc_model", "SoC")]:
+        val = deviceInfo.get(key, "")
+        if val and val != "(unknown)":
+            deviceItems.append(f'<div class="dev-item"><span class="dev-label">{label}</span><span class="dev-value">{htmlEscape(val)}</span></div>')
+    deviceHtml = "\n".join(deviceItems)
+
+    totalChecks = len(rows)
+
+    # ━━━ FULL HTML DOCUMENT ━━━
+    doc = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HARDAX — Security Audit Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {{
+      --bg-0: #05080a;
+      --bg-1: #0b1018;
+      --bg-2: #111a26;
+      --bg-3: #182535;
+      --text-0: #c9d6e3;
+      --text-1: #7a8fa3;
+      --border: #1c2e42;
+      --accent: #00e5ff;
+      --critical: #ff2d55;
+      --warning: #ffb300;
+      --safe: #00e676;
+      --info: #448aff;
+      --verify: #ba68c8;
+      --skipped: #546e7a;
+      --glow-critical: rgba(255,45,85,0.25);
+      --glow-safe: rgba(0,230,118,0.15);
+    }}
+
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+
+    body {{
+      font-family: 'Fira Code', monospace;
+      background: var(--bg-0);
+      color: var(--text-0);
+      line-height: 1.7;
+      font-size: 13px;
+      font-weight: 400;
+    }}
+
+    .container {{ max-width: 1440px; margin: 0 auto; padding: 16px; }}
+
+    /* ── TOOLBAR ── */
+    .toolbar {{
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: linear-gradient(135deg, #0d1f33 0%, #091420 60%, #0a1018 100%);
+      border: 1px solid var(--border);
+      border-bottom: 1px solid #00e5ff22;
+      padding: 14px 20px;
+      border-radius: 0 0 10px 10px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      box-shadow: 0 4px 30px rgba(0,229,255,0.05);
+    }}
+
+    .toolbar-brand {{
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }}
+
+    .toolbar-brand h1 {{
+      color: var(--accent);
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-shadow: 0 0 12px rgba(0,229,255,0.4);
+    }}
+
+    .version-tag {{
+      background: rgba(0,229,255,0.12);
+      color: var(--accent);
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      border: 1px solid rgba(0,229,255,0.2);
+    }}
+
+    .toolbar-controls {{
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }}
+
+    .search-input {{
+      background: rgba(0,229,255,0.06);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 14px;
+      color: var(--text-0);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      width: 240px;
+      outline: none;
+      transition: all 0.2s;
+    }}
+
+    .search-input::placeholder {{ color: var(--text-1); }}
+    .search-input:focus {{ border-color: var(--accent); box-shadow: 0 0 8px rgba(0,229,255,0.15); }}
+
+    .btn {{
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      color: var(--text-1);
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }}
+
+    .btn:hover {{ background: rgba(0,229,255,0.1); color: var(--accent); border-color: var(--accent); }}
+
+    /* ── SEVERITY TOGGLE BAR ── */
+    .severity-bar {{
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+      padding: 12px 16px;
+      background: var(--bg-1);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }}
+
+    .sev-toggle {{
+      padding: 6px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+      user-select: none;
+    }}
+
+    .sev-toggle.active {{ opacity: 1; }}
+    .sev-toggle.inactive {{ opacity: 0.3; filter: grayscale(0.8); }}
+
+    .sev-toggle[data-sev="CRITICAL"] {{ background: rgba(255,45,85,0.15); color: var(--critical); border-color: rgba(255,45,85,0.3); }}
+    .sev-toggle[data-sev="WARNING"]  {{ background: rgba(255,179,0,0.15); color: var(--warning); border-color: rgba(255,179,0,0.3); }}
+    .sev-toggle[data-sev="VERIFY"]   {{ background: rgba(186,104,200,0.15); color: var(--verify); border-color: rgba(186,104,200,0.3); }}
+    .sev-toggle[data-sev="SAFE"]     {{ background: rgba(0,230,118,0.12); color: var(--safe); border-color: rgba(0,230,118,0.25); }}
+    .sev-toggle[data-sev="INFO"]     {{ background: rgba(68,138,255,0.12); color: var(--info); border-color: rgba(68,138,255,0.25); }}
+    .sev-toggle[data-sev="SKIPPED"]  {{ background: rgba(84,110,122,0.15); color: var(--skipped); border-color: rgba(84,110,122,0.3); }}
+
+    /* ── SUMMARY CARDS ── */
+    .summary-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }}
+
+    .stat-card {{
+      background: var(--bg-1);
+      border-radius: 8px;
+      padding: 18px 16px;
+      border: 1px solid var(--border);
+      text-align: center;
+      transition: transform 0.15s;
+      position: relative;
+      overflow: hidden;
+    }}
+
+    .stat-card::before {{
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+    }}
+
+    .stat-card:hover {{ transform: translateY(-2px); }}
+    .stat-card.critical::before {{ background: var(--critical); box-shadow: 0 0 12px var(--glow-critical); }}
+    .stat-card.warning::before  {{ background: var(--warning); }}
+    .stat-card.verify::before   {{ background: var(--verify); }}
+    .stat-card.safe::before     {{ background: var(--safe); box-shadow: 0 0 12px var(--glow-safe); }}
+    .stat-card.info::before     {{ background: var(--info); }}
+    .stat-card.skipped::before  {{ background: var(--skipped); }}
+    .stat-card.total::before    {{ background: var(--accent); }}
+
+    .stat-card .num {{
+      font-size: 2.2rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 6px;
+    }}
+
+    .stat-card.critical .num {{ color: var(--critical); text-shadow: 0 0 15px var(--glow-critical); }}
+    .stat-card.warning .num  {{ color: var(--warning); }}
+    .stat-card.verify .num   {{ color: var(--verify); }}
+    .stat-card.safe .num     {{ color: var(--safe); text-shadow: 0 0 10px var(--glow-safe); }}
+    .stat-card.info .num     {{ color: var(--info); }}
+    .stat-card.skipped .num  {{ color: var(--skipped); }}
+    .stat-card.total .num    {{ color: var(--accent); text-shadow: 0 0 10px rgba(0,229,255,0.3); }}
+
+    .stat-card .lbl {{
+      color: var(--text-1);
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }}
+
+    /* ── DEVICE INFO & CHART ── */
+    .info-row {{
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 16px;
+      margin-bottom: 20px;
+    }}
+
+    @media (max-width: 900px) {{
+      .info-row {{ grid-template-columns: 1fr; }}
+    }}
+
+    .dev-card {{
+      background: linear-gradient(135deg, #0d2137 0%, #0a1929 100%);
+      border-radius: 8px;
+      padding: 20px;
+      border: 1px solid var(--border);
+    }}
+
+    .dev-card h2 {{
+      font-size: 0.8rem;
+      color: var(--accent);
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-weight: 600;
+    }}
+
+    .dev-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 10px;
+    }}
+
+    .dev-item {{
+      background: rgba(0,229,255,0.04);
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(0,229,255,0.08);
+    }}
+
+    .dev-label {{
+      display: block;
+      font-size: 0.65rem;
+      color: var(--text-1);
+      margin-bottom: 3px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }}
+
+    .dev-value {{
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--text-0);
+    }}
+
+    .chart-card {{
+      background: var(--bg-1);
+      border-radius: 8px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }}
+
+    /* ── CATEGORY SECTIONS ── */
+    .category-section {{
+      background: var(--bg-1);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }}
+
+    .cat-header {{
+      background: var(--bg-2);
+      padding: 14px 18px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.15s;
+      user-select: none;
+    }}
+
+    .cat-header:hover {{ background: var(--bg-3); }}
+
+    .cat-title {{
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }}
+
+    .toggle-arrow {{
+      font-size: 0.7rem;
+      color: var(--text-1);
+      transition: transform 0.25s;
+    }}
+
+    .category-section.open .toggle-arrow {{ transform: rotate(90deg); }}
+
+    .cat-name {{
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--accent);
+    }}
+
+    .cat-count {{
+      color: var(--text-1);
+      font-size: 0.75rem;
+      font-weight: 400;
+    }}
+
+    .cat-badges {{
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }}
+
+    .badge {{
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }}
+
+    .badge.critical {{ background: rgba(255,45,85,0.15); color: var(--critical); }}
+    .badge.warning  {{ background: rgba(255,179,0,0.12); color: var(--warning); }}
+    .badge.verify   {{ background: rgba(186,104,200,0.12); color: var(--verify); }}
+    .badge.safe     {{ background: rgba(0,230,118,0.1); color: var(--safe); }}
+    .badge.info     {{ background: rgba(68,138,255,0.1); color: var(--info); }}
+    .badge.skipped  {{ background: rgba(84,110,122,0.12); color: var(--skipped); }}
+
+    .cat-body {{
+      display: none;
+      padding: 14px 18px;
+    }}
+
+    .category-section.open .cat-body {{ display: block; }}
+
+    /* ── CHECK ITEMS ── */
+    .check-item {{
+      background: var(--bg-2);
+      border-radius: 6px;
+      padding: 14px;
+      margin-bottom: 10px;
+      border-left: 3px solid var(--border);
+      transition: border-color 0.15s;
+    }}
+
+    .check-item.critical {{ border-left-color: var(--critical); }}
+    .check-item.warning  {{ border-left-color: var(--warning); }}
+    .check-item.verify   {{ border-left-color: var(--verify); }}
+    .check-item.safe     {{ border-left-color: var(--safe); }}
+    .check-item.info     {{ border-left-color: var(--info); }}
+    .check-item.skipped  {{ border-left-color: var(--skipped); opacity: 0.6; }}
+    .check-item:last-child {{ margin-bottom: 0; }}
+
+    .check-head {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }}
+
+    .check-label {{
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--text-0);
+    }}
+
+    .status-pill {{
+      padding: 2px 10px;
+      border-radius: 3px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }}
+
+    .status-pill.critical {{ background: var(--critical); color: #fff; }}
+    .status-pill.warning  {{ background: var(--warning); color: #000; }}
+    .status-pill.verify   {{ background: var(--verify); color: #fff; }}
+    .status-pill.safe     {{ background: var(--safe); color: #000; }}
+    .status-pill.info     {{ background: var(--info); color: #fff; }}
+    .status-pill.skipped  {{ background: var(--skipped); color: #fff; }}
+
+    .check-desc {{
+      color: var(--text-1);
+      font-size: 0.75rem;
+      margin-bottom: 10px;
+      font-weight: 400;
+    }}
+
+    .detail-group {{ margin-bottom: 8px; }}
+    .detail-group:last-child {{ margin-bottom: 0; }}
+
+    .detail-tag {{
+      display: inline-block;
+      font-size: 0.6rem;
+      color: var(--accent);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+    }}
+
+    pre {{
+      background: #060d14;
+      color: #00e676;
+      padding: 10px 14px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 0.78rem;
+      font-family: 'Fira Code', monospace;
+      max-height: 180px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid #0d1f2d;
+    }}
+
+    /* ── CERT TABLE ── */
+    .cert-table-wrap {{
+      overflow-x: auto;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }}
+
+    .cert-table {{
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+    }}
+
+    .cert-table th {{
+      background: var(--bg-3);
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.65rem;
+      letter-spacing: 1px;
+      color: var(--text-1);
+      border-bottom: 1px solid var(--border);
+    }}
+
+    .cert-table td {{
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--border);
+    }}
+
+    .cert-row:hover {{ background: var(--bg-2); }}
+    .cert-row.critical {{ background: rgba(255,45,85,0.05); }}
+    .cert-row.warning  {{ background: rgba(255,179,0,0.05); }}
+
+    .mono-right {{ font-variant-numeric: tabular-nums; text-align: right; }}
+
+    .cert-status {{
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }}
+
+    .cert-status.critical {{ background: rgba(255,45,85,0.2); color: var(--critical); }}
+    .cert-status.warning  {{ background: rgba(255,179,0,0.15); color: var(--warning); }}
+    .cert-status.safe     {{ background: rgba(0,230,118,0.12); color: var(--safe); }}
+
+    .empty-note {{ color: var(--text-1); font-style: italic; }}
+
+    /* ── FOOTER ── */
+    footer {{
+      text-align: center;
+      padding: 24px;
+      color: var(--text-1);
+      font-size: 0.7rem;
+      border-top: 1px solid var(--border);
+      margin-top: 32px;
+      letter-spacing: 0.5px;
+    }}
+
+    footer strong {{ color: var(--accent); }}
+
+    .hidden {{ display: none !important; }}
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <div class="toolbar-brand">
+        <h1>⟩_ HARDAX</h1>
+        <span class="version-tag">v{__version__}</span>
+      </div>
+      <div class="toolbar-controls">
+        <input type="text" class="search-input" id="searchInput" placeholder="search checks...">
+        <button class="btn" onclick="expandAll()">+ Expand</button>
+        <button class="btn" onclick="collapseAll()">− Collapse</button>
+      </div>
+    </div>
+
+    <!-- SEVERITY TOGGLE BAR -->
+    <div class="severity-bar" id="severityBar">
+      <span class="sev-toggle active" data-sev="CRITICAL" onclick="toggleSev(this)">✗ CRITICAL ({counts.get("critical", 0)})</span>
+      <span class="sev-toggle active" data-sev="WARNING"  onclick="toggleSev(this)">⚠ WARNING ({counts.get("warning", 0)})</span>
+      <span class="sev-toggle active" data-sev="VERIFY"   onclick="toggleSev(this)">? VERIFY ({counts.get("verify", 0)})</span>
+      <span class="sev-toggle active" data-sev="SAFE"     onclick="toggleSev(this)">✓ SAFE ({counts.get("safe", 0)})</span>
+      <span class="sev-toggle active" data-sev="INFO"     onclick="toggleSev(this)">ℹ INFO ({counts.get("info", 0)})</span>
+      <span class="sev-toggle active" data-sev="SKIPPED"  onclick="toggleSev(this)">⊘ SKIPPED ({counts.get("skipped", 0)})</span>
+    </div>
+
+    <!-- SUMMARY CARDS -->
+    <div class="summary-grid">
+      <div class="stat-card critical"><div class="num">{counts.get("critical", 0)}</div><div class="lbl">Critical</div></div>
+      <div class="stat-card warning"><div class="num">{counts.get("warning", 0)}</div><div class="lbl">Warnings</div></div>
+      <div class="stat-card verify"><div class="num">{counts.get("verify", 0)}</div><div class="lbl">Verify</div></div>
+      <div class="stat-card safe"><div class="num">{counts.get("safe", 0)}</div><div class="lbl">Safe</div></div>
+      <div class="stat-card info"><div class="num">{counts.get("info", 0)}</div><div class="lbl">Info</div></div>
+      <div class="stat-card skipped"><div class="num">{counts.get("skipped", 0)}</div><div class="lbl">Skipped</div></div>
+      <div class="stat-card total"><div class="num">{totalChecks}</div><div class="lbl">Total</div></div>
+    </div>
+
+    <!-- DEVICE INFO + CHART -->
+    <div class="info-row">
+      <div class="dev-card">
+        <h2>▸ target device</h2>
+        <div class="dev-grid">{deviceHtml}</div>
+      </div>
+      <div class="chart-card">
+        <canvas id="summaryChart" width="240" height="240"></canvas>
+      </div>
+    </div>
+
+    <!-- CERTIFICATES -->
+    {certTableHtml}
+
+    <!-- CATEGORIES -->
+    <div id="categoriesContainer">
+      {categoriesHtml}
+    </div>
+
+    <footer>
+      <p><strong>HARDAX</strong> — Hardening Audit eXaminer v{__version__} | {time.strftime("%Y-%m-%d %H:%M:%S")}</p>
+      <p>Android OS Security Configuration Auditor | IOTSRG</p>
+    </footer>
+  </div>
+
+  <script>
+    /* ── Category toggle ── */
+    function toggleCat(id) {{
+      document.getElementById(id).classList.toggle('open');
+    }}
+    function expandAll() {{
+      document.querySelectorAll('.category-section').forEach(s => s.classList.add('open'));
+    }}
+    function collapseAll() {{
+      document.querySelectorAll('.category-section').forEach(s => s.classList.remove('open'));
+    }}
+
+    /* ── Severity filter toggles ── */
+    const activeSev = new Set(['CRITICAL','WARNING','VERIFY','SAFE','INFO','SKIPPED']);
+
+    function toggleSev(el) {{
+      const sev = el.getAttribute('data-sev');
+      if (activeSev.has(sev)) {{
+        activeSev.delete(sev);
+        el.classList.remove('active');
+        el.classList.add('inactive');
+      }} else {{
+        activeSev.add(sev);
+        el.classList.remove('inactive');
+        el.classList.add('active');
+      }}
+      applySevFilter();
+    }}
+
+    function applySevFilter() {{
+      document.querySelectorAll('.category-section:not(.cert-section)').forEach(section => {{
+        const items = section.querySelectorAll('.check-item');
+        let visible = 0;
+        items.forEach(item => {{
+          const st = item.getAttribute('data-status');
+          const show = activeSev.has(st);
+          item.classList.toggle('hidden', !show);
+          if (show) visible++;
+        }});
+        section.classList.toggle('hidden', visible === 0);
+        if (visible > 0 && !section.classList.contains('open')) {{
+          /* keep closed unless user opened */
+        }}
+      }});
+    }}
+
+    /* ── Search ── */
+    document.getElementById('searchInput').addEventListener('input', function(e) {{
+      const q = e.target.value.toLowerCase().trim();
+      document.querySelectorAll('.category-section:not(.cert-section)').forEach(section => {{
+        const items = section.querySelectorAll('.check-item');
+        let vis = 0;
+        items.forEach(item => {{
+          const txt = item.getAttribute('data-search') || '';
+          const st = item.getAttribute('data-status');
+          const matchSearch = !q || txt.includes(q);
+          const matchSev = activeSev.has(st);
+          const show = matchSearch && matchSev;
+          item.classList.toggle('hidden', !show);
+          if (show) vis++;
+        }});
+        section.classList.toggle('hidden', vis === 0);
+        if (q && vis > 0) section.classList.add('open');
+      }});
+    }});
+
+    /* ── Doughnut chart ── */
+    window.addEventListener('load', function() {{
+      const ctx = document.getElementById('summaryChart').getContext('2d');
+      new Chart(ctx, {{
+        type: 'doughnut',
+        data: {{
+          labels: ['Critical','Warning','Verify','Safe','Info','Skipped'],
+          datasets: [{{
+            data: [{counts.get("critical",0)},{counts.get("warning",0)},{counts.get("verify",0)},{counts.get("safe",0)},{counts.get("info",0)},{counts.get("skipped",0)}],
+            backgroundColor: ['#ff2d55','#ffb300','#ba68c8','#00e676','#448aff','#546e7a'],
+            borderWidth: 0,
+            hoverOffset: 6
+          }}]
+        }},
+        options: {{
+          responsive: true,
+          cutout: '68%',
+          plugins: {{
+            legend: {{
+              position: 'bottom',
+              labels: {{
+                padding: 12,
+                usePointStyle: true,
+                font: {{ family: "'Fira Code', monospace", size: 10 }},
+                color: '#7a8fa3'
+              }}
+            }}
+          }}
+        }}
+      }});
+    }});
+  </script>
+</body>
+</html>'''
+
+    with open(htmlPath, "w", encoding="utf-8") as f:
+        f.write(doc)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  CLI BANNER
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def printBanner(idLine: Optional[str]) -> None:
+    """Print the ASCII art banner with terminal colours."""
+    print(f"""
+{Colors.BRIGHT_CYAN}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  {Colors.BRIGHT_WHITE}██   ██  █████  ██████  ██████   █████  ██   ██{Colors.BRIGHT_CYAN}               ┃
+┃  {Colors.BRIGHT_WHITE}██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██{Colors.BRIGHT_CYAN}                ┃
+┃  {Colors.BRIGHT_WHITE}███████ ███████ ██████  ██   ██ ███████   ███{Colors.BRIGHT_CYAN}                 ┃
+┃  {Colors.BRIGHT_WHITE}██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██{Colors.BRIGHT_CYAN}                ┃
+┃  {Colors.BRIGHT_WHITE}██   ██ ██   ██ ██   ██ ██████  ██   ██ ██   ██{Colors.BRIGHT_CYAN}               ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃  {Colors.BOLD}Hardening Audit eXaminer{Colors.RESET}{Colors.BRIGHT_CYAN} v{__version__}                               ┃
+┃  {Colors.DIM}Android OS based IoT Devices Security Configuration Auditor{Colors.BRIGHT_CYAN}   ┃
+┃  {Colors.YELLOW}[488 Checks]{Colors.RESET} {Colors.GREEN}[18 Categories]{Colors.BRIGHT_CYAN}                                   ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛{Colors.RESET}
+""")
+    if idLine:
+        print(f"{Colors.BRIGHT_WHITE}📱 Target Device: {Colors.BOLD}{Colors.BRIGHT_CYAN}{idLine}{Colors.RESET}\n")
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  MAIN ENTRY POINT
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="HARDAX — Hardening Audit eXaminer for Android / IoT",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s --json-dir ./commands
+  %(prog)s --json-dir ./commands --serial DEVICE123
+  %(prog)s --mode ssh --host 192.168.1.100 --ssh-user root --ssh-pass password
+        """,
+    )
+    ap.add_argument("--version", action="version", version=f"HARDAX v{__version__}")
+    ap.add_argument("--mode", choices=["adb", "ssh"], default="adb", help="Connection mode (default: adb)")
+    ap.add_argument("--json", help="Path to a single commands JSON file")
+    ap.add_argument("--json-dir", help="Folder containing *.json check files to merge")
+    ap.add_argument("--serial", default=os.environ.get("ANDROID_SERIAL", ""), help="ADB device serial")
+    ap.add_argument("--host", help="SSH hostname/IP")
+    ap.add_argument("--port", type=int, default=22, help="SSH port")
+    ap.add_argument("--ssh-user", help="SSH username")
+    ap.add_argument("--ssh-pass", help="SSH password")
+    ap.add_argument("--out", default="hardax_output", help="Output directory")
+    ap.add_argument("--progress-numbers", action="store_true", help="Show numeric progress counter")
+    ap.add_argument("--show-commands", action="store_true", help="Print each command as it runs")
+    ap.add_argument("--skip-certs", action="store_true", help="Skip certificate audit")
+
+    args = ap.parse_args()
+
+    # ── Auto-detect commands/ directory ──
+    if not args.json and not args.json_dir:
+        scriptDir = os.path.dirname(os.path.abspath(__file__))
+        defaultCmdDir = os.path.join(scriptDir, "commands")
+        if os.path.isdir(defaultCmdDir):
+            args.json_dir = defaultCmdDir
+
+    # ── Load checks ──
+    checks = loadChecks(args.json, args.json_dir)
+
+    # ── Build device connection ──
+    device: Device
+    if args.mode == "adb":
+        if which("adb") is None:
+            print("ERROR: 'adb' not found in PATH.", file=sys.stderr)
+            sys.exit(1)
+        runLocal(["adb", "start-server"])
+
+        serial = (args.serial or "").strip() or None
+        serial = pickDefaultSerial(serial)
+        if not serial:
+            explainAdbDevicesAndExit(exitCode=2)
+
+        adbDev = AdbDevice(serial)
+        try:
+            adbDev.checkConnected()
+        except RuntimeError as e:
+            print(str(e), file=sys.stderr)
+            explainAdbDevicesAndExit(exitCode=3)
+        device = adbDev
+
+    else:
+        missing = []
+        if not args.host:
+            missing.append("--host")
+        if not args.ssh_user:
+            missing.append("--ssh-user")
+        if not args.ssh_pass:
+            missing.append("--ssh-pass")
+        if missing:
+            print("ERROR: For --mode ssh you must provide: " + ", ".join(missing), file=sys.stderr)
+            sys.exit(1)
+        device = SshDevice(args.host, args.port, args.ssh_user, args.ssh_pass)
+
+    # ── Banner ──
+    printBanner(device.idString())
+
+    # ── Progress callback ──
+    def _progress(idx: int, total: int):
+        if args.progress_numbers:
+            sys.stdout.write("\r" + f"{idx}/{total}")
+            sys.stdout.flush()
+
+    # ── Output paths ──
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    txtDir = os.path.join(args.out, f"txt_report_{timestamp}")
+    htmlDir = os.path.join(args.out, f"html_report_{timestamp}")
+    os.makedirs(txtDir, exist_ok=True)
+    os.makedirs(htmlDir, exist_ok=True)
+    txtFile = os.path.join(txtDir, "audit_report.txt")
+    htmlFile = os.path.join(htmlDir, "audit_report.html")
+    csvFile = os.path.join(htmlDir, "audit_report.csv")
+
+    # ── Root detection ──
+    print(f"\n{Colors.BRIGHT_CYAN}🔍 Starting security audit with {len(checks)} checks...{Colors.RESET}\n")
+
+    isRooted, rootMethod = detectRootStatus(device)
+    if isRooted:
+        print(f"{Colors.GREEN}✓ Root detected ({rootMethod}) — will use su for privileged commands{Colors.RESET}")
+    else:
+        print(f"{Colors.YELLOW}⚠ Device not rooted — some checks may have limited output{Colors.RESET}")
+    print()
+
+    # ── Device info ──
+    deviceInfo = collectDeviceInfo(device)
+
+    # ── ADB pre-flight ──
+    if isinstance(device, AdbDevice):
+        preflight = device.shell("echo HARDAX_PREFLIGHT_OK")
+        if "HARDAX_PREFLIGHT_OK" not in preflight:
+            print(f"{Colors.BRIGHT_RED}✗ ADB pre-flight check failed!{Colors.RESET}")
+            print(f"  Response: {preflight}")
+            print(f"  {Colors.YELLOW}Attempting reconnect...{Colors.RESET}")
+            runLocal(device._base() + ["reconnect"])
+            time.sleep(3)
+            runLocal(device._base() + ["wait-for-device"], timeout=15)
+            time.sleep(2)
+            preflight2 = device.shell("echo HARDAX_PREFLIGHT_OK")
+            if "HARDAX_PREFLIGHT_OK" not in preflight2:
+                print(f"  {Colors.BRIGHT_RED}✗ Device still not responding. Please check:{Colors.RESET}")
+                print(f"    • USB cable connected and device unlocked")
+                print(f"    • Run: adb kill-server && adb start-server")
+                print(f"    • Accept USB debugging prompt on device")
+                sys.exit(1)
+            print(f"  {Colors.GREEN}✓ Reconnected successfully!{Colors.RESET}")
+        else:
+            print(f"{Colors.GREEN}✓ ADB connection verified{Colors.RESET}")
+        print()
+
+    # ── Run all checks ──
+    rows, counts = runChecks(
+        device, checks,
+        onProgress=_progress,
+        showCommands=args.show_commands or not args.progress_numbers,
+        isRooted=isRooted,
+    )
+
+    if args.progress_numbers:
+        print()
+
+    # ── Certificate audit ──
+    certs = []
+    if args.mode == "adb" and not args.skip_certs:
+        certs = auditCertificates(device)
+
+    # ── Generate reports ──
+    writeTxtReport(txtFile, deviceInfo, rows, counts, certs, device.idString())
+    writeCsvReport(csvFile, rows)
+    writeHtmlReport(htmlFile, deviceInfo, rows, counts, certs)
+
+    # ── Close SSH if used ──
+    if isinstance(device, SshDevice):
         device.close()
 
-    # Summary output
+    # ── Summary ──
     print(f"\n{Colors.CYAN}{'═' * 70}{Colors.RESET}")
     print(f"{Colors.BOLD}{Colors.BRIGHT_WHITE}✓ HARDAX AUDIT COMPLETED{Colors.RESET}")
     print(f"{Colors.CYAN}{'═' * 70}{Colors.RESET}")
-    print(f"{Colors.BRIGHT_WHITE}📱 Target         : {Colors.BOLD}{Colors.BRIGHT_CYAN}{device.id_string()}{Colors.RESET}")
+    print(f"{Colors.BRIGHT_WHITE}📱 Target         : {Colors.BOLD}{Colors.BRIGHT_CYAN}{device.idString()}{Colors.RESET}")
     print(f"{Colors.GREEN}✓  Safe Checks   : {Colors.BOLD}{counts['safe']}{Colors.RESET}")
     print(f"{Colors.YELLOW}⚠  Warnings      : {Colors.BOLD}{counts['warning']}{Colors.RESET}")
     print(f"{Colors.BRIGHT_RED}✗  Critical      : {Colors.BOLD}{counts['critical']}{Colors.RESET}")
     print(f"{Colors.BRIGHT_MAGENTA}?  Verify        : {Colors.BOLD}{counts['verify']}{Colors.RESET}")
     print(f"{Colors.CYAN}ℹ  Info          : {Colors.BOLD}{counts['info']}{Colors.RESET}")
-    if counts.get('skipped', 0) > 0:
+    if counts.get("skipped", 0) > 0:
         print(f"{Colors.DIM}⊘  Skipped (ADB) : {Colors.BOLD}{counts['skipped']}{Colors.RESET}")
     print(f"{Colors.CYAN}{'─' * 70}{Colors.RESET}")
-    print(f"{Colors.DIM}📄 TXT Report    : {txt_file}{Colors.RESET}")
-    print(f"{Colors.DIM}🌐 HTML Report   : {html_file}{Colors.RESET}")
-    print(f"{Colors.DIM}📊 CSV Report    : {csv_file}{Colors.RESET}")
+    print(f"{Colors.DIM}📄 TXT Report    : {txtFile}{Colors.RESET}")
+    print(f"{Colors.DIM}🌐 HTML Report   : {htmlFile}{Colors.RESET}")
+    print(f"{Colors.DIM}📊 CSV Report    : {csvFile}{Colors.RESET}")
     print(f"{Colors.CYAN}{'═' * 70}{Colors.RESET}\n")
 
-
-# =======================
-# HARDAX v2 single-file enhancements
-# - net-debug / net-strict via argv shim (env flags)
-# - cert-debug / cert-limit via argv shim (env flags)
-# - improved execute_with_p_fallback (preserve flags, drop -p only, tool swap)
-# - improved certificate audit (APEX/Google dirs, PEM+DER via base64)
-# =======================
-import os, sys, base64
-
-# ---- argv shim (strip our extra flags so argparse doesn't choke) ----
-try:
-    _clean = [sys.argv[0]]
-    _i = 1
-    while _i < len(sys.argv):
-        a = sys.argv[_i]
-        if a == '--net-debug':
-            os.environ['HARDAX_NET_DEBUG'] = '1'
-        elif a == '--net-strict':
-            os.environ['HARDAX_NET_STRICT'] = '1'
-        elif a == '--cert-debug':
-            os.environ['HARDAX_CERT_DEBUG'] = '1'
-        elif a == '--cert-limit':
-            if _i + 1 < len(sys.argv):
-                os.environ['HARDAX_CERT_LIMIT'] = sys.argv[_i+1]
-                _i += 1
-        else:
-            _clean.append(a)
-        _i += 1
-    sys.argv = _clean
-except Exception:
-    pass
-
-# ---- globals (for clarity; not strictly required) ----
-NET_DEBUG = bool(os.environ.get('HARDAX_NET_DEBUG'))
-NET_STRICT = bool(os.environ.get('HARDAX_NET_STRICT'))
-CERT_DEBUG = bool(os.environ.get('HARDAX_CERT_DEBUG'))
-try:
-    CERT_LIMIT = int(os.environ.get('HARDAX_CERT_LIMIT', '50'))
-except Exception:
-    CERT_LIMIT = 50
-
-# ---- helper: discover cert files in standard Android locations ----
-def _find_cert_files(device):
-    candidates = [
-        '/system/etc/security/cacerts',
-        '/system/etc/security/cacerts_google',
-        '/apex/com.android.conscrypt/cacerts',
-        '/apex/com.android.conscrypt/etc/security/cacerts',
-    ]
-    files = []
-    for base in candidates:
-        listing = device.shell(f'ls -1 {base} 2>/dev/null')
-        names = [n.strip() for n in (listing.splitlines() if listing else []) if n.strip()]
-        matched = []
-        for name in names:
-            if name.endswith('.0') or re.fullmatch(r'[0-9a-fA-F]{1,8}', name):
-                matched.append(f"{base}/{name}")
-        files.extend(matched)
-        if CERT_DEBUG:
-            try:
-                print(f"[cert-debug] {base}: {len(matched)} files matched")
-                for demo in matched[:5]:
-                    print(f"  - {demo}")
-            except Exception:
-                pass
-    return files
-
-# ---- helper: robustly read cert bytes (PEM or DER) ----
-def _read_cert_bytes(device, path):
-    # 1) Try plain read to see if PEM
-    txt = device.shell(f"cat {path} 2>/dev/null")
-    if txt and '-----BEGIN CERTIFICATE-----' in txt:
-        return txt.encode('utf-8'), 'PEM'
-    # 2) Try base64 to obtain DER bytes safely
-    b64 = device.shell(f"base64 {path} 2>/dev/null")
-    if b64 and 'not found' not in b64.lower() and b64.strip():
-        try:
-            cleaned = ''.join(b64.strip().split())
-            return base64.b64decode(cleaned, validate=False), 'DER'
-        except Exception:
-            return None, None
-    return None, None
-
-# ---- override: improved certificate audit ----
-def audit_certificates(device: 'Device') -> List[Dict[str, Any]]:
-    certs: List[Dict[str, Any]] = []
-    try:
-        from cryptography import x509
-        from cryptography.hazmat.backends import default_backend
-    except Exception:
-        if CERT_DEBUG:
-            print('[cert-debug] cryptography not available; skipping system cert parse')
-        return []
-
-    cert_files = _find_cert_files(device)
-    if CERT_DEBUG:
-        print(f"[cert-debug] discovered total: {len(cert_files)}")
-    today = datetime.now()
-
-    for i, cert_path in enumerate(cert_files[:CERT_LIMIT]):
-        try:
-            raw, kind = _read_cert_bytes(device, cert_path)
-            if not raw:
-                continue
-            cert = None
-            if kind == 'PEM':
-                try:
-                    cert = x509.load_pem_x509_certificate(raw, default_backend())
-                except Exception:
-                    cert = None
-            if cert is None:
-                try:
-                    cert = x509.load_der_x509_certificate(raw, default_backend())
-                except Exception:
-                    cert = None
-            if cert is None:
-                if CERT_DEBUG:
-                    print(f"[cert-debug] parse failed: {cert_path}")
-                continue
-            subject = getattr(cert, 'subject', None)
-            issuer = getattr(cert, 'issuer', None)
-            try:
-                not_before = getattr(cert, 'not_valid_before')
-                not_after = getattr(cert, 'not_valid_after')
-            except Exception:
-                # older libs
-                not_before = getattr(cert, 'not_valid_before_utc', None)
-                not_after = getattr(cert, 'not_valid_after_utc', None)
-            if not_before is None or not_after is None:
-                continue
-            try:
-                subject_str = subject.rfc4514_string() if subject else 'Unknown'
-                issuer_str = issuer.rfc4514_string() if issuer else 'Unknown'
-            except Exception:
-                subject_str = 'Unknown'
-                issuer_str = 'Unknown'
-            days_old = (today - not_before.replace(tzinfo=None)).days
-            days_until_expiry = (not_after.replace(tzinfo=None) - today).days
-            if days_until_expiry < 0:
-                status, risk = 'EXPIRED', 'critical'
-            elif days_until_expiry < 30:
-                status, risk = 'EXPIRING_SOON', 'warning'
-            elif days_until_expiry < 90:
-                status, risk = 'CHECK', 'warning'
-            else:
-                status, risk = 'VALID', 'safe'
-            # CN extraction
-            cn = 'Unknown'
-            for part in subject_str.split(','):
-                p = part.strip()
-                if p.startswith('CN='):
-                    cn = p[3:]
-                    break
-            certs.append({
-                'filename': cert_path.split('/')[-1],
-                'cn': cn[:50] + '...' if len(cn) > 50 else cn,
-                'issuer': issuer_str[:50] + '...' if len(issuer_str) > 50 else issuer_str,
-                'not_before': not_before.strftime('%Y-%m-%d'),
-                'not_after': not_after.strftime('%Y-%m-%d'),
-                'days_old': days_old,
-                'days_until_expiry': days_until_expiry,
-                'status': status,
-                'risk': risk,
-            })
-        except Exception:
-            continue
-
-    # User-installed certs across all users
-    try:
-        user_roots = device.shell('ls -d /data/misc/user/*/cacerts-added 2>/dev/null')
-        user_dirs = [d.strip() for d in (user_roots.split('\n') if user_roots else []) if d.strip()]
-        if not user_dirs:
-            user_dirs = ['/data/misc/user/0/cacerts-added']
-        for d in user_dirs:
-            ulist = device.shell(f'ls -1 {d} 2>/dev/null')
-            if ulist.strip():
-                for cf in [x.strip() for x in ulist.split('\n') if x.strip()]:
-                    certs.append({
-                        'filename': cf,
-                        'cn': 'USER INSTALLED CERT',
-                        'issuer': 'Unknown - User Added',
-                        'not_before': '-',
-                        'not_after': '-',
-                        'days_old': 0,
-                        'days_until_expiry': 0,
-                        'status': 'USER_CERT',
-                        'risk': 'critical',
-                    })
-    except Exception:
-        pass
-
-    return sorted(certs, key=lambda x: (x['risk'] != 'critical', x['risk'] != 'warning', x['days_until_expiry']))
-
-# ---- override: execute_with_p_fallback (preserve flags; drop -p; swap tool) ----
-def execute_with_p_fallback(device: 'Device', command: str, show_commands: bool = False, is_rooted: bool = None) -> str:
-    def is_net_or_ss(cmd: str) -> bool:
-        cl = cmd.lower()
-        return ('netstat' in cl) or re.search(r'\bss\b', cl)
-
-    def split_alternatives(src: str) -> list:
-        s = re.sub(r"^\s*(?:/system/bin/)?sh\s+-[a-z]*c\s+(['\"])(.*?)\1\s*$", r"\2", src.strip(), flags=re.IGNORECASE)
-        s = s.replace('\r\n', '\n').replace('\r', '\n')
-        blocks = re.split(r'\n\s*\n+', s.strip())
-        return [b for b in blocks if is_net_or_ss(b)]
-
-    def split_pipeline(block: str):
-        if '|' not in block:
-            return block.strip(), ''
-        base, rest = block.split('|', 1)
-        return base.strip(), ('|' + rest.strip())
-
-    def drop_pid_flag(cmd: str) -> str:
-        def _rm_p(m):
-            f = m.group(1)
-            f2 = f.replace('p', '')
-            return '-' + f2 if f2 else ''
-        return re.sub(r'\s-(\w+)', _rm_p, cmd)
-
-    def swap_tool(cmd: str):
-        if re.match(r'(?i)^\s*netstat\b', cmd):
-            return re.sub(r'(?i)^\s*netstat\b', 'ss', cmd, count=1)
-        if re.match(r'(?i)^\s*ss\b', cmd):
-            return re.sub(r'(?i)^\s*ss\b', 'netstat', cmd, count=1)
-        return None
-
-    def output_reason(txt: str):
-        if not txt or not txt.strip():
-            return False, 'empty output'
-        lower = txt.lower()
-        for bad in ['not found', 'invalid', 'permission denied', 'cannot open', 'no such']:
-            if bad in lower:
-                return False, bad
-        lines = [l for l in txt.strip().split('\n') if l.strip()]
-        if len(lines) <= 1 and (lines and ('proto' in lines[0].lower() or 'state' in lines[0].lower())):
-            return False, 'header-only'
-        return True, 'ok'
-
-    # Bypass for non-network commands
-    if not is_net_or_ss(command):
-        if NET_DEBUG:
-            print('[net-debug] non-network command -> bypass executor')
-        return device.shell(command)
-
-    blocks = split_alternatives(command)
-    if NET_DEBUG:
-        print('[net-debug] alternatives: %d block(s)' % len(blocks))
-        for i, b in enumerate(blocks, 1):
-            print('  block %d: %s' % (i, b.split('|')[0].strip()))
-    if not blocks:
-        return device.shell(command)
-
-    for block in blocks:
-        base_cmd, pipeline = split_pipeline(block)
-        candidates = []
-        if is_rooted or is_rooted is None:
-            candidates.append('su -c "%s"' % base_cmd)
-        candidates.append(base_cmd)
-        # Without -p
-        no_p = drop_pid_flag(base_cmd)
-        if no_p != base_cmd:
-            if is_rooted or is_rooted is None:
-                candidates.append('su -c "%s"' % no_p)
-            candidates.append(no_p)
-        # Swap tool (preserve flags)
-        swapped = swap_tool(base_cmd)
-        if swapped:
-            if is_rooted or is_rooted is None:
-                candidates.append('su -c "%s"' % swapped)
-            candidates.append(swapped)
-            swapped_no_p = drop_pid_flag(swapped)
-            if swapped_no_p != swapped:
-                if is_rooted or is_rooted is None:
-                    candidates.append('su -c "%s"' % swapped_no_p)
-                candidates.append(swapped_no_p)
-
-        if NET_DEBUG:
-            print('[net-debug] candidates (%d):' % len(candidates))
-            for c in candidates:
-                print('  - %s' % c)
-
-        for cand in candidates:
-            if show_commands:
-                print('  -> Trying: %s' % cand)
-            raw = device.shell(cand)
-            ok, why = output_reason(raw)
-            if not ok:
-                if NET_DEBUG:
-                    print('[net-debug] reject: %s' % why)
-                continue
-            if NET_DEBUG:
-                print('[net-debug] winner: %s' % cand)
-            pipeline_src = (base_cmd + (' ' + pipeline if pipeline else ''))
-            return apply_filters(raw, pipeline_src)
-
-    return ''
-
-# ======================= End v2 enhancements =======================
 
 if __name__ == "__main__":
     main()
