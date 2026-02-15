@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.2.0-blue.svg" alt="Version">
-  <img src="https://img.shields.io/badge/python-3.8+-green.svg" alt="Python">
+  <img src="https://img.shields.io/badge/python-3.6+-green.svg" alt="Python">
   <img src="https://img.shields.io/badge/checks-488-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-18-purple.svg" alt="Categories">
   <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
@@ -69,7 +69,7 @@ HARDAX is designed for:
 | **5 Status Levels** | SAFE, WARNING, CRITICAL, VERIFY, INFO, SKIPPED |
 | **3 Report Formats** | TXT, CSV, HTML with interactive dashboard |
 | **False Positive Prevention** | Smart null/empty handling with VERIFY status |
-| **Extensible JSON Checks** | Easy to add custom security checks - drop JSON, run |
+| **Extensible JSON Checks** | Easy to add custom security checks — drop JSON, run |
 | **Beautiful CLI Output** | Color-coded real-time progress display |
 | **Device Info Collection** | Automatic device fingerprinting |
 
@@ -97,7 +97,7 @@ HARDAX works with any Android-based device accessible via ADB or SSH:
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.6 or higher
 - ADB (Android Debug Bridge) installed and in PATH
 - USB Debugging enabled on target device
 
@@ -221,11 +221,11 @@ HARDAX classifies findings into 6 status levels:
 | Status | Color | Symbol | Description |
 |--------|-------|--------|-------------|
 | **SAFE** | 🟢 Green | ✓ | Secure configuration detected |
-| **WARNING** | 🟡 Yellow | ⚠ | Potential risk  - review recommended |
-| **CRITICAL** | 🔴 Red | ✗ | Security issue - mmediate action required |
+| **WARNING** | 🟡 Yellow | ⚠ | Potential risk — review recommended |
+| **CRITICAL** | 🔴 Red | ✗ | Security issue — immediate action required |
 | **VERIFY** | 🟣 Purple | ? | Manual verification required (null/empty output) |
-| **INFO** | 🔵 Blue | ℹ | Informational - no action needed |
-| **SKIPPED** | ⚪ Gray | ○ | ADB connection lost —cchheck ould not execute |
+| **INFO** | 🔵 Blue | ℹ | Informational — no action needed |
+| **SKIPPED** | ⚪ Gray | ○ | ADB connection lost — check could not execute |
 
 ---
 
@@ -270,6 +270,20 @@ flowchart TD
 
 ---
 
+## HTML Report Features
+
+The interactive HTML report includes:
+
+- **Summary Dashboard** — Total checks, pass/fail counts, doughnut chart
+- **Device Information** — Model, Android version, build, serial, security patch level
+- **Collapsible Categories** — Click to expand/collapse each security area
+- **Color-Coded Results** — Green=SAFE, Yellow=WARNING, Red=CRITICAL
+- **Certificate Audit Table** — CA certificates with expiry dates and risk status
+- **Search & Filter** — Find specific checks by keyword
+- **Category Statistics** — Per-category breakdown of findings
+
+---
+
 ## Extending HARDAX
 
 ### Adding Custom Checks
@@ -290,6 +304,30 @@ Create or modify JSON files in the `commands/` directory:
     }
   ]
 }
+```
+
+### Check Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `category` | ✅ | Category name (appears in report grouping) |
+| `label` | ✅ | Display name for the check |
+| `command` | ✅ | ADB shell command to execute |
+| `safe_pattern` | ✅ | Regex pattern — if output matches, result is SAFE |
+| `level` | ✅ | Severity if NOT safe: `critical`, `warning`, `info` |
+| `description` | ✅ | Explanation of what the check does and why it matters |
+| `empty_is_safe` | ❌ | If `true`, empty output = SAFE (default: `false`) |
+
+### Adding Checks — 3 Steps
+
+```bash
+# 1. Create your JSON file
+echo '{"checks":[...]}' > commands/my_checks.json
+
+# 2. Run with custom directory
+python3 hardax.py --json-dir commands/
+
+# That's it — new checks appear in reports automatically!
 ```
 
 ---
@@ -321,6 +359,71 @@ HARDAX/
     ├── nfc_security.json  #   7 checks — NFC, reader mode, secure element
     └── adb_security.json  #   4 checks — ADB keys, network ADB
 ```
+
+---
+
+## Sample Output
+
+```
+$ python3 hardax.py --show-commands
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  HARDAX — Hardening Audit eXaminer v1.2.0                           ┃
+┃  [488 Checks] [18 Categories]                                       ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+[*] Detecting connected devices...
+[+] Found device: R58M42XXXXX
+
+[*] Collecting device information...
+    Model: SM-A536E | Android: 14 | SDK: 34 | Build: UP1A.231005.007
+
+[*] Checking root status...
+[+] Root method: magisk (Magisk v27.0)
+
+[*] Loading check files from: commands/
+[+] Loaded 488 checks from 18 JSON files
+
+[*] Running security checks...
+
+[SYSTEM]      Play Protect .......................... ✓ SAFE
+[SYSTEM]      Security Patch Level .................. ⚠ WARNING (2024-01-01)
+[SYSTEM]      Developer Options ..................... ✗ CRITICAL
+[MALWARE]     Frida Server Running .................. ✓ SAFE
+[MALWARE]     Xposed Framework ...................... ✓ SAFE
+[MALWARE]     Remote Access Tools ................... ✓ SAFE
+[BLUETOOTH]   Discoverable Mode ..................... ✓ SAFE
+[POS]         NFC Relay Attack Tools ................ ✓ SAFE
+[USB]         USB Debugging ......................... ✗ CRITICAL
+
+Progress: ████████████████████████ 100%
+SAFE: 340 | WARNING: 42 | CRITICAL: 28 | VERIFY: 15 | INFO: 63
+
+[*] Reports saved to: hardax_output/
+    → hardax_report_SM-A536E.txt
+    → hardax_report_SM-A536E.csv
+    → hardax_report_SM-A536E.html
+```
+
+---
+
+## What's New in v1.2.0
+
+### New Checks (+26)
+
+- **Malware Detection** — SuperSU, root cloaking apps, BusyBox, hidden icon apps (PixPirate technique), memory scrapers, keyloggers, RATs, Xposed/LSPosed framework, Frida port detection
+- **POS Security** — NFC relay attack tools (NFCGate/NFCProxy), PAX terminal services, PAX unsigned partition exploit (CVE-2023-42134)
+- **NFC Security** — NFC service dump, reader mode detection, secure element (eSE/UICC) status
+- **Apps** — Overlay permission (SYSTEM_ALERT_WINDOW) audit, current window stack, allowBackup enumeration
+- **System** — Emulator detection (QEMU/goldfish/ranchu), virtual hardware detection, memory baseline, suspicious executables in /data/local/tmp, SIM card status
+- **Network** — Active external ESTABLISHED connections (C2 detection)
+
+### Engine Improvements
+
+- **ADB Resilience** — 5-layer protection: pre-check connectivity, auto-reconnect on failure, command timeout, SKIPPED status for disconnected checks, retry logic
+- **Root Auto-Detection** — Detects Magisk, SuperSU, adbd-root; auto-prepends `su -c` for privileged commands
+- **Bracket Escaping Fix** — Resolved grep bracket patterns through JSON → Python → ADB → shell layers
+
 ---
 
 ## Future Roadmap
@@ -344,3 +447,26 @@ HARDAX/
 - [ ] Plugin architecture
 - [ ] APK analysis integration
 - [ ] Firmware extraction support
+
+---
+
+## Author
+
+**Mr-IoT** — Founder, IOTSRG (IoT Security Research Group)
+
+- GitHub: [github.com/iotsrg/hardax](https://github.com/iotsrg/hardax)
+- Twitter: [@v33raiot](https://twitter.com/v33raiot)
+- Website: [iotsrg.com](https://iotsrg.com)
+
+---
+
+## License
+
+MIT License — Free for commercial and non-commercial use.
+
+---
+
+<p align="center">
+  <b>Find misconfigurations before attackers do.</b><br>
+  <code>python3 hardax.py</code>
+</p>
