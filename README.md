@@ -69,7 +69,7 @@ HARDAX is designed for:
 | **5 Status Levels** | SAFE, WARNING, CRITICAL, VERIFY, INFO, SKIPPED |
 | **3 Report Formats** | TXT, CSV, HTML with interactive dashboard |
 | **False Positive Prevention** | Smart null/empty handling with VERIFY status |
-| **Extensible JSON Checks** | Easy to add custom security checks — drop JSON, run |
+| **Extensible JSON Checks** | Easy to add custom security checks - drop JSON, run |
 | **Beautiful CLI Output** | Color-coded real-time progress display |
 | **Device Info Collection** | Automatic device fingerprinting |
 
@@ -313,12 +313,12 @@ Create or modify JSON files in the `commands/` directory:
 | `category` | ✅ | Category name (appears in report grouping) |
 | `label` | ✅ | Display name for the check |
 | `command` | ✅ | ADB shell command to execute |
-| `safe_pattern` | ✅ | Regex pattern — if output matches, result is SAFE |
+| `safe_pattern` | ✅ | Regex pattern - if output matches, result is SAFE |
 | `level` | ✅ | Severity if NOT safe: `critical`, `warning`, `info` |
 | `description` | ✅ | Explanation of what the check does and why it matters |
 | `empty_is_safe` | ❌ | If `true`, empty output = SAFE (default: `false`) |
 
-### Adding Checks — 3 Steps
+### Adding Checks - 3 Steps
 
 ```bash
 # 1. Create your JSON file
@@ -327,7 +327,7 @@ echo '{"checks":[...]}' > commands/my_checks.json
 # 2. Run with custom directory
 python3 hardax.py --json-dir commands/
 
-# That's it — new checks appear in reports automatically!
+# That's it - new checks appear in reports automatically!
 ```
 
 ---
@@ -340,24 +340,24 @@ HARDAX/
 ├── requirements.txt       # Python dependencies
 ├── README.md              # This file
 └── commands/              # Security check definitions
-    ├── system.json        #  87 checks — Kernel, TEE, build, emulator, memory
-    ├── network.json       #  74 checks — Ports, WiFi, VPN, IoT protocols
-    ├── privacy.json       #  51 checks — Biometrics, location, sensors
-    ├── apps.json          #  50 checks — Permissions, overlay, backup, install
-    ├── bluetooth.json     #  29 checks — BLE/Classic, pairing, profiles
-    ├── selinux.json       #  25 checks — Enforcement, policy, audit
-    ├── pos_security.json  #  24 checks — PCI-DSS, kiosk, NFC relay, PAX CVE
-    ├── storage.json       #  21 checks — Encryption, partitions, backup
-    ├── cis_benchmark.json #  20 checks — CIS Android Benchmark v1.6.0
-    ├── boot_security.json #  21 checks — Verified boot, AVB, dm-verity
-    ├── malware.json       #  16 checks — Root, Frida, Xposed, RATs, scrapers
-    ├── usb_security.json  #  14 checks — USB debug, MTP, gadget mode
-    ├── device_management.json # 13 checks — MDM, accounts, dev options
-    ├── cryptography.json  #  12 checks — Keystore, StrongBox, algorithms
-    ├── certificate_audit.json # 11 checks — CA certs, expiry, MITM
-    ├── input.json         #   9 checks — Keyboards, accessibility, IME
-    ├── nfc_security.json  #   7 checks — NFC, reader mode, secure element
-    └── adb_security.json  #   4 checks — ADB keys, network ADB
+    ├── system.json        #  87 checks - Kernel, TEE, build, emulator, memory
+    ├── network.json       #  74 checks - Ports, WiFi, VPN, IoT protocols
+    ├── privacy.json       #  51 checks - Biometrics, location, sensors
+    ├── apps.json          #  50 checks - Permissions, overlay, backup, install
+    ├── bluetooth.json     #  29 checks - BLE/Classic, pairing, profiles
+    ├── selinux.json       #  25 checks - Enforcement, policy, audit
+    ├── pos_security.json  #  24 checks - PCI-DSS, kiosk, NFC relay, PAX CVE
+    ├── storage.json       #  21 checks - Encryption, partitions, backup
+    ├── cis_benchmark.json #  20 checks - CIS Android Benchmark v1.6.0
+    ├── boot_security.json #  21 checks - Verified boot, AVB, dm-verity
+    ├── malware.json       #  16 checks - Root, Frida, Xposed, RATs, scrapers
+    ├── usb_security.json  #  14 checks - USB debug, MTP, gadget mode
+    ├── device_management.json # 13 checks - MDM, accounts, dev options
+    ├── cryptography.json  #  12 checks - Keystore, StrongBox, algorithms
+    ├── certificate_audit.json # 11 checks - CA certs, expiry, MITM
+    ├── input.json         #   9 checks - Keyboards, accessibility, IME
+    ├── nfc_security.json  #   7 checks - NFC, reader mode, secure element
+    └── adb_security.json  #   4 checks - ADB keys, network ADB
 ```
 
 ---
@@ -368,8 +368,8 @@ HARDAX/
 $ python3 hardax.py --show-commands
 
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  HARDAX — Hardening Audit eXaminer v2.0                           ┃
-┃  [488 Checks] [18 Categories]                                       ┃
+┃  HARDAX - Hardening Audit eXaminer v2.0                           ┃
+┃  [488 Checks] [18 Categories]                                     ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 [*] Detecting connected devices...
