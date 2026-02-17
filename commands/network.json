@@ -59,6 +59,15 @@
     },
     {
       "category": "NETWORK",
+      "label": "World-Writable Files",
+      "command": "find /data -maxdepth 4 -type f -perm -o+w 2>/dev/null | head -20",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Unprotected sensitive files (scans top 4 levels of /data)",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
       "label": "Wi-Fi Security (WPA3)",
       "command": "dumpsys wifi | grep 'WPA3-'",
       "safe_pattern": "WPA3",
