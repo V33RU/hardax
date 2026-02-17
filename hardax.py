@@ -2059,7 +2059,7 @@ def printBanner(idLine: Optional[str]) -> None:
 
 def main():
     ap = argparse.ArgumentParser(
-        description="HARDAX - Hardening Audit eXaminer for Android / IoT",
+        description="HARDAX - Hardening Audit eXaminer for Android OS based IoT devices",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
