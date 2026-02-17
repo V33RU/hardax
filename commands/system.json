@@ -526,15 +526,6 @@
     },
     {
       "category": "SYSTEM",
-      "label": "Root Shell Available",
-      "command": "id 2>/dev/null | grep 'uid=0'",
-      "safe_pattern": "^$",
-      "level": "critical",
-      "description": "ADB shell runs as root - full device access!",
-      "empty_is_safe": true
-    },
-    {
-      "category": "SYSTEM",
       "label": "Factory Reset Protection",
       "command": "getprop ro.frp.pst 2>/dev/null",
       "safe_pattern": ".",
