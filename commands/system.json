@@ -693,7 +693,7 @@
     {
       "category": "SYSTEM",
       "label": "System Memory Status",
-      "command": "cat /proc/meminfo 2>/dev/null | grep -iE 'MemTotal|MemFree|MemAvailable' | head -5",
+      "command": "cat /proc/meminfo 2>/dev/null | grep -iE 'MemTotal|MemFree|MemAvailable'",
       "safe_pattern": "",
       "level": "info",
       "description": "System memory baseline - abnormally low available memory may indicate memory scraping attacks or crypto mining",
@@ -702,7 +702,7 @@
     {
       "category": "SYSTEM",
       "label": "Suspicious Executables in /data/local/tmp",
-      "command": "find /data/local/tmp -type f -executable 2>/dev/null | head -10",
+      "command": "find /data/local/tmp -type f -executable 2>/dev/null",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Executable files in /data/local/tmp - common staging location for exploits, Frida gadgets, and malware payloads",
