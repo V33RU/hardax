@@ -1,607 +1,720 @@
 {
   "checks": [
     {
-      "category": "NETWORK",
-      "label": "Airplane Mode",
-      "command": "settings get global airplane_mode_on",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Airplane mode status"
+      "category": "SYSTEM",
+      "label": "Security Patch Level",
+      "command": "PATCH_DATE=$(getprop ro.build.version.security_patch 2>/dev/null); if [ -z \"$PATCH_DATE\" ]; then echo 'UNKNOWN'; exit 1; fi; PATCH_EPOCH=$(date -d \"$PATCH_DATE\" +%s 2>/dev/null || echo 0); CURRENT_EPOCH=$(date +%s); DAYS_OLD=$(( ($CURRENT_EPOCH - $PATCH_EPOCH) / 86400 )); if [ $DAYS_OLD -lt 90 ]; then echo \"RECENT: $PATCH_DATE ($DAYS_OLD days old)\"; else echo \"OUTDATED: $PATCH_DATE ($DAYS_OLD days old)\"; fi",
+      "safe_pattern": "^RECENT:",
+      "level": "critical",
+      "description": "Security patch must be less than 90 days old"
     },
     {
-      "category": "NETWORK",
-      "label": "Mobile Data Enabled",
-      "command": "settings get global mobile_data",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Mobile data status"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Data Roaming",
-      "command": "settings get global data_roaming",
-      "safe_pattern": "0|null",
-      "level": "warning",
-      "description": "Data roaming can incur costs and security risks"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Preferred Network Mode",
-      "command": "settings get global preferred_network_mode",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Preferred cellular network mode"
-    },
-    {
-      "category": "NETWORK",
-      "label": "VoLTE Enabled",
-      "command": "settings get global volte_feature_disabled",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Voice over LTE status"
-    },
-    {
-      "category": "NETWORK",
-      "label": "DNS Servers",
-      "command": "getprop net.dns1",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "Check DNS configs"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Wi-Fi Security (WPA3)",
-      "command": "dumpsys wifi | grep 'WPA3-'",
-      "safe_pattern": "WPA3",
-      "level": "warning",
-      "description": "WPA3 should be preferred over WPA2 for stronger Wi-Fi security"
-    },
-    {
-      "category": "NETWORK",
-      "label": "DNS-over-TLS Enabled",
-      "command": "settings get global private_dns_mode",
-      "safe_pattern": "^hostname$",
-      "level": "warning",
-      "description": "DNS-over-TLS (DoT) should be enabled for encrypted DNS"
-    },
-    {
-      "category": "NETWORK",
-      "label": "ARP Table Dump",
-      "command": "cat /proc/net/arp",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "Lists resolved ARP IP-MAC mappings"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Proxy Configuration",
-      "command": "settings get global http_proxy",
+      "category": "SYSTEM",
+      "label": "Third-Party App Stores",
+      "command": "pm list packages 2>/dev/null | grep -E 'amazon|aptoide|getjar'",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Proxy set may indicate MITM or forced redirection",
+      "description": "Avoid non-Google app stores",
       "empty_is_safe": true
     },
     {
-      "category": "NETWORK",
-      "label": "Captive Portal Detection",
-      "command": "settings get global captive_portal_mode",
+      "category": "SYSTEM",
+      "label": "User-installed Apps",
+      "command": "pm list packages -3 2>/dev/null | wc -l",
+      "safe_pattern": ".+",
+      "level": "info",
+      "description": "Check how many user apps installed"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Unusual Files in /sdcard/",
+      "command": "ls /sdcard/ 2>/dev/null | grep -Ei '(key|creds|dump|log|backup)'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Sensitive files in user-accessible storage",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Wi-Fi SSID",
+      "command": "dumpsys netstats 2>/dev/null | grep -i 'iface=wlan0'",
+      "safe_pattern": ".+",
+      "level": "info",
+      "description": "Shows current Wi-Fi network"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Zygote Process Check",
+      "command": "ps 2>/dev/null | grep zygote",
+      "safe_pattern": "zygote",
+      "level": "critical",
+      "description": "Zygote process is core to Android app lifecycle"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "USB File Transfer Disabled",
+      "command": "settings get global usb_mass_storage_enabled 2>/dev/null",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Should be disabled to block unauthorized USB file access"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Wi-Fi Direct Disabled (WFD)",
+      "command": "pm list packages 2>/dev/null | grep -i wfd",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Wi-Fi Direct (WFD) package should be removed if unused",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Auto System Update Enabled",
+      "command": "settings get global auto_update_system 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "info",
+      "description": "Auto updates improve patch consistency"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Credential Storage Cleared",
+      "command": "ls /data/misc/keystore/user_0 2>&1",
+      "safe_pattern": "No such file or directory",
+      "level": "info",
+      "description": "No residual user credential files"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Kernel Hardening (PAN/UAO)",
+      "command": "zcat /proc/config.gz | grep -E 'CONFIG_ARM64_PAN=|CONFIG_ARM64_UAO='",
+      "safe_pattern": "CONFIG_ARM64_PAN=y.*CONFIG_ARM64_UAO=y",
+      "level": "critical",
+      "description": "Privileged Access Never (PAN) and User Access Override (UAO) should be enabled for memory protection"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "World-Writable Directories",
+      "command": "find /system /vendor -type d -perm -0002 2>/dev/null | head -10",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "World-writable directories in system",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "SUID Binaries",
+      "command": "find /system /vendor -type f -perm -4000 2>/dev/null | head -10",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "SUID binaries - review for privilege escalation"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Exposed Unix Sockets",
+      "command": "find /dev /data /var -type s 2>/dev/null | head -10",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Unix sockets - potential IPC attack vectors"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Debugfs Mounted",
+      "command": "mount | grep debugfs",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Debugfs mounted - kernel debug info exposed",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Executable Stack",
+      "command": "cat /proc/sys/kernel/exec-shield 2>/dev/null || cat /proc/sys/kernel/randomize_va_space 2>/dev/null",
+      "safe_pattern": "1|2",
+      "level": "warning",
+      "description": "ASLR should be enabled"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Ptrace Scope",
+      "command": "cat /proc/sys/kernel/yama/ptrace_scope 2>/dev/null",
+      "safe_pattern": "[123]",
+      "level": "warning",
+      "description": "Ptrace restrictions (1+ recommended)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Recent Kernel Crashes",
+      "command": "dmesg | grep -iE 'fatal|panic|oops|BUG:' | tail -n 5",
+      "safe_pattern": "^$",
+      "level": "info",
+      "description": "Recent kernel panics or fatal errors",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Application Crash Log",
+      "command": "logcat -d -b crash | head -n 10",
+      "safe_pattern": "^$",
+      "level": "info",
+      "description": "Recent app crash logs (look for repeated exceptions)",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "SELinux AVC Denials",
+      "command": "dmesg | grep 'avc:  denied'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Check for any denied SELinux actions",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Stack Canaries",
+      "command": "zcat /proc/config.gz | grep CONFIG_CC_STACKPROTECTOR_STRONG",
+      "safe_pattern": "CONFIG_CC_STACKPROTECTOR_STRONG=y",
+      "level": "critical",
+      "description": "Stack canaries should be enabled to prevent buffer overflows"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "ROP Mitigation (PAC)",
+      "command": "zcat /proc/config.gz | grep CONFIG_ARM64_PTR_AUTH",
+      "safe_pattern": "CONFIG_ARM64_PTR_AUTH=y",
+      "level": "critical",
+      "description": "Pointer Authentication (PAC) should be enabled to prevent ROP attacks"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Memory Tagging (MTE)",
+      "command": "zcat /proc/config.gz | grep CONFIG_ARM64_MTE",
+      "safe_pattern": "CONFIG_ARM64_MTE=y",
+      "level": "critical",
+      "description": "Memory Tagging Extension (MTE) should be enabled for JIT hardening"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Processes Running as Root",
+      "command": "ps -A -o USER,NAME 2>/dev/null | grep '^root' | grep -vE 'init|kthread|ueventd|vold|lmkd|servicemanager|hwservicemanager|logd|healthd|adbd|debuggerd' | wc -l",
+      "safe_pattern": "^[0-5]$",
+      "level": "warning",
+      "description": "Minimize processes running as root"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "World-Readable Proc Entries",
+      "command": "ls -la /proc/*/cmdline 2>/dev/null | grep 'r--r--r--' | wc -l",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Process info readable - normal but review sensitive processes"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Custom Native Daemons",
+      "command": "ps -A 2>/dev/null | grep -vE 'zygote|system_server|surfaceflinger|android|google|com\\.|app_process|dalvikvm' | grep -E '^root|^system' | awk '{print $NF}' | sort | uniq | head -10",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Non-Android native processes - review for IoT services"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Listening on All Interfaces",
+      "command": "netstat -tlnp 2>/dev/null | grep '0.0.0.0:' | grep -v '127.0.0.1' || ss -tlnp 2>/dev/null | grep '0.0.0.0:' | head -10",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Services listening on all interfaces - exposed to network",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Stack Protection Status",
+      "command": "cat /proc/sys/kernel/stack_protected 2>/dev/null || echo 'check_binary'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Stack protection status"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Kernel Pointer Exposure",
+      "command": "cat /proc/sys/kernel/kptr_restrict 2>/dev/null",
+      "safe_pattern": "[12]",
+      "level": "warning",
+      "description": "Kernel pointers should be restricted (1 or 2)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "OTA Update Path",
+      "command": "getprop ro.build.version.incremental",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "OTA incremental version for build tracking"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Writable Paths in $PATH",
+      "command": "echo $PATH | tr ':' '\\n' | awk 'NF' | xargs -I{} sh -c '[ -w \"{}\" ] && echo \"{}\"'",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Writable dirs in PATH can lead to privilege escalation",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Disable-Verity Property Not Set",
+      "command": "getprop persist.sys.disable_verity",
+      "safe_pattern": "^$|^0$",
+      "level": "critical",
+      "description": "Disable-verity must not be enabled on locked devices"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Battery Saver Mode",
+      "command": "settings get global low_power",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Battery saver status"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Doze Mode Enabled",
+      "command": "dumpsys deviceidle 2>/dev/null | grep -i 'enabled' | head -3",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Doze mode for battery optimization"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Doze Whitelist Apps",
+      "command": "dumpsys deviceidle 2>/dev/null | grep -i 'whitelist' | head -10",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Apps excluded from doze mode"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Top 5 Running Processes",
+      "command": "ps | head -n 5",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Initial list of active processes"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "bootctl Present",
+      "command": "command -v bootctl >/dev/null 2>&1 && echo present || echo absent",
+      "safe_pattern": "^present$",
+      "level": "info",
+      "description": "bootctl available to query slot state"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Current Slot",
+      "command": "bootctl get-current-slot 2>/dev/null | sed -E 's/.*: *//'",
+      "safe_pattern": "^(a|b|0|1)$",
+      "level": "info",
+      "description": "Device reports current boot slot (a/b or 0/1)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Stock Recovery (No TWRP in PATH)",
+      "command": "command -v twrp >/dev/null 2>&1 && echo found || echo notfound",
+      "safe_pattern": "^notfound$",
+      "level": "warning",
+      "description": "No custom recovery binary should be present"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Kernel Version",
+      "command": "uname -r",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Kernel build/version details"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Audit Logs Enabled",
+      "command": "cat /proc/sys/kernel/printk",
+      "safe_pattern": ".*",
+      "level": "warning",
+      "description": "Non-zero values indicate audit logs may be active"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "ASLR Enabled",
+      "command": "cat /proc/sys/kernel/randomize_va_space",
+      "safe_pattern": "^2$",
+      "level": "critical",
+      "description": "ASLR must be enabled (value 2) to randomize memory layout and protect against memory-based attacks."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "KASLR Enabled",
+      "command": "dmesg | grep -i kaslr",
+      "safe_pattern": ".*enabled.*",
+      "level": "critical",
+      "description": "Kernel Address Space Layout Randomization (KASLR) should be enabled to randomize kernel memory layout."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "NX (No eXecute) Bit Enabled",
+      "command": "dmesg | grep -i NX",
+      "safe_pattern": ".*NX.*protection.*",
+      "level": "critical",
+      "description": "NX bit must be enabled to prevent execution of code in data memory regions."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Core Dumps Disabled",
+      "command": "cat /proc/sys/kernel/core_pattern",
+      "safe_pattern": "^\\|/dev/null$",
+      "level": "warning",
+      "description": "Core dumps should be disabled to prevent sensitive data leakage."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "SECCOMP Enabled",
+      "command": "zcat /proc/config.gz | grep CONFIG_SECCOMP=",
+      "safe_pattern": "CONFIG_SECCOMP=Y",
+      "level": "warning",
+      "description": "SECCOMP must be enabled to restrict system calls."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Kernel Modules Loading Restricted",
+      "command": "cat /proc/sys/kernel/modules_disabled",
       "safe_pattern": "^1$",
       "level": "warning",
-      "description": "Should be 1 (default); 0 disables captive portal checks"
+      "description": "Kernel module loading should be disabled after boot to prevent unauthorized module insertion."
     },
     {
-      "category": "NETWORK",
-      "label": "CAN Bus Interface Exposed",
-      "command": "ls /dev/can* /sys/class/net/can* /sys/class/net/vcan* 2>/dev/null",
+      "category": "SYSTEM",
+      "label": "Protected Symlinks Enabled",
+      "command": "cat /proc/sys/fs/protected_symlinks",
+      "safe_pattern": "^1$",
+      "level": "warning",
+      "description": "Symlink protection should be enabled to prevent symlink-based privilege escalation."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Protected Hardlinks Enabled",
+      "command": "cat /proc/sys/fs/protected_hardlinks",
+      "safe_pattern": "^1$",
+      "level": "warning",
+      "description": "Hardlink protection should be enabled to prevent unauthorized file access."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "dmesg Restriction Enabled",
+      "command": "cat /proc/sys/kernel/dmesg_restrict",
+      "safe_pattern": "^1$",
+      "level": "warning",
+      "description": "Restricting dmesg access prevents unprivileged users from reading kernel logs."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Android Automotive OS Detected",
+      "command": "getprop ro.build.characteristics 2>/dev/null | grep -i automotive || pm list features 2>/dev/null | grep -i 'android.hardware.type.automotive'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Device is Android Automotive platform"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Vehicle HAL Service",
+      "command": "service list 2>/dev/null | grep -i 'vehicle\\|car\\|vhal'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Vehicle Hardware Abstraction Layer service status"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Car Service Running",
+      "command": "dumpsys activity services 2>/dev/null | grep -i 'CarService\\|android.car' | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Android Car Service status"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Automotive Build Flavor",
+      "command": "getprop ro.build.flavor 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Build flavor - check if automotive variant"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Debug Build Type",
+      "command": "getprop ro.build.type 2>/dev/null",
+      "safe_pattern": "^user$",
+      "level": "critical",
+      "description": "Must be 'user' build. 'userdebug' or 'eng' allow debugging"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Test Keys Used",
+      "command": "getprop ro.build.tags 2>/dev/null",
+      "safe_pattern": "release-keys",
+      "level": "critical",
+      "description": "Must use release-keys. test-keys means unsigned/development build"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Debuggable Flag",
+      "command": "getprop ro.debuggable 2>/dev/null",
+      "safe_pattern": "^0$",
+      "level": "critical",
+      "description": "ro.debuggable=1 allows ptrace, debugging - must be 0"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "ADB Secure Mode",
+      "command": "getprop ro.adb.secure 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "critical",
+      "description": "ro.adb.secure=1 requires RSA authentication for ADB"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "ADB Root Access",
+      "command": "id 2>/dev/null",
+      "safe_pattern": "uid=[1-9]|shell",
+      "level": "critical",
+      "description": "ADB shell should NOT run as root (uid=0)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Device Locked",
+      "command": "getprop ro.boot.flash.locked 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "critical",
+      "description": "Bootloader should be locked (flash.locked=1)"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "dm-verity Mode",
+      "command": "getprop ro.boot.veritymode 2>/dev/null",
+      "safe_pattern": "^enforcing$",
+      "level": "critical",
+      "description": "dm-verity must be enforcing to protect system partitions"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Security Patch Age",
+      "command": "getprop ro.build.version.security_patch 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Security patch date - check if outdated"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Default Build Fingerprint",
+      "command": "getprop ro.build.fingerprint 2>/dev/null | grep -iE 'generic|test|debug|eng|sample'",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "CAN bus interface accessible from Android - CRITICAL if exposed!",
+      "description": "Generic/test build fingerprint indicates development firmware",
       "empty_is_safe": true
     },
     {
-      "category": "NETWORK",
-      "label": "OBD-II Service Running",
-      "command": "ps -A 2>/dev/null | grep -iE 'obd|elm327|canbus|socketcan'",
+      "category": "SYSTEM",
+      "label": "Manufacturer Default Unchanged",
+      "command": "getprop ro.product.model 2>/dev/null | grep -iE 'generic|test|sample|development'",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "OBD-II diagnostic service detected",
+      "description": "Device model indicates test/development unit",
       "empty_is_safe": true
     },
     {
-      "category": "NETWORK",
-      "label": "Vehicle Diagnostic Permissions",
-      "command": "timeout 8 dumpsys package 2>/dev/null | grep -E 'android.car.permission.CAR_DIAGNOSTICS|android.car.permission.CAR_ENGINE' | head -5",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Apps with vehicle diagnostic permissions"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Vehicle Control Permissions",
-      "command": "timeout 8 dumpsys package 2>/dev/null | grep -E 'CAR_CONTROL|CAR_SPEED|CAR_ENERGY|CAR_POWERTRAIN' | head -5",
+      "category": "SYSTEM",
+      "label": "Root Shell Available",
+      "command": "id 2>/dev/null | grep 'uid=0'",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "Apps with vehicle control permissions - review carefully!",
+      "description": "ADB shell runs as root - full device access!",
       "empty_is_safe": true
     },
     {
-      "category": "NETWORK",
-      "label": "Telematics Service",
-      "command": "ps -A 2>/dev/null | grep -iE 'telematics|tcu|tbox|connectivity'",
+      "category": "SYSTEM",
+      "label": "Factory Reset Protection",
+      "command": "getprop ro.frp.pst 2>/dev/null",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Telematics/connectivity service running"
+      "description": "Factory Reset Protection partition configured"
     },
     {
-      "category": "NETWORK",
-      "label": "Cellular Modem for Telematics",
-      "command": "getprop gsm.version.baseband 2>/dev/null; getprop ro.telephony.default_network 2>/dev/null",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Cellular connectivity for telematics/OTA"
-    },
-    {
-      "category": "NETWORK",
-      "label": "GPS/Location Always On",
-      "command": "settings get secure location_mode 2>/dev/null",
-      "safe_pattern": "0",
-      "level": "warning",
-      "description": "Location tracking enabled - privacy concern for vehicles"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Driving Mode Restrictions",
-      "command": "settings get global car_dock_sound 2>/dev/null; dumpsys car_service 2>/dev/null | grep -i 'driving\\|restriction' | head -3",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Driving mode and UX restrictions status"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Vehicle Network Interfaces",
-      "command": "ip link show 2>/dev/null | grep -iE 'can|eth|vlan|vehicle'",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Network interfaces including vehicle networks"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Ethernet to Vehicle Gateway",
-      "command": "ip addr show 2>/dev/null | grep -A2 'eth0\\|eth1' | grep inet",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Ethernet connection - may connect to vehicle gateway"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Bluetooth OBD Adapters",
-      "command": "dumpsys bluetooth_manager 2>/dev/null | grep -iE 'OBD\\|ELM\\|OBDII\\|Vgate\\|Carista' | head -3",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "Bluetooth OBD-II adapters paired - can access vehicle data",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "WiFi Direct for CarPlay/Android Auto",
-      "command": "dumpsys wifi 2>/dev/null | grep -i 'p2p\\|direct\\|carplay\\|androidauto' | head -3",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "WiFi Direct status for phone projection"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Firebase Config Present",
-      "command": "ls /data/data/*/google-services.json /data/data/*/files/google-services.json 2>/dev/null || find /data -maxdepth 6 -name 'google-services.json' 2>/dev/null | head -3",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Firebase configuration - check security rules"
-    },
-    {
-      "category": "NETWORK",
-      "label": "AWS SDK/Config",
-      "command": "find /data/data /data/app /data/misc /data/local /system/etc /system/app /vendor/etc -maxdepth 5 -type f \\( -name '*.json' -o -name '*.conf' -o -name '*.properties' -o -name '*.xml' -o -name '*.yaml' -o -name '*.yml' -o -name '*.env' -o -name '*.cfg' \\) -print0 2>/dev/null | xargs -0 grep -l -i 'aws_access_key\\|aws_secret\\|amazonaws.com' 2>/dev/null | head -5",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "AWS credentials or config found",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "Azure IoT Config",
-      "command": "find /data/data /data/app /data/misc /data/local /system/etc /system/app /vendor/etc -maxdepth 5 -type f \\( -name '*.json' -o -name '*.conf' -o -name '*.xml' -o -name '*.properties' -o -name '*.yaml' -o -name '*.yml' -o -name '*.env' -o -name '*.cfg' \\) -print0 2>/dev/null | xargs -0 grep -l -i 'azure-devices.net\\|iothub\\|SharedAccessKey' 2>/dev/null | head -5",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "Azure IoT Hub configuration found",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "MQTT Broker Config",
-      "command": "find /data/data /data/misc /system/etc /vendor/etc /vendor/firmware -maxdepth 5 -type f \\( -name '*.conf' -o -name '*.json' -o -name '*.xml' -o -name '*.yaml' -o -name '*.yml' -o -name '*.cfg' \\) -print0 2>/dev/null | xargs -0 grep -l -iE 'mqtt://|mqtts://|broker.*1883|mosquitto' 2>/dev/null | head -5",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "MQTT broker configuration files"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Telemetry Endpoints",
-      "command": "find /system/etc /vendor/etc /system/app /vendor/app -maxdepth 4 -type f \\( -name '*.json' -o -name '*.xml' -o -name '*.yaml' -o -name '*.conf' \\) -print0 2>/dev/null | xargs -0 grep -l -iE 'telemetry|analytics|tracking|metrics' 2>/dev/null | head -5",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Telemetry/analytics endpoints configured"
-    },
-    {
-      "category": "NETWORK",
-      "label": "OTA Update URL",
-      "command": "find /system/etc /vendor/etc /system/app /vendor/app /vendor/firmware -maxdepth 4 -type f \\( -name '*.json' -o -name '*.xml' -o -name '*.conf' -o -name '*.prop' -o -name '*.yaml' \\) -print0 2>/dev/null | xargs -0 grep -l -iE 'ota.*update|firmware.*url|update.*server' 2>/dev/null | head -5",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "OTA update configuration - verify HTTPS and signing"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Remote Management Ports",
-      "command": "netstat -tlnp 2>/dev/null | grep -E ':8080|:8443|:9090|:3000|:4000' || ss -tlnp 2>/dev/null | grep -E ':8080|:8443|:9090|:3000|:4000'",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "Management/API ports exposed",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "Open TCP Ports",
-      "command": "netstat -tlnp 2>/dev/null || ss -tlnp 2>/dev/null",
-      "safe_pattern": "^$",
-      "level": "info",
-      "description": "All listening TCP ports - review for unnecessary services",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "Open UDP Ports",
-      "command": "netstat -ulnp 2>/dev/null || ss -ulnp 2>/dev/null",
-      "safe_pattern": "^$",
-      "level": "info",
-      "description": "INFO: All external UDP ports. 🟢 SAFE=empty. 🔴 UNSAFE=any output exposes UDP services. Why: UDP services often lack authentication.",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "HTTP Server Running",
-      "command": "netstat -tlnp 2>/dev/null | grep -E ':80\\b|:8080\\b|:443\\b|:8443\\b' || ss -tlnp 2>/dev/null | grep -E ':80\\b|:8080\\b|:443\\b|:8443\\b'",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "Web server exposed - potential attack surface",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "Telnet Service (Insecure)",
-      "command": "netstat -tlnp 2>/dev/null | grep ':23\\b' || ss -tlnp 2>/dev/null | grep ':23\\b'",
-      "safe_pattern": "^$",
+      "category": "SYSTEM",
+      "label": "Rollback Protection Index",
+      "command": "getprop ro.boot.vbmeta.device_state 2>/dev/null",
+      "safe_pattern": "^locked$",
       "level": "critical",
-      "description": "Telnet transmits credentials in plaintext - CRITICAL RISK",
-      "empty_is_safe": true
+      "description": "Device state should be locked for rollback protection",
+      "requires_output": true,
+      "empty_is_safe": false
     },
     {
-      "category": "NETWORK",
-      "label": "FTP Service (Insecure)",
-      "command": "netstat -tlnp 2>/dev/null | grep ':21\\b' || ss -tlnp 2>/dev/null | grep ':21\\b'",
-      "safe_pattern": "^$",
-      "level": "critical",
-      "description": "FTP transmits credentials in plaintext - CRITICAL RISK",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "SSH Service",
-      "command": "netstat -tlnp 2>/dev/null | grep ':22\\b' || ss -tlnp 2>/dev/null | grep ':22\\b'",
+      "category": "SYSTEM",
+      "label": "Debug Properties Set",
+      "command": "getprop | grep -iE 'debug|verbose|log.*level' | grep -v ':\\s*$' | head -5",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "SSH exposed - ensure strong authentication",
+      "description": "Debug properties enabled - may leak sensitive info",
       "empty_is_safe": true
     },
     {
-      "category": "NETWORK",
-      "label": "ADB Network Port (5555)",
-      "command": "netstat -tlnp 2>/dev/null | grep ':5555\\b' || ss -tlnp 2>/dev/null | grep ':5555\\b'",
-      "safe_pattern": "^$",
+      "category": "SYSTEM",
+      "label": "Software Bill of Materials (SBOM)",
+      "command": "pm list packages -f 2>/dev/null | wc -l",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Total packages - FDA requires SBOM for premarket submissions"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Third-Party Libraries",
+      "command": "find /system /vendor -name '*.so' 2>/dev/null | wc -l",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Shared libraries count - document for SBOM/vulnerability tracking"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Build Timestamp",
+      "command": "getprop ro.build.date 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Firmware build date - document for configuration management"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Screen Lock Enforced",
+      "command": "settings get secure lockscreen.password_type 2>/dev/null",
+      "safe_pattern": "[1-9]",
       "level": "critical",
-      "description": "ADB over network - allows remote shell access!",
-      "empty_is_safe": true
+      "description": "Screen lock MUST be enabled to protect PHI access"
     },
     {
-      "category": "NETWORK",
-      "label": "MQTT Broker (1883/8883)",
-      "command": "netstat -tlnp 2>/dev/null | grep -E ':1883\\b|:8883\\b' || ss -tlnp 2>/dev/null | grep -E ':1883\\b|:8883\\b'",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "MQTT broker exposed - check authentication",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "CoAP Service (5683/5684)",
-      "command": "netstat -ulnp 2>/dev/null | grep -E ':5683\\b|:5684\\b' || ss -ulnp 2>/dev/null | grep -E ':5683\\b|:5684\\b'",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "CoAP service exposed - IoT protocol",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "UPnP Service (1900)",
-      "command": "netstat -ulnp 2>/dev/null | grep ':1900\\b' || ss -ulnp 2>/dev/null | grep ':1900\\b'",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "UPnP can expose device to network attacks",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "Network Interfaces",
-      "command": "ip addr show 2>/dev/null | grep -E 'inet |inet6 ' | grep -v '127.0.0.1\\|::1'",
-      "safe_pattern": ".",
+      "category": "SYSTEM",
+      "label": "TEE Driver Presence",
+      "command": "ls /dev/tee* /dev/trusty* 2>/dev/null",
+      "safe_pattern": "/dev/tee\\|/dev/trusty",
       "level": "info",
-      "description": "Active network interfaces and IPs"
+      "description": "TEE driver (Trusted Execution Environment) presence check"
     },
     {
-      "category": "NETWORK",
-      "label": "Default Gateway",
-      "command": "ip route show default 2>/dev/null",
-      "safe_pattern": ".",
+      "category": "SYSTEM",
+      "label": "TPM Keystore Presence",
+      "command": "ls /system/lib64/hw/keystore.* 2>/dev/null",
+      "safe_pattern": "^ls:.*No such file or directory$",
       "level": "info",
-      "description": "Network gateway configuration"
+      "description": "Checks for hardware-backed keystore modules"
     },
     {
-      "category": "NETWORK",
-      "label": "Network Services Exposed",
-      "command": "netstat -tlnp 2>/dev/null | grep -v '127.0.0.1' || ss -tlnp 2>/dev/null | grep -v '127.0.0.1'",
-      "safe_pattern": "^$",
-      "level": "critical",
-      "description": "Network services exposed - each must be documented and secured",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "HL7/FHIR Ports (2575, 8080)",
-      "command": "netstat -tlnp 2>/dev/null | grep -E ':2575|:8080|:8443' || ss -tlnp 2>/dev/null | grep -E ':2575|:8080|:8443'",
-      "safe_pattern": ".",
+      "category": "SYSTEM",
+      "label": "TEE Vendor Prop",
+      "command": "getprop | grep -i tee",
+      "safe_pattern": ".*",
       "level": "info",
-      "description": "HL7/FHIR API ports - verify TLS and authentication"
+      "description": "Shows any TEE-related properties"
     },
     {
-      "category": "NETWORK",
-      "label": "DICOM Ports (104, 11112)",
-      "command": "netstat -tlnp 2>/dev/null | grep -E ':104\\b|:11112' || ss -tlnp 2>/dev/null | grep -E ':104\\b|:11112'",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "DICOM imaging ports - verify security configuration"
-    },
-    {
-      "category": "NETWORK",
-      "label": "WiFi Security Protocol",
-      "command": "dumpsys wifi 2>/dev/null | grep -iE 'security|wpa|wep|open' | head -3",
-      "safe_pattern": "WPA2|WPA3",
-      "level": "warning",
-      "description": "Must use WPA2/WPA3 - WEP/Open networks prohibited for PHI"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Root Network Access Test",
-      "command": "su -c 'netstat -anp 2>/dev/null | head -5' || echo 'ROOT_REQUIRED_FOR_FULL_OUTPUT'",
-      "safe_pattern": "tcp|udp|Proto",
-      "level": "info",
-      "description": "INFO: Tests if root access works for network commands. If ROOT_REQUIRED shown, run HARDAX on rooted device for full network audit."
-    },
-    {
-      "category": "NETWORK",
-      "label": "All Network Connections (Root)",
-      "command": "su -c 'netstat -anp' 2>/dev/null || netstat -an 2>/dev/null || ss -anp 2>/dev/null || ss -an 2>/dev/null",
-      "safe_pattern": "^\\s*$",
-      "level": "info",
-      "description": "INFO: Complete network connections list. Shows all TCP/UDP with PID if rooted. Use to verify other checks are working."
-    },
-    {
-      "category": "NETWORK",
-      "label": "Listening Ports Summary (Root)",
-      "command": "su -c 'netstat -lnp' 2>/dev/null | grep -E '^tcp|^udp' || netstat -ln 2>/dev/null | grep -E '^tcp|^udp'",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "INFO: All listening ports (TCP+UDP). 🟢 SAFE=only 127.0.0.1. 🔴 REVIEW=any 0.0.0.0 or external IP. Shows PID/program if rooted."
-    },
-    {
-      "category": "NETWORK",
-      "label": "Listening TCP Ports (IPv4)",
-      "command": "netstat -lntp 2>/dev/null | grep '^tcp ' || ss -lntp 2>/dev/null | grep '^tcp'",
-      "safe_pattern": "^\\s*$",
-      "level": "info",
-      "description": "INFO: All IPv4 TCP listening ports. 🟢 SAFE if 127.0.0.1 (localhost only). 🔴 UNSAFE if 0.0.0.0 (anyone can connect). Empty may indicate command failure on non-rooted device."
-    },
-    {
-      "category": "NETWORK",
-      "label": "Common TCP Ports Exposed (IPv4)",
-      "command": "netstat -lntp 2>/dev/null | grep '^tcp ' | grep -E ':(53|80|25|110|143|465|587|993|995|8080|8443|22)[^0-9]' | grep -v '127\\.' || ss -lntp 2>/dev/null | grep -E ':(53|80|25|110|143|465|587|993|995|8080|8443|22)[^0-9]' | grep -v '127\\.'",
-      "safe_pattern": "^\\s*$",
-      "level": "warning",
-      "description": "WARNING: 22(SSH), 53(DNS), 80(HTTP), 8080(Proxy) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: brute force, unencrypted traffic."
-    },
-    {
-      "category": "NETWORK",
-      "label": "Critical TCP Ports Exposed (IPv4)",
-      "command": "netstat -lntp 2>/dev/null | grep '^tcp ' | grep -E ':(21|23|25|445|3306|5432|5555|5900|5901|3389|4444|41795)[^0-9]' | grep -v '127\\.' || ss -lntp 2>/dev/null | grep -E ':(21|23|25|445|3306|5432|5555|5900|5901|3389|4444|41795)[^0-9]' | grep -v '127\\.'",
-      "safe_pattern": "^\\s*$",
-      "level": "critical",
-      "description": "CRITICAL: 21(FTP), 23(Telnet), 5555(ADB), 3306(MySQL), 3389(RDP), 5900(VNC) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. IMMEDIATE ACTION REQUIRED!"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Open UDP Ports (IPv4, excluding localhost)",
-      "command": "netstat -lnup 2>/dev/null | grep '^udp ' | grep -v '127\\.' || ss -lnup 2>/dev/null | grep '^udp' | grep -v '127\\.'",
-      "safe_pattern": "^\\s*$",
-      "level": "info",
-      "description": "INFO: External UDP ports. 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: UDP services often lack authentication."
-    },
-    {
-      "category": "NETWORK",
-      "label": "UDP Ports 123, 161, 162, 5353 Open (IPv4)",
-      "command": "netstat -lnup 2>/dev/null | grep '^udp ' | grep -E ':(123|161|162|5353)[^0-9]' | grep -v '127\\.' || ss -lnup 2>/dev/null | grep -E ':(123|161|162|5353)[^0-9]' | grep -v '127\\.'",
-      "safe_pattern": "^\\s*$",
-      "level": "warning",
-      "description": "WARNING: 123(NTP), 161(SNMP), 5353(mDNS) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: DDoS amplification, device info leakage."
-    },
-    {
-      "category": "NETWORK",
-      "label": "Potentially Vulnerable UDP Ports (IPv4)",
-      "command": "netstat -lnup 2>/dev/null | grep '^udp ' | grep -E ':(69|1900|500|4500|520)[^0-9]' | grep -v '127\\.' || ss -lnup 2>/dev/null | grep -E ':(69|1900|500|4500|520)[^0-9]' | grep -v '127\\.'",
-      "safe_pattern": "^\\s*$",
-      "level": "critical",
-      "description": "CRITICAL: 69(TFTP), 1900(SSDP), 500(IPsec) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: No auth, DDoS amplification!"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Listening TCP Ports (IPv6, excluding ::1)",
-      "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -v '::1'",
-      "safe_pattern": "^\\s*$",
-      "level": "info",
-      "description": "INFO: IPv6 TCP listening ports. 🟢 SAFE=empty or ::1 only. 🔴 UNSAFE if ::: (all interfaces). IPv6 often overlooked!"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Common TCP Ports Exposed (IPv6, Warning)",
-      "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -E ':(53|80|25|110|143|465|587|993|995|8080|8443|22)[^0-9]' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -E ':(53|80|22)[^0-9]' | grep -v '::1'",
-      "safe_pattern": "^\\s*$",
-      "level": "warning",
-      "description": "WARNING: Common TCP on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Often missed in firewall rules!"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Expanded Critical TCP Ports (excluding SSH) Listening or External (IPv6)",
-      "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -E ':(21|23|25|445|3306|5432|5555|5900|5901|3389|4444|41795)[^0-9]' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -E ':(21|23|5555)[^0-9]' | grep -v '::1'",
-      "safe_pattern": "^\\s*$",
-      "level": "critical",
-      "description": "CRITICAL: Dangerous ports on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Full device control via IPv6!"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Open UDP Ports (IPv6, excluding localhost)",
-      "command": "netstat -lnup 2>/dev/null | grep '^udp6' | grep -v '::1' || ss -lnup 2>/dev/null | grep 'udp6\\|\\[::\\]' | grep -v '::1'",
-      "safe_pattern": "^\\s*$",
-      "level": "info",
-      "description": "INFO: External IPv6 UDP ports. 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Bypasses IPv4 firewall rules."
-    },
-    {
-      "category": "NETWORK",
-      "label": "UDP Ports 123, 161, 162, 5353 Open (IPv6)",
-      "command": "netstat -lnup 2>/dev/null | grep '^udp6' | grep -E ':(123|161|162|5353)[^0-9]' | grep -v '::1' || ss -lnup 2>/dev/null | grep 'udp6' | grep -E ':(123|161|5353)[^0-9]' | grep -v '::1'",
-      "safe_pattern": "^\\s*$",
-      "level": "warning",
-      "description": "WARNING: NTP/SNMP/mDNS on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: DDoS, device discovery."
-    },
-    {
-      "category": "NETWORK",
-      "label": "Potentially Vulnerable UDP Ports (IPv6)",
-      "command": "netstat -lnup 2>/dev/null | grep '^udp6' | grep -E ':(69|1900|500|4500|520)[^0-9]' | grep -v '::1' || ss -lnup 2>/dev/null | grep 'udp6' | grep -E ':(69|1900)[^0-9]' | grep -v '::1'",
-      "safe_pattern": "^\\s*$",
-      "level": "critical",
-      "description": "CRITICAL: TFTP/SSDP on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: No-auth file transfer, DDoS!"
-    },
-    {
-      "category": "NETWORK",
-      "label": "VPN Legacy Mode",
-      "command": "settings get global vpn_legacy_mode",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Legacy VPN mode status"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Always-On VPN",
-      "command": "settings get secure always_on_vpn_app",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Always-on VPN app if configured"
-    },
-    {
-      "category": "NETWORK",
-      "label": "VPN Lockdown",
-      "command": "settings get secure always_on_vpn_lockdown",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "VPN lockdown mode prevents traffic without VPN"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Active VPN Connections",
-      "command": "dumpsys connectivity 2>/dev/null | grep -i vpn | head -5",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Current VPN connection status"
-    },
-    {
-      "category": "NETWORK",
-      "label": "WiFi Enabled",
-      "command": "settings get global wifi_on",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "WiFi enabled status"
-    },
-    {
-      "category": "NETWORK",
-      "label": "WiFi Networks Saved",
-      "command": "cmd wifi list-networks 2>/dev/null | wc -l",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Number of saved WiFi networks"
-    },
-    {
-      "category": "NETWORK",
-      "label": "WiFi MAC Randomization",
-      "command": "settings get global wifi_connected_mac_randomization_enabled",
+      "category": "SYSTEM",
+      "label": "Auto Time Enabled",
+      "command": "settings get global auto_time",
       "safe_pattern": "1",
       "level": "warning",
-      "description": "MAC randomization protects privacy"
+      "description": "Auto time sync helps prevent cert/token attacks"
     },
     {
-      "category": "NETWORK",
-      "label": "WiFi Scan Always Available",
-      "command": "settings get global wifi_scan_always_enabled",
-      "safe_pattern": "0|null",
+      "category": "SYSTEM",
+      "label": "Auto Timezone",
+      "command": "settings get global auto_time_zone",
+      "safe_pattern": "1",
+      "level": "info",
+      "description": "Automatic timezone detection"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "NTP Server",
+      "command": "settings get global ntp_server",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Configured NTP server for time sync"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Time Zone",
+      "command": "getprop persist.sys.timezone",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Current timezone setting"
+    },
+    {
+      "category": "SYSTEM",
+      "label": "WebView Provider",
+      "command": "settings get global webview_provider",
+      "safe_pattern": "com.google.android.webview|com.android.webview",
       "level": "warning",
-      "description": "WiFi scanning when WiFi off can leak location"
+      "description": "WebView implementation provider"
     },
     {
-      "category": "NETWORK",
-      "label": "Open Network Notification",
-      "command": "settings get global wifi_networks_available_notification_on",
-      "safe_pattern": "0",
+      "category": "SYSTEM",
+      "label": "WebView Version",
+      "command": "dumpsys package com.google.android.webview 2>/dev/null | grep versionName | head -1",
+      "safe_pattern": ".",
       "level": "info",
-      "description": "Notifications for open networks"
+      "description": "WebView version - should be updated"
     },
     {
-      "category": "NETWORK",
-      "label": "WiFi Watchdog",
-      "command": "settings get global wifi_watchdog_on",
-      "safe_pattern": "1",
+      "category": "SYSTEM",
+      "label": "Safe Browsing",
+      "command": "settings get global safe_boot_disallowed",
+      "safe_pattern": ".",
       "level": "info",
-      "description": "WiFi watchdog monitors connection quality"
+      "description": "Safe browsing configuration"
     },
     {
-      "category": "NETWORK",
-      "label": "WiFi Captive Portal Detection",
-      "command": "settings get global captive_portal_detection_enabled",
-      "safe_pattern": "1",
-      "level": "info",
-      "description": "Captive portal detection for public WiFi"
+      "category": "SYSTEM",
+      "label": "Emulator Detection (QEMU)",
+      "command": "getprop ro.kernel.qemu 2>/dev/null",
+      "safe_pattern": "^$|^0$",
+      "level": "warning",
+      "description": "QEMU emulator property set - POS and IoT devices must run on physical hardware, not emulators",
+      "empty_is_safe": true
     },
     {
-      "category": "NETWORK",
-      "label": "Active External Connections (ESTABLISHED)",
-      "command": "netstat -tunp 2>/dev/null | grep ESTABLISHED | grep -vE '127.0.0.1|::1|localhost' | head -20 || ss -tunp 2>/dev/null | grep ESTAB | grep -vE '127.0.0.1|::1' | head -20",
+      "category": "SYSTEM",
+      "label": "Virtual Hardware Detection",
+      "command": "getprop ro.hardware 2>/dev/null | grep -iE 'goldfish|ranchu|vbox|virtualbox|genymotion|nox'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Virtual/emulated hardware detected - goldfish/ranchu=Android emulator, vbox=VirtualBox",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "System Memory Status",
+      "command": "cat /proc/meminfo 2>/dev/null | grep -iE 'MemTotal|MemFree|MemAvailable'",
       "safe_pattern": "",
-      "level": "warning",
-      "description": "Active outbound connections to external IPs - unexpected connections may indicate C2 communication or data exfiltration",
+      "level": "info",
+      "description": "System memory baseline - abnormally low available memory may indicate memory scraping attacks or crypto mining",
+      "empty_is_safe": false
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Suspicious Executables in /data/local/tmp",
+      "command": "find /data/local/tmp -type f -executable 2>/dev/null",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Executable files in /data/local/tmp - common staging location for exploits, Frida gadgets, and malware payloads",
+      "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "SIM Card / Cellular Status",
+      "command": "getprop gsm.sim.state 2>/dev/null",
+      "safe_pattern": "",
+      "level": "info",
+      "description": "SIM card state - POS terminals and IoT kiosks typically should not have active cellular connectivity",
       "empty_is_safe": false
     }
   ]
