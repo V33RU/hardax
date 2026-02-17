@@ -1,4 +1,5 @@
-# HARDAX v2.0
+<h1 align="center">HARDAX</h1>
+
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-2.0-blue.svg" alt="Version">
@@ -9,7 +10,6 @@
 </p>
 
 <p align="center">
-  <b>Hardening Audit eXaminer for Android OS based Connected Devices</b><br>
 </p>
 
 ```
