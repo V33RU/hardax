@@ -1003,6 +1003,9 @@ def _readCertBytes(device: Device, path: str):
 def auditCertificates(device: Device) -> List[Dict[str, Any]]:
     """Pull and analyze system + user certificates from the device."""
     certs: List[Dict[str, Any]] = []
+    import warnings
+    from cryptography.utils import CryptographyDeprecationWarning
+    warnings.filterwarnings('ignore', category=CryptographyDeprecationWarning)
     try:
         from cryptography import x509
         from cryptography.hazmat.backends import default_backend
@@ -1039,20 +1042,20 @@ def auditCertificates(device: Device) -> List[Dict[str, Any]]:
             subject = getattr(cert, "subject", None)
             issuer = getattr(cert, "issuer", None)
             try:
-                notBefore = getattr(cert, "not_valid_before")
-                notAfter = getattr(cert, "not_valid_after")
+                notBefore = getattr(cert, 'not_valid_before_utc')
+                notAfter  = getattr(cert, 'not_valid_after_utc')
             except Exception:
-                notBefore = getattr(cert, "not_valid_before_utc", None)
-                notAfter = getattr(cert, "not_valid_after_utc", None)
+                notBefore = getattr(cert, 'not_valid_before', None)
+                notAfter  = getattr(cert, 'not_valid_after', None)
             if notBefore is None or notAfter is None:
                 continue
 
             try:
                 subjectStr = subject.rfc4514_string() if subject else "Unknown"
-                issuerStr = issuer.rfc4514_string() if issuer else "Unknown"
+                issuerStr  = issuer.rfc4514_string()  if issuer  else "Unknown"
             except Exception:
                 subjectStr = "Unknown"
-                issuerStr = "Unknown"
+                issuerStr  = "Unknown"
 
             daysOld = (today - notBefore.replace(tzinfo=None)).days
             daysUntilExpiry = (notAfter.replace(tzinfo=None) - today).days
@@ -1195,7 +1198,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
             daysInfo = f"{c['days_old']:,}" if isinstance(c["days_old"], int) else "-"
             expiryInfo = f"{c['days_until_expiry']:,}" if isinstance(c["days_until_expiry"], int) else "-"
             certParts.append(
-                f'<tr class="cert-row {riskClass}">'
+                f'<tr class="cert-row {riskClass}" data-status="{riskClass.upper()}" data-search="{htmlEscape(c["cn"].lower())} {htmlEscape(c["issuer"].lower())}">'
                 f'<td>{htmlEscape(c["cn"])}</td>'
                 f'<td>{htmlEscape(c["not_before"])}</td>'
                 f'<td>{htmlEscape(c["not_after"])}</td>'
@@ -1832,7 +1835,24 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
     footer strong {{ color: var(--accent); }}
 
     .hidden {{ display: none !important; }}
-  </style>
+  
+  /* ── HARDAX v6: selected severity card visuals & indicator ── */
+  .sev-card {{ position: relative; }}
+  .sev-card.selected {{ outline: 2px solid var(--accent); outline-offset: -2px; opacity: 1 !important; filter: none !important; }}
+  .sev-card.selected::before {{ background: var(--accent) !important; box-shadow: 0 0 16px rgba(0,229,255,0.35); height: 3px; }}
+  .sev-card.unselected {{ opacity: 0.35 !important; filter: grayscale(0.85) !important; }}
+  .stat-card {{ cursor: pointer; }}
+  .stat-card.total {{ cursor: default; opacity: 1 !important; filter: none !important; }}
+  .active-sev-indicator {{ margin: 8px 0 18px 0; display:flex; flex-wrap:wrap; gap:8px; }}
+  .active-chip {{ padding:6px 10px; border-radius:12px; font-size:0.72rem; font-weight:700; letter-spacing:0.3px; border:1px solid var(--border); background: var(--bg-2); }}
+  .active-chip.critical{{ color: var(--critical); border-color: rgba(255,45,85,0.35);}}
+  .active-chip.warning{{ color: var(--warning);  border-color: rgba(255,179,0,0.35);}}
+  .active-chip.verify {{ color: var(--verify);   border-color: rgba(186,104,200,0.35);}}
+  .active-chip.safe   {{ color: var(--safe);     border-color: rgba(0,230,118,0.35);}}
+  .active-chip.info   {{ color: var(--info);     border-color: rgba(68,138,255,0.35);}}
+  .active-chip.skipped{{ color: var(--skipped);  border-color: rgba(84,110,122,0.45);}}
+
+</style>
 </head>
 <body>
   <div class="container">
@@ -1849,25 +1869,14 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
         <button class="btn" onclick="collapseAll()">− Collapse</button>
       </div>
     </div>
-
-    <!-- SEVERITY TOGGLE BAR -->
-    <div class="severity-bar" id="severityBar">
-      <span class="sev-toggle active" data-sev="CRITICAL" onclick="toggleSev(this)">✗ CRITICAL ({counts.get("critical", 0)})</span>
-      <span class="sev-toggle active" data-sev="WARNING"  onclick="toggleSev(this)">⚠ WARNING ({counts.get("warning", 0)})</span>
-      <span class="sev-toggle active" data-sev="VERIFY"   onclick="toggleSev(this)">? VERIFY ({counts.get("verify", 0)})</span>
-      <span class="sev-toggle active" data-sev="SAFE"     onclick="toggleSev(this)">✓ SAFE ({counts.get("safe", 0)})</span>
-      <span class="sev-toggle active" data-sev="INFO"     onclick="toggleSev(this)">ℹ INFO ({counts.get("info", 0)})</span>
-      <span class="sev-toggle active" data-sev="SKIPPED"  onclick="toggleSev(this)">⊘ SKIPPED ({counts.get("skipped", 0)})</span>
-    </div>
-
-    <!-- SUMMARY CARDS -->
+ <!-- SUMMARY CARDS -->
     <div class="summary-grid">
-      <div class="stat-card critical"><div class="num">{counts.get("critical", 0)}</div><div class="lbl">Critical</div></div>
-      <div class="stat-card warning"><div class="num">{counts.get("warning", 0)}</div><div class="lbl">Warnings</div></div>
-      <div class="stat-card verify"><div class="num">{counts.get("verify", 0)}</div><div class="lbl">Verify</div></div>
-      <div class="stat-card safe"><div class="num">{counts.get("safe", 0)}</div><div class="lbl">Safe</div></div>
-      <div class="stat-card info"><div class="num">{counts.get("info", 0)}</div><div class="lbl">Info</div></div>
-      <div class="stat-card skipped"><div class="num">{counts.get("skipped", 0)}</div><div class="lbl">Skipped</div></div>
+      <div class="stat-card critical sev-card" data-sev="CRITICAL"><div class="num">{counts.get("critical", 0)}</div><div class="lbl">Critical</div></div>
+      <div class="stat-card warning sev-card" data-sev="WARNING"><div class="num">{counts.get("warning", 0)}</div><div class="lbl">Warnings</div></div>
+      <div class="stat-card verify sev-card" data-sev="VERIFY"><div class="num">{counts.get("verify", 0)}</div><div class="lbl">Verify</div></div>
+      <div class="stat-card safe sev-card" data-sev="SAFE"><div class="num">{counts.get("safe", 0)}</div><div class="lbl">Safe</div></div>
+      <div class="stat-card info sev-card" data-sev="INFO"><div class="num">{counts.get("info", 0)}</div><div class="lbl">Info</div></div>
+      <div class="stat-card skipped sev-card" data-sev="SKIPPED"><div class="num">{counts.get("skipped", 0)}</div><div class="lbl">Skipped</div></div>
       <div class="stat-card total"><div class="num">{totalChecks}</div><div class="lbl">Total</div></div>
     </div>
 
@@ -1908,61 +1917,81 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
       document.querySelectorAll('.category-section').forEach(s => s.classList.remove('open'));
     }}
 
-    /* ── Severity filter toggles ── */
-    const activeSev = new Set(['CRITICAL','WARNING','VERIFY','SAFE','INFO','SKIPPED']);
-
-    function toggleSev(el) {{
-      const sev = el.getAttribute('data-sev');
-      if (activeSev.has(sev)) {{
-        activeSev.delete(sev);
-        el.classList.remove('active');
-        el.classList.add('inactive');
-      }} else {{
-        activeSev.add(sev);
-        el.classList.remove('inactive');
-        el.classList.add('active');
-      }}
-      applySevFilter();
-    }}
-
-    function applySevFilter() {{
-      document.querySelectorAll('.category-section:not(.cert-section)').forEach(section => {{
-        const items = section.querySelectorAll('.check-item');
-        let visible = 0;
-        items.forEach(item => {{
-          const st = item.getAttribute('data-status');
-          const show = activeSev.has(st);
-          item.classList.toggle('hidden', !show);
-          if (show) visible++;
-        }});
-        section.classList.toggle('hidden', visible === 0);
-        if (visible > 0 && !section.classList.contains('open')) {{
-          /* keep closed unless user opened */
-        }}
-      }});
-    }}
-
-    /* ── Search ── */
-    document.getElementById('searchInput').addEventListener('input', function(e) {{
-      const q = e.target.value.toLowerCase().trim();
-      document.querySelectorAll('.category-section:not(.cert-section)').forEach(section => {{
-        const items = section.querySelectorAll('.check-item');
-        let vis = 0;
-        items.forEach(item => {{
-          const txt = item.getAttribute('data-search') || '';
-          const st = item.getAttribute('data-status');
-          const matchSearch = !q || txt.includes(q);
-          const matchSev = activeSev.has(st);
-          const show = matchSearch && matchSev;
-          item.classList.toggle('hidden', !show);
-          if (show) vis++;
-        }});
-        section.classList.toggle('hidden', vis === 0);
-        if (q && vis > 0) section.classList.add('open');
-      }});
+    /* ── Severity filter via BIG summary cards ── */
+function getActiveSev(){{
+  const set = new Set();
+  document.querySelectorAll('.sev-card.selected').forEach(card=>{{
+    const sev = card.getAttribute('data-sev'); if (sev) set.add(sev);
+  }});
+  return set;
+}}
+function applySevFilter(){{
+  const activeSev = getActiveSev();
+  document.querySelectorAll('.category-section').forEach(section=>{{
+    const isCert = section.classList.contains('cert-section');
+    const items = isCert ? section.querySelectorAll('.cert-row') : section.querySelectorAll('.check-item');
+    let visible = 0;
+    items.forEach(item=>{{
+      const st = item.getAttribute('data-status');
+      const show = activeSev.has(st);
+      item.classList.toggle('hidden', !show);
+      if (show) visible++;
     }});
+    section.classList.toggle('hidden', visible === 0);
+  }});
+  updateActiveIndicator(activeSev);
+}}
+function updateActiveIndicator(activeSev){{
+  const mapCls = {{ CRITICAL:'critical', WARNING:'warning', VERIFY:'verify', SAFE:'safe', INFO:'info', SKIPPED:'skipped' }};
+  const wrap = document.getElementById('activeSevIndicator'); if (!wrap) return;
+  wrap.innerHTML = '';
+  activeSev.forEach(sev=>{{
+    const chip = document.createElement('span');
+    chip.className = 'active-chip ' + (mapCls[sev]||'');
+    chip.textContent = sev + ' ACTIVE';
+    wrap.appendChild(chip);
+  }});
+}}
+function toggleCardState(card){{
+  const sev = card.getAttribute('data-sev'); if (!sev) return;
+  const nowSelected = !card.classList.contains('selected');
+  card.classList.toggle('selected', nowSelected);
+  card.classList.toggle('unselected', !nowSelected);
+  card.setAttribute('aria-pressed', String(nowSelected));
+}}
+window.addEventListener('load', function(){{
+  document.querySelectorAll('.sev-card').forEach(card=>{{ card.classList.add('selected'); card.classList.remove('unselected'); card.setAttribute('aria-pressed','true'); }});
+  const handleActivate = (ev, card)=>{{ ev.preventDefault(); toggleCardState(card); applySevFilter(); }};
+  document.querySelectorAll('.sev-card').forEach(card=>{{
+    card.addEventListener('click', e=> handleActivate(e, card));
+    card.addEventListener('keydown', e=>{{ if(e.key==='Enter'||e.key===' '){{ handleActivate(e, card); }}}});
+  }});
+  applySevFilter();
+}});
 
-    /* ── Doughnut chart ── */
+/* ── Search ── */
+document.getElementById('searchInput').addEventListener('input', function(e) {{
+  const q = e.target.value.toLowerCase().trim();
+  const activeSev = getActiveSev();
+  document.querySelectorAll('.category-section').forEach(section=>{{
+    const isCert = section.classList.contains('cert-section');
+    const items = isCert ? section.querySelectorAll('.cert-row') : section.querySelectorAll('.check-item');
+    let vis = 0;
+    items.forEach(item=>{{
+      const txt = item.getAttribute('data-search') || '';
+      const st  = item.getAttribute('data-status');
+      const matchSearch = !q || txt.includes(q);
+      const matchSev    = activeSev.has(st);
+      const show = matchSearch && matchSev;
+      item.classList.toggle('hidden', !show);
+      if (show) vis++;
+    }});
+    section.classList.toggle('hidden', vis === 0);
+    if (q && vis > 0) section.classList.add('open');
+  }});
+}});
+
+/* ── Doughnut chart ── */
     window.addEventListener('load', function() {{
       const ctx = document.getElementById('summaryChart').getContext('2d');
       new Chart(ctx, {{
