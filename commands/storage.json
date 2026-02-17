@@ -51,7 +51,7 @@
     {
       "category": "STORAGE",
       "label": "World-Readable Files",
-      "command": "find /data -maxdepth 4 -type f -perm -o+r 2>/dev/null | head -100 | wc -l",
+      "command": "find /data -maxdepth 4 -type f -perm -o+r 2>/dev/null | wc -l",
       "safe_pattern": "^0$",
       "level": "warning",
       "description": "No sensitive files should be world-readable (scans top 4 levels)",
@@ -107,6 +107,24 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Vendor partition writable - can be modified!",
+      "empty_is_safe": true
+    },
+        {
+      "category": "STORAGE",
+      "label": "World-Writable Files",
+      "command": "find /data -maxdepth 4 -type f -perm -o+w 2>/dev/null | wc -l",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Unprotected sensitive files (scans top 4 levels of /data)",
+      "empty_is_safe": true
+    },
+    {
+      "category": "STORAGE",
+      "label": "World-Writable Files",
+      "command": "find /data -maxdepth 4 -type f -perm -o+w 2>/dev/null",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Unprotected sensitive files (scans top 4 levels of /data)",
       "empty_is_safe": true
     },
     {
