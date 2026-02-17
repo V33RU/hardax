@@ -1,7 +1,7 @@
 {
   "checks": [
     {
-      "category": "SYSTEM",
+      "category": "BOOT_SECURITY",
       "label": "SELinux Mode",
       "command": "getenforce 2>/dev/null",
       "safe_pattern": "^Enforcing$",
@@ -9,7 +9,7 @@
       "description": "SELinux must be Enforcing - Permissive allows policy bypass"
     },
     {
-      "category": "SYSTEM",
+      "category": "BOOT_SECURITY",
       "label": "Verified Boot State (Build Property)",
       "command": "getprop ro.boot.verifiedbootstate 2>/dev/null",
       "safe_pattern": "^green$",
