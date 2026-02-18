@@ -19,6 +19,24 @@
     },
     {
       "category": "APPS",
+      "label": "Apps Installed Last 7 Days",
+      "command": "current=$(date +%s); for pkg in $(pm list packages -3 2>/dev/null | cut -d: -f2 | head -15); do ft=$(dumpsys package $pkg 2>/dev/null | grep firstInstallTime | grep -oE '[0-9]+' | head -1); [ -n \"$ft\" ] && d=$(( (current - ft/1000) / 86400 )) && [ $d -lt 7 ] && echo \"$pkg (${d}d)\"; done",
+      "safe_pattern": "^$",
+      "level": "info",
+      "description": "Third-party apps installed in last 7 days - review for legitimacy",
+      "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
+      "label": "Apps Not From Play Store",
+      "command": "pm list packages -i 2>/dev/null | grep -v 'com.android.vending' | grep -v 'installer=null' | grep -v 'com.google' | cut -d: -f2 | cut -d' ' -f1 | head -10",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Apps installed from non-Play Store sources - higher malware risk",
+      "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
       "label": "APK Signature Path Check",
       "command": "pm list packages -f | grep .apk | head -n 1",
       "safe_pattern": "package:",
