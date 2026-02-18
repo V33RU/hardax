@@ -7,6 +7,9 @@
   <img src="https://img.shields.io/badge/checks-490-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-18-purple.svg" alt="Categories">
   <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
+  <a href="https://github.com/V33RU/hardax/wiki">
+    <img src="https://img.shields.io/badge/wiki-documentation-lightgrey.svg" alt="Wiki">
+  </a>
 </p>
 
 <p align="center">
