@@ -15,7 +15,7 @@
 <p align="center">
 </p>
 
-![](report.png)
+![](https://raw.githubusercontent.com/V33RU/my-slides/refs/heads/main/images/report.png)
 
 ---
 
