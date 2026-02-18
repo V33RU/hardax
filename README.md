@@ -359,7 +359,7 @@ $ python3 hardax.py --show-commands
 
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃  HARDAX — Hardening Audit eXaminer v2.0                           ┃
-┃  [490 Checks] [18 Categories]                                       ┃
+┃  [490 Checks] [18 Categories]                                     ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 [*] Detecting connected devices...
