@@ -18,6 +18,14 @@
     },
     {
       "category": "USB_SECURITY",
+      "label": "Connected USB Devices Count",
+      "command": "ls /dev/bus/usb/*/ 2>/dev/null | wc -l || echo 0",
+      "safe_pattern": "^[0-3]$",
+      "level": "warning",
+      "description": "USB device count - unexpected devices may indicate BadUSB or hardware keylogger"
+    },
+    {
+      "category": "USB_SECURITY",
       "label": "USB Accessory Mode",
       "command": "getprop sys.usb.state",
       "safe_pattern": "^(none|mtp|ptp|charging)$",
