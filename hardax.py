@@ -960,7 +960,7 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  CERTIFICATE AUDIT (No limit version, same style)
+#  Trusted Certificate Policy Audit (No limit version, same style)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def _findCertFiles(device: Device) -> List[str]:
@@ -1202,7 +1202,7 @@ def writeTxtReport(path: str, deviceInfo: Dict[str, str],
             f.write(f"{k.replace('_', ' ').title()}: {deviceInfo.get(k, '')}\n")
 
         if certs:
-            f.write("\n" + "=" * 40 + "\nCertificate Audit\n" + "=" * 40 + "\n")
+            f.write("\n" + "=" * 40 + "\nTrusted Certificate Policy Audit\n" + "=" * 40 + "\n")
             f.write(f"{'CN':<40} {'Valid From':<12} {'Valid Until':<12} {'Days Old':>10} {'Expiry':>10} {'Status':<15}\n")
             f.write("-" * 100 + "\n")
             for c in certs:
@@ -1287,7 +1287,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
         f'  <div class="cat-header" onclick="toggleCat(\'cert_section\')">'
         f'    <div class="cat-title">'
         f'      <span class="toggle-arrow">▶</span>'
-        f'      <span class="cat-name"> CERTIFICATE AUDIT</span>'
+        f'      <span class="cat-name"> Trusted Certificate Policy Audit</span>'
         f'      <span class="cat-count">({len(certs) if certs else 0} certificates)</span>'
         f'    </div>'
         f'    <div class="cat-badges">'
@@ -1970,7 +1970,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
 
     <footer>
       <p><strong>HARDAX</strong> - Hardening Audit eXaminer v{__version__} | {time.strftime("%Y-%m-%d %H:%M:%S")}</p>
-      <p>Android OS Security Configuration Auditor | Mr-IoT</p>
+      <p>Comprehensive Security Auditor for Android OS based Connected Smart Devices | Mr-IoT</p>
     </footer>
   </div>
 
