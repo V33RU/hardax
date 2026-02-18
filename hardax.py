@@ -960,50 +960,114 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  CERTIFICATE AUDIT
+#  CERTIFICATE AUDIT (No limit version, same style)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def _findCertFiles(device: Device) -> List[str]:
-    """Search standard Android CA directories for certificate files."""
+    """Search standard Android CA directories for certificate files (deduped)."""
     candidates = [
         "/system/etc/security/cacerts",
         "/system/etc/security/cacerts_google",
         "/apex/com.android.conscrypt/cacerts",
         "/apex/com.android.conscrypt/etc/security/cacerts",
+        "/vendor/etc/security/cacerts",        # seen on some builds
+        "/product/etc/security/cacerts",       # seen on some builds
+
+        # User-installed CA stores
+        "/data/misc/user/0/cacerts-added",
+        "/data/misc/user/<id>/cacerts-added",
+
+        # Legacy stores
+        "/data/misc/keychain/cacerts-added",
+        "/data/misc/keychain",
+
+        # App-bundled cert locations (APK internal paths won't be scanned with ls, but listing retained per request)
+        "res/xml/network_security_config.xml",
+        "res/raw/*.cer",
+        "assets/certs",
+
+        # Keystore directories
+        "/data/misc/keystore/user_0",
+        "/data/misc/keystore/user_<id>",
+
+        # APEX overrides (Android version dependent)
+        "/apex/com.android.conscrypt/cacerts",
     ]
+
     files = []
+    seen = set()
     for base in candidates:
         listing = device.shell(f"ls -1 {base} 2>/dev/null")
         names = [n.strip() for n in (listing.splitlines() if listing else []) if n.strip()]
         matched = []
         for n in names:
             if n.endswith(".0") or re.fullmatch(r"[0-9a-fA-F]{1,8}", n):
-                matched.append(f"{base}/{n}")
+                full = f"{base}/{n}"
+                if full not in seen:
+                    seen.add(full)
+                    matched.append(full)
         files.extend(matched)
         if CERT_DEBUG:
             print(f"[cert-debug] {base}: {len(matched)} files matched")
+
+    if CERT_DEBUG:
+        print(f"[cert-debug] total unique cert files discovered: {len(files)}")
+
     return files
 
 
 def _readCertBytes(device: Device, path: str):
     """Read certificate bytes from device, trying PEM first then DER via base64."""
+    # Try PEM first
     txt = device.shell(f"cat {path} 2>/dev/null")
     if txt and "-----BEGIN CERTIFICATE-----" in txt:
-        return txt.encode("utf-8"), "PEM"
-    b64 = device.shell(f"base64 {path} 2>/dev/null")
-    if b64 and "not found" not in b64.lower() and b64.strip():
         try:
-            cleaned = "".join(b64.strip().split())
-            return base64.b64decode(cleaned, validate=False), "DER"
+            return txt.encode("utf-8"), "PEM"
         except Exception:
-            return None, None
+            # fall through to DER attempts
+            pass
+
+    # Try DER by base64 from device (several common variants)
+    candidates = [
+        f"base64 {path} 2>/dev/null",
+        f"toybox base64 {path} 2>/dev/null",
+        f"busybox base64 {path} 2>/dev/null",
+        f"dd if='{path}' bs=4096 2>/dev/null | base64 2>/dev/null",
+        f"dd if='{path}' bs=4096 2>/dev/null | toybox base64 2>/dev/null",
+        f"dd if='{path}' bs=4096 2>/dev/null | busybox base64 2>/dev/null",
+    ]
+    for cmd in candidates:
+        b64 = device.shell(cmd)
+        if b64 and "not found" not in b64.lower() and b64.strip():
+            try:
+                cleaned = "".join(b64.strip().split())
+                if cleaned:
+                    return base64.b64decode(cleaned, validate=False), "DER"
+            except Exception:
+                # try next variant
+                pass
+
+    # Final lightweight hex fallback (if present on device)
+    for cmd in [
+        f"xxd -p {path} 2>/dev/null",
+        f"hexdump -v -e '1/1 \"%02x\"' {path} 2>/dev/null",
+        f"od -An -tx1 -v {path} 2>/dev/null | tr -d ' \\n' 2>/dev/null",
+    ]:
+        hx = device.shell(cmd)
+        if hx and re.fullmatch(r"[0-9a-fA-F]+", hx.strip()):
+            try:
+                return bytes.fromhex(hx.strip()), "DER"
+            except Exception:
+                pass
+
     return None, None
 
 
 def auditCertificates(device: Device) -> List[Dict[str, Any]]:
-    """Pull and analyze system + user certificates from the device."""
+    """Pull and analyze system + user certificates from the device (no artificial limit)."""
     certs: List[Dict[str, Any]] = []
     import warnings
+    from datetime import datetime
     from cryptography.utils import CryptographyDeprecationWarning
     warnings.filterwarnings('ignore', category=CryptographyDeprecationWarning)
     try:
@@ -1019,7 +1083,8 @@ def auditCertificates(device: Device) -> List[Dict[str, Any]]:
         print(f"[cert-debug] discovered total: {len(certFiles)}")
     today = datetime.now()
 
-    for i, certPath in enumerate(certFiles[:CERT_LIMIT]):
+    # IMPORTANT: No limit — process every discovered cert file
+    for certPath in certFiles:
         try:
             rawBytes, kind = _readCertBytes(device, certPath)
             if not rawBytes:
@@ -1050,6 +1115,10 @@ def auditCertificates(device: Device) -> List[Dict[str, Any]]:
             if notBefore is None or notAfter is None:
                 continue
 
+            # Normalize tz-awareness to naive
+            nb = notBefore.replace(tzinfo=None)
+            na = notAfter.replace(tzinfo=None)
+
             try:
                 subjectStr = subject.rfc4514_string() if subject else "Unknown"
                 issuerStr  = issuer.rfc4514_string()  if issuer  else "Unknown"
@@ -1057,8 +1126,8 @@ def auditCertificates(device: Device) -> List[Dict[str, Any]]:
                 subjectStr = "Unknown"
                 issuerStr  = "Unknown"
 
-            daysOld = (today - notBefore.replace(tzinfo=None)).days
-            daysUntilExpiry = (notAfter.replace(tzinfo=None) - today).days
+            daysOld = (today - nb).days
+            daysUntilExpiry = (na - today).days
 
             if daysUntilExpiry < 0:
                 status, risk = "EXPIRED", "critical"
@@ -1080,17 +1149,18 @@ def auditCertificates(device: Device) -> List[Dict[str, Any]]:
                 "filename": certPath.split("/")[-1],
                 "cn": cn[:50] + "..." if len(cn) > 50 else cn,
                 "issuer": issuerStr[:50] + "..." if len(issuerStr) > 50 else issuerStr,
-                "not_before": notBefore.strftime("%Y-%m-%d"),
-                "not_after": notAfter.strftime("%Y-%m-%d"),
+                "not_before": nb.strftime("%Y-%m-%d"),
+                "not_after": na.strftime("%Y-%m-%d"),
                 "days_old": daysOld,
                 "days_until_expiry": daysUntilExpiry,
                 "status": status,
                 "risk": risk,
             })
         except Exception:
+            # keep going on any single-file error
             continue
 
-    # User-installed certs across all profiles
+    # User-installed certs across all profiles (filenames only; requires root to list others)
     try:
         userRoots = device.shell("ls -d /data/misc/user/*/cacerts-added 2>/dev/null")
         userDirs = [d.strip() for d in (userRoots.split("\n") if userRoots else []) if d.strip()]
@@ -1098,7 +1168,7 @@ def auditCertificates(device: Device) -> List[Dict[str, Any]]:
             userDirs = ["/data/misc/user/0/cacerts-added"]
         for d in userDirs:
             ulist = device.shell(f"ls -1 {d} 2>/dev/null")
-            if ulist.strip():
+            if ulist and ulist.strip():
                 for cf in [x.strip() for x in ulist.split("\n") if x.strip()]:
                     certs.append({
                         "filename": cf,
@@ -1114,9 +1184,8 @@ def auditCertificates(device: Device) -> List[Dict[str, Any]]:
     except Exception:
         pass
 
+    # Sort: critical first, then warning, then by days until expiry
     return sorted(certs, key=lambda x: (x["risk"] != "critical", x["risk"] != "warning", x["days_until_expiry"]))
-
-
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  REPORT GENERATION - TXT
