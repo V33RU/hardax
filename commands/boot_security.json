@@ -10,6 +10,14 @@
     },
     {
       "category": "BOOT_SECURITY",
+      "label": "Boot Mode Status",
+      "command": "getprop ro.boot.mode 2>/dev/null",
+      "safe_pattern": "^normal$|^unknown$|^$",
+      "level": "warning",
+      "description": "Device boot mode - fastboot/recovery/charger modes allow partition modification"
+    },
+    {
+      "category": "BOOT_SECURITY",
       "label": "Verified Boot State (Build Property)",
       "command": "getprop ro.boot.verifiedbootstate 2>/dev/null",
       "safe_pattern": "^green$",
