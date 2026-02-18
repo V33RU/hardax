@@ -4,7 +4,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-2.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.6+-green.svg" alt="Python">
-  <img src="https://img.shields.io/badge/checks-490-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-505-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-18-purple.svg" alt="Categories">
   <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
   <a href="https://github.com/V33RU/hardax/wiki">
@@ -36,7 +36,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **490 security checks** across **18 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **505 security checks** across **18 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -51,7 +51,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **490 Security Checks** | Comprehensive coverage across 18 security categories |
+| **505 Security Checks** | Comprehensive coverage across 18 security categories |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
 | **Malware & Hooking Detection** | 16 checks for rootkits, RATs, Frida, Xposed, keyloggers, memory scrapers |
 | **Certificate Audit** | CA certificate analysis with expiry/age calculation |
@@ -182,7 +182,7 @@ Options:
 
 ## Security Categories
 
-HARDAX organizes **490 checks** into **18 security categories**:
+HARDAX organizes **505 checks** into **18 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
@@ -236,7 +236,7 @@ flowchart TD
     F -->|Yes| H[Get Device Info]
     H --> I[Detect Root Status]
     I --> J[Load 18 JSON Files]
-    J --> K[490 Security Checks]
+    J --> K[505 Security Checks]
     K --> L[For Each Check]
     L --> M{ADB Connected?}
     M -->|No| N[Auto-Reconnect]
@@ -362,7 +362,7 @@ $ python3 hardax.py --show-commands
 
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃  HARDAX — Hardening Audit eXaminer v2.0                           ┃
-┃  [490 Checks] [18 Categories]                                     ┃
+┃  [505 Checks] [18 Categories]                                     ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 [*] Detecting connected devices...
@@ -375,7 +375,7 @@ $ python3 hardax.py --show-commands
 [+] Root method: magisk (Magisk v27.0)
 
 [*] Loading check files from: commands/
-[+] Loaded 490 checks from 18 JSON files
+[+] Loaded 505 checks from 18 JSON files
 
 [*] Running security checks...
 
