@@ -3,7 +3,7 @@
 HARDAX - Hardening Audit eXaminer
 Android OS based Connected Devices Security Configuration Auditor
 
-505 Security Checks | 18 Categories | 3 Report Formats
+527 Security Checks | 18 Categories | 3 Report Formats
 Author : Mr-IoT (IOTSRG)
 License: MIT
 """
@@ -2115,7 +2115,7 @@ def printBanner(idLine: Optional[str]) -> None:
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ┃  {Colors.BOLD}Hardening Audit eXaminer{Colors.RESET}{Colors.BRIGHT_CYAN} v{__version__}                                 ┃
 ┃  {Colors.DIM}Android OS based Connected Devices Security Configuration Auditor{Colors.BRIGHT_CYAN}┃
-┃  {Colors.YELLOW}[505 Checks]{Colors.RESET} {Colors.GREEN}[18 Categories]{Colors.BRIGHT_CYAN}                                  ┃
+┃  {Colors.YELLOW}[527 Checks]{Colors.RESET} {Colors.GREEN}[18 Categories]{Colors.BRIGHT_CYAN}                                  ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛{Colors.RESET}
 """)
     if idLine:
