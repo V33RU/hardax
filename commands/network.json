@@ -18,6 +18,15 @@
     },
     {
       "category": "NETWORK",
+      "label": "High Port Listeners (3000+)",
+      "command": "(netstat -tlnp 2>/dev/null || ss -tlnp 2>/dev/null) | grep LISTEN | grep -oE ':[0-9]+' | sed 's/://' | awk '$1>=3000' | sort -nu | tr '\\n' ',' | sed 's/,$//'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Listening on high ports (3000+) - may indicate backdoor, C2 server, or dev tools",
+      "empty_is_safe": true
+    },
+    {
+      "category": "NETWORK",
       "label": "Data Roaming",
       "command": "settings get global data_roaming",
       "safe_pattern": "0|null",
