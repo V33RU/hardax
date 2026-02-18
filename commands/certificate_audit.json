@@ -2,27 +2,147 @@
   "checks": [
     {
       "category": "CERTIFICATE_AUDIT",
-      "label": "System CA Certificate Count",
+      "label": "System CA Certificate Count (/system/etc/security/cacerts/)",
       "command": "ls /system/etc/security/cacerts/ 2>/dev/null | wc -l",
       "safe_pattern": "^[0-9]+$",
       "level": "info",
-      "description": "Count of system CA certificates in trust store"
+      "description": "Count of system CA certificates at /system/etc/security/cacerts/"
     },
     {
       "category": "CERTIFICATE_AUDIT",
-      "label": "User-Installed Certificates",
+      "label": "System CA Certificate List (/system/etc/security/cacerts/)",
+      "command": "ls /system/etc/security/cacerts/ 2>/dev/null",
+      "safe_pattern": "^(|([A-Fa-f0-9]{8}\\.\\d+(?:\\n|$))+)$",
+      "level": "info",
+      "description": "List of system CA certificate hashes at /system/etc/security/cacerts/"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "System CA Certificate Count (/system/etc/security/cacerts_google/)",
+      "command": "ls /system/etc/security/cacerts_google/ 2>/dev/null | wc -l",
+      "safe_pattern": "^[0-9]+$",
+      "level": "info",
+      "description": "Count of system CA certificates at /system/etc/security/cacerts_google/"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "System CA Certificate List (/system/etc/security/cacerts_google/)",
+      "command": "ls /system/etc/security/cacerts_google/ 2>/dev/null",
+      "safe_pattern": "^(|([A-Fa-f0-9]{8}\\.\\d+(?:\\n|$))+)$",
+      "level": "info",
+      "description": "List of system CA certificate hashes at /system/etc/security/cacerts_google/"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "System CA Certificate Count (/apex/com.android.conscrypt/cacerts/)",
+      "command": "ls /apex/com.android.conscrypt/cacerts/ 2>/dev/null | wc -l",
+      "safe_pattern": "^[0-9]+$",
+      "level": "info",
+      "description": "Count of system CA certificates at /apex/com.android.conscrypt/cacerts/"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "System CA Certificate List (/apex/com.android.conscrypt/cacerts/)",
+      "command": "ls /apex/com.android.conscrypt/cacerts/ 2>/dev/null",
+      "safe_pattern": "^(|([A-Fa-f0-9]{8}\\.\\d+(?:\\n|$))+)$",
+      "level": "info",
+      "description": "List of system CA certificate hashes at /apex/com.android.conscrypt/cacerts/"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "System CA Certificate Count (/apex/com.android.conscrypt/etc/security/cacerts/)",
+      "command": "ls /apex/com.android.conscrypt/etc/security/cacerts/ 2>/dev/null | wc -l",
+      "safe_pattern": "^[0-9]+$",
+      "level": "info",
+      "description": "Count of system CA certificates at /apex/com.android.conscrypt/etc/security/cacerts/"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "System CA Certificate List (/apex/com.android.conscrypt/etc/security/cacerts/)",
+      "command": "ls /apex/com.android.conscrypt/etc/security/cacerts/ 2>/dev/null",
+      "safe_pattern": "^(|([A-Fa-f0-9]{8}\\.\\d+(?:\\n|$))+)$",
+      "level": "info",
+      "description": "List of system CA certificate hashes at /apex/com.android.conscrypt/etc/security/cacerts/"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "System CA Certificate Count (/vendor/etc/security/cacerts/)",
+      "command": "ls /vendor/etc/security/cacerts/ 2>/dev/null | wc -l",
+      "safe_pattern": "^[0-9]+$",
+      "level": "info",
+      "description": "Count of system CA certificates at /vendor/etc/security/cacerts/"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "System CA Certificate List (/vendor/etc/security/cacerts/)",
+      "command": "ls /vendor/etc/security/cacerts/ 2>/dev/null",
+      "safe_pattern": "^(|([A-Fa-f0-9]{8}\\.\\d+(?:\\n|$))+)$",
+      "level": "info",
+      "description": "List of system CA certificate hashes at /vendor/etc/security/cacerts/"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "System CA Certificate Count (/product/etc/security/cacerts/)",
+      "command": "ls /product/etc/security/cacerts/ 2>/dev/null | wc -l",
+      "safe_pattern": "^[0-9]+$",
+      "level": "info",
+      "description": "Count of system CA certificates at /product/etc/security/cacerts/"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "System CA Certificate List (/product/etc/security/cacerts/)",
+      "command": "ls /product/etc/security/cacerts/ 2>/dev/null",
+      "safe_pattern": "^(|([A-Fa-f0-9]{8}\\.\\d+(?:\\n|$))+)$",
+      "level": "info",
+      "description": "List of system CA certificate hashes at /product/etc/security/cacerts/"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "User-Installed Certificate Count (user 0)",
       "command": "ls /data/misc/user/0/cacerts-added/ 2>/dev/null | wc -l",
       "safe_pattern": "^0$",
       "level": "critical",
-      "description": "User-installed CA certificates (potential MITM risk) - should be 0"
+      "description": "User-installed CA certificates for primary user (should be 0)"
     },
     {
       "category": "CERTIFICATE_AUDIT",
-      "label": "User Certificate Files",
-      "command": "ls -la /data/misc/user/0/cacerts-added/ 2>/dev/null",
-      "safe_pattern": "No such file|total 0|^$",
+      "label": "User-Installed Certificate List (user 0)",
+      "command": "ls /data/misc/user/0/cacerts-added/ 2>/dev/null",
+      "safe_pattern": "^$",
       "level": "critical",
-      "description": "List of user-installed certificates - should be empty"
+      "description": "List of user-installed CA certificates for primary user (should be empty)"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "User-Installed Certificate Count (all users)",
+      "command": "find /data/misc/user -type f -path '*/cacerts-added/*' 2>/dev/null | wc -l",
+      "safe_pattern": "^0$",
+      "level": "critical",
+      "description": "Total user-installed CA certificates across all users (should be 0)"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "User-Installed Certificate List (all users)",
+      "command": "find /data/misc/user -type f -path '*/cacerts-added/*' 2>/dev/null",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "List user-installed CA certificates across all users (should be empty)"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "Legacy User-Installed Certificate Count (/data/misc/keychain/cacerts-added/)",
+      "command": "ls /data/misc/keychain/cacerts-added/ 2>/dev/null | wc -l",
+      "safe_pattern": "^0$",
+      "level": "critical",
+      "description": "Legacy path for user-installed CAs (older Android) \u2014 should be 0"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "Legacy User-Installed Certificate List (/data/misc/keychain/cacerts-added/)",
+      "command": "ls /data/misc/keychain/cacerts-added/ 2>/dev/null",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Legacy path listing for user-installed CAs (older Android) \u2014 should be empty"
     },
     {
       "category": "CERTIFICATE_AUDIT",
@@ -30,15 +150,15 @@
       "command": "pm list packages 2>/dev/null | grep -iE 'sslunpin|trustme|justtrustme|unpinner|certpinner'",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "Apps that bypass certificate pinning - should not be installed"
+      "description": "Apps known to bypass SSL/TLS certificate pinning \u2014 none should be installed"
     },
     {
       "category": "CERTIFICATE_AUDIT",
-      "label": "Network Security Config Files",
+      "label": "Network Security Config Files (sample)",
       "command": "find /data/app -name 'network_security_config.xml' 2>/dev/null | head -5",
       "safe_pattern": ".+",
       "level": "info",
-      "description": "Apps with custom network security configuration"
+      "description": "Apps containing custom network security configs (sample up to 5 paths)"
     },
     {
       "category": "CERTIFICATE_AUDIT",
@@ -46,15 +166,23 @@
       "command": "getprop ro.hardware.keystore 2>/dev/null",
       "safe_pattern": ".+",
       "level": "info",
-      "description": "Hardware keystore implementation type"
+      "description": "Hardware keystore implementation in use"
     },
     {
       "category": "CERTIFICATE_AUDIT",
-      "label": "Keystore Credentials Count",
+      "label": "Keystore Credentials Count (user 0)",
       "command": "ls /data/misc/keystore/user_0/ 2>/dev/null | wc -l",
       "safe_pattern": "^[0-9]+$",
       "level": "info",
-      "description": "Keystore credential entries count"
+      "description": "Number of credential entries in keystore for primary user"
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "label": "Keystore Credentials Count (all users)",
+      "command": "find /data/misc/keystore -maxdepth 1 -type d -name 'user_*' -exec sh -c 'ls {}/ 2>/dev/null | wc -l' \\; 2>/dev/null | awk '{s+=$1} END {print s+0}'",
+      "safe_pattern": "^[0-9]+$",
+      "level": "info",
+      "description": "Aggregate credential entries across all user keystores"
     },
     {
       "category": "CERTIFICATE_AUDIT",
@@ -62,15 +190,15 @@
       "command": "settings get global always_on_vpn_lockdown 2>/dev/null",
       "safe_pattern": "^1$",
       "level": "info",
-      "description": "VPN lockdown mode requiring certificate"
+      "description": "VPN lockdown mode must be enabled for strict network security (1 means enabled)"
     },
     {
       "category": "CERTIFICATE_AUDIT",
-      "label": "Conscrypt TLS Provider",
+      "label": "Conscrypt TLS Provider Installed",
       "command": "pm list packages 2>/dev/null | grep conscrypt",
       "safe_pattern": "conscrypt",
       "level": "info",
-      "description": "Google Conscrypt TLS provider installed"
+      "description": "Confirms presence of Google Conscrypt TLS provider"
     },
     {
       "category": "CERTIFICATE_AUDIT",
@@ -78,7 +206,7 @@
       "command": "settings get global http_proxy 2>/dev/null",
       "safe_pattern": "^null$|^$",
       "level": "warning",
-      "description": "HTTP proxy configured - may intercept HTTPS traffic"
+      "description": "Reports if an HTTP proxy is configured, which may intercept traffic"
     },
     {
       "category": "CERTIFICATE_AUDIT",
@@ -86,7 +214,7 @@
       "command": "settings get global global_http_proxy_host 2>/dev/null",
       "safe_pattern": "^null$|^$",
       "level": "warning",
-      "description": "Global HTTP proxy host - may intercept traffic"
+      "description": "Shows global HTTP proxy host configuration"
     }
   ]
 }
