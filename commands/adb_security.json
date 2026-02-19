@@ -13,7 +13,7 @@
       "label": "ADB Over Network Port",
       "command": "getprop service.adb.tcp.port",
       "safe_pattern": "^$",
-      "level": "info",
+      "level": "critical",
       "description": "Should be empty or disabled; non-default = risk",
       "empty_is_safe": true
     },
