@@ -4,7 +4,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-2.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.6+-green.svg" alt="Python">
-  <img src="https://img.shields.io/badge/checks-527-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-537-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-18-purple.svg" alt="Categories">
   <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
   <a href="https://github.com/V33RU/hardax/wiki">
@@ -36,7 +36,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **527 security checks** across **18 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **537 security checks** across **18 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -51,7 +51,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **527 Security Checks** | Comprehensive coverage across 18 security categories |
+| **537 Security Checks** | Comprehensive coverage across 18 security categories |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
 | **Malware & Hooking Detection** | 16 checks for rootkits, RATs, Frida, Xposed, keyloggers, memory scrapers |
 | **Certificate Audit** | CA certificate analysis with expiry/age calculation |
@@ -182,7 +182,7 @@ Options:
 
 ## Security Categories
 
-HARDAX organizes **527 checks** into **18 security categories**:
+HARDAX organizes **537 checks** into **18 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
@@ -204,62 +204,6 @@ HARDAX organizes **527 checks** into **18 security categories**:
 | **INPUT** | 9 | Keyboards, accessibility, input methods |
 | **NFC_SECURITY** | 7 | NFC state, Android Beam, tap-to-pay, reader mode, secure element (eSE/UICC) |
 | **ADB_SECURITY** | 4 | ADB keys, network ADB, debugging |
-
----
-
-## Status Levels
-
-HARDAX classifies findings into 6 status levels:
-
-| Status | Color | Symbol | Description |
-|--------|-------|--------|-------------|
-| **SAFE** | 🟢 Green | ✓ | Secure configuration detected |
-| **WARNING** | 🟡 Yellow | ⚠ | Potential risk - review recommended |
-| **CRITICAL** | 🔴 Red | ✗ | Security issue - immediate action required |
-| **VERIFY** | 🟣 Purple | ? | Manual verification required (null/empty output) |
-| **INFO** | 🔵 Blue | ℹ | Informational - no action needed |
-| **SKIPPED** | ⚪ Gray | ○ | ADB connection lost - check could not execute |
-
----
-
-## Tool Flow
-
-```mermaid
-flowchart TD
-    A([Start HARDAX]) --> B{Mode?}
-    B -->|ADB| C[USB/Network Connection]
-    B -->|SSH| D[SSH Connection]
-    C --> E[Detect Device]
-    D --> E
-    E --> F{Found?}
-    F -->|No| G([Exit])
-    F -->|Yes| H[Get Device Info]
-    H --> I[Detect Root Status]
-    I --> J[Load 18 JSON Files]
-    J --> K[527 Security Checks]
-    K --> L[For Each Check]
-    L --> M{ADB Connected?}
-    M -->|No| N[Auto-Reconnect]
-    N -->|Fail| O[⚪ SKIPPED]
-    M -->|Yes| P[Run Command]
-    N -->|OK| P
-    P --> Q[Capture Output]
-    Q --> R{Evaluate}
-    R -->|Empty + safe| S[✅ SAFE]
-    R -->|Match pattern| S
-    R -->|Null value| T[🟣 VERIFY]
-    R -->|No match| U{Level?}
-    U -->|critical| V[🔴 CRITICAL]
-    U -->|warning| W[🟡 WARNING]
-    U -->|info| X[🔵 INFO]
-    S & T & V & W & X & O --> Y[Store Result]
-    Y --> Z{More?}
-    Z -->|Yes| L
-    Z -->|No| AA[Certificate Audit]
-    AA --> AB[Generate Reports]
-    AB --> AC[TXT + CSV + HTML]
-    AC --> AD([Done])
-```
 
 ---
 
@@ -299,30 +243,6 @@ Create or modify JSON files in the `commands/` directory:
 }
 ```
 
-### Check Fields
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `category` | ✅ | Category name (appears in report grouping) |
-| `label` | ✅ | Display name for the check |
-| `command` | ✅ | ADB shell command to execute |
-| `safe_pattern` | ✅ | Regex pattern - if output matches, result is SAFE |
-| `level` | ✅ | Severity if NOT safe: `critical`, `warning`, `info` |
-| `description` | ✅ | Explanation of what the check does and why it matters |
-| `empty_is_safe` | ❌ | If `true`, empty output = SAFE (default: `false`) |
-
-### Adding Checks - 3 Steps
-
-```bash
-# 1. Create your JSON file
-echo '{"checks":[...]}' > commands/my_checks.json
-
-# 2. Run with custom directory
-python3 hardax.py --json-dir commands/
-
-# That's it - new checks appear in reports automatically!
-```
-
 ---
 
 ## Project Structure
@@ -353,50 +273,6 @@ HARDAX/
     └── adb_security.json  #   4 checks - ADB keys, network ADB
 ```
 
----
-
-## Sample Output
-
-```
-$ python3 hardax.py --show-commands
-
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  HARDAX — Hardening Audit eXaminer v2.0                           ┃
-┃  [527 Checks] [18 Categories]                                     ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-
-[*] Detecting connected devices...
-[+] Found device: R58M42XXXXX
-
-[*] Collecting device information...
-    Model: SM-A536E | Android: 14 | SDK: 34 | Build: UP1A.231005.007
-
-[*] Checking root status...
-[+] Root method: magisk (Magisk v27.0)
-
-[*] Loading check files from: commands/
-[+] Loaded 527 checks from 18 JSON files
-
-[*] Running security checks...
-
-[SYSTEM]      Play Protect .......................... ✓ SAFE
-[SYSTEM]      Security Patch Level .................. ⚠ WARNING (2024-01-01)
-[SYSTEM]      Developer Options ..................... ✗ CRITICAL
-[MALWARE]     Frida Server Running .................. ✓ SAFE
-[MALWARE]     Xposed Framework ...................... ✓ SAFE
-[MALWARE]     Remote Access Tools ................... ✓ SAFE
-[BLUETOOTH]   Discoverable Mode ..................... ✓ SAFE
-[POS]         NFC Relay Attack Tools ................ ✓ SAFE
-[USB]         USB Debugging ......................... ✗ CRITICAL
-
-Progress: ████████████████████████ 100%
-SAFE: 340 | WARNING: 42 | CRITICAL: 28 | VERIFY: 15 | INFO: 63
-
-[*] Reports saved to: hardax_output/
-    → hardax_report_SM-A536E.txt
-    → hardax_report_SM-A536E.csv
-    → hardax_report_SM-A536E.html
-```
 ## Future Roadmap
 
 - [ ] `--category` flag to run specific categories
