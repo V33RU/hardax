@@ -19,21 +19,6 @@
 
 ---
 
-## Table of Contents
-
-- [Overview](#-overview)
-- [Features](#-features)
-- [Supported Devices](#-supported-devices)
-- [Installation](#-installation)
-- [Usage](#-usage)
-- [Security Categories](#-security-categories)
-- [Status Levels](#-status-levels)
-- [Tool Flow](#-tool-flow)
-- [Extending HARDAX](#-extending-hardax)
-- [Future Roadmap](#-future-roadmap)
-
----
-
 ## Overview
 
 **HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **537 security checks** across **18 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
