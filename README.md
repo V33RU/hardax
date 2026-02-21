@@ -3,7 +3,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-2.1-blue.svg" alt="Version">
-  <img src="https://img.shields.io/badge/python-3.6+-green.svg" alt="Python">
+  <img src="https://img.shields.io/badge/python-3.11+-green.svg" alt="Python">
   <img src="https://img.shields.io/badge/checks-539-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-19-purple.svg" alt="Categories">
   <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
@@ -75,7 +75,7 @@ HARDAX works with any Android-based device accessible via ADB or SSH:
 
 ### Prerequisites
 
-- Python 3.6 or higher
+- Python 3.11 or higher
 - ADB (Android Debug Bridge) installed and in PATH
 - USB Debugging enabled on target device
 
