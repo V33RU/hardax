@@ -3,7 +3,7 @@
 HARDAX - Hardening Audit eXaminer
 Android OS based Connected Devices Security Configuration Auditor
 
-539 Security Checks | 18 Categories | 3 Report Formats
+539 Security Checks | 19 Categories | 3 Report Formats
 Author : Mr-IoT (IOTSRG)
 License: MIT
 """
@@ -27,6 +27,14 @@ import tempfile
 from datetime import datetime
 from string import Template
 from typing import List, Dict, Any, Tuple, Optional
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  PYTHON VERSION CHECK
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+if sys.version_info < (3, 11):
+    sys.exit(f"[ERROR] HARDAX requires Python 3.11 or higher. "
+             f"Detected: {sys.version_info.major}.{sys.version_info.minor}")
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  VERSION & CONSTANTS
