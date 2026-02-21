@@ -2,9 +2,9 @@
 
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.0-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.1-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.6+-green.svg" alt="Python">
-  <img src="https://img.shields.io/badge/checks-537-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-539-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-19-purple.svg" alt="Categories">
   <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
   <a href="https://github.com/V33RU/hardax/wiki">
@@ -21,7 +21,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **537 security checks** across **18 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **539 security checks** across **19 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -36,7 +36,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **537 Security Checks** | Comprehensive coverage across 18 security categories |
+| **539 Security Checks** | Comprehensive coverage across 19 security categories |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
 | **Malware & Hooking Detection** | 16 checks for rootkits, RATs, Frida, Xposed, keyloggers, memory scrapers |
 | **Certificate Audit** | CA certificate analysis with expiry/age calculation |
@@ -167,7 +167,7 @@ Options:
 
 ## Security Categories
 
-HARDAX organizes **537 checks** into **18 security categories**:
+HARDAX organizes **539 checks** into **19 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
@@ -189,6 +189,7 @@ HARDAX organizes **537 checks** into **18 security categories**:
 | **INPUT** | 9 | Keyboards, accessibility, input methods |
 | **NFC_SECURITY** | 7 | NFC state, Android Beam, tap-to-pay, reader mode, secure element (eSE/UICC) |
 | **ADB_SECURITY** | 4 | ADB keys, network ADB, debugging |
+| **FORENSIC_INDICATORS** | 11 | Crash history, kernel panics, logcat anomalies, temp artifacts, clipboard forensics |
 
 ---
 
@@ -234,9 +235,11 @@ Create or modify JSON files in the `commands/` directory:
 
 ```
 HARDAX/
-├── hardax.py              # Main engine (2200+ lines)
+├── hardax.py              # Main engine (1620+ lines)
 ├── requirements.txt       # Python dependencies
 ├── README.md              # This file
+├── templates/             # Report templates
+│   └── report.html        # Interactive HTML report template
 └── commands/              # Security check definitions
     ├── system.json        #  87 checks - Kernel, TEE, build, emulator, memory
     ├── network.json       #  74 checks - Ports, WiFi, VPN, IoT protocols
@@ -255,7 +258,8 @@ HARDAX/
     ├── certificate_audit.json # 11 checks - CA certs, expiry, MITM
     ├── input.json         #   9 checks - Keyboards, accessibility, IME
     ├── nfc_security.json  #   7 checks - NFC, reader mode, secure element
-    └── adb_security.json  #   4 checks - ADB keys, network ADB
+    ├── adb_security.json  #   4 checks - ADB keys, network ADB
+    └── forensic_indicators.json # 11 checks - Crashes, logcat anomalies, temp artifacts, clipboard
 ```
 
 ## Future Roadmap
