@@ -500,14 +500,6 @@
     },
     {
       "category": "SYSTEM",
-      "label": "Security Patch Age",
-      "command": "getprop ro.build.version.security_patch 2>/dev/null",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Security patch date - check if outdated"
-    },
-    {
-      "category": "SYSTEM",
       "label": "Default Build Fingerprint",
       "command": "getprop ro.build.fingerprint 2>/dev/null | grep -iE 'generic|test|debug|eng|sample'",
       "safe_pattern": "^$",
