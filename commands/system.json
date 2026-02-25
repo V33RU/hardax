@@ -27,6 +27,14 @@
     },
     {
       "category": "SYSTEM",
+      "label": "User-installed Apps",
+      "command": "pm list packages -3 2>/dev/null",
+      "safe_pattern": ".+",
+      "level": "info",
+      "description": "Check how many user apps installed"
+    },
+    {
+      "category": "SYSTEM",
       "label": "Unusual Files in /sdcard/",
       "command": "ls /sdcard/ 2>/dev/null | grep -Ei '(key|creds|dump|log|backup)'",
       "safe_pattern": "^$",
@@ -49,14 +57,6 @@
       "safe_pattern": "zygote",
       "level": "critical",
       "description": "Zygote process is core to Android app lifecycle"
-    },
-    {
-      "category": "SYSTEM",
-      "label": "USB File Transfer Disabled",
-      "command": "settings get global usb_mass_storage_enabled 2>/dev/null",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "Should be disabled to block unauthorized USB file access"
     },
     {
       "category": "SYSTEM",
@@ -577,11 +577,27 @@
     },
     {
       "category": "SYSTEM",
-      "label": "TEE Driver Presence",
+      "label": "TEE Driver Presence (Empty → Verify)",
       "command": "ls /dev/tee* /dev/trusty* 2>/dev/null",
-      "safe_pattern": "/dev/tee\\|/dev/trusty",
+      "safe_pattern": "^\\s*$",
+      "level": "verify",
+      "description": "No TEE device nodes visible under /dev. Common on some devices; verify via dmesg or TEE logs."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "TEE Driver Presence (Present → Info)",
+      "command": "ls /dev/tee* /dev/trusty* 2>/dev/null",
+      "safe_pattern": "/dev/(tee|trusty)",
       "level": "info",
-      "description": "TEE driver (Trusted Execution Environment) presence check"
+      "description": "TEE device nodes found (e.g., /dev/tee*, /dev/trusty*). Presence is informational."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "TEE Vendor Prop (Empty → Verify)",
+      "command": "getprop | grep -i tee",
+      "safe_pattern": "^\\s*$",
+      "level": "verify",
+      "description": "Empty output is common (vendors often hide TEE props); flag for manual verify."
     },
     {
       "category": "SYSTEM",
@@ -590,14 +606,6 @@
       "safe_pattern": "^ls:.*No such file or directory$",
       "level": "info",
       "description": "Checks for hardware-backed keystore modules"
-    },
-    {
-      "category": "SYSTEM",
-      "label": "TEE Vendor Prop",
-      "command": "getprop | grep -i tee",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "Shows any TEE-related properties"
     },
     {
       "category": "SYSTEM",
