@@ -10,6 +10,14 @@
     },
     {
       "category": "USB_SECURITY",
+      "label": "USB File Transfer Disabled",
+      "command": "settings get global usb_mass_storage_enabled 2>/dev/null",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Should be disabled to block unauthorized USB file access"
+    },
+    {
+      "category": "USB_SECURITY",
       "label": "USB Mass Storage",
       "command": "getprop sys.usb.config",
       "safe_pattern": "^(none|mtp|ptp|charging)$",
