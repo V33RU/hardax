@@ -4,17 +4,73 @@
       "category": "CRYPTOGRAPHY",
       "label": "Device Encryption",
       "command": "getprop ro.crypto.state",
-      "safe_pattern": "encrypted",
+      "safe_pattern": "^encrypted$",
       "level": "critical",
-      "description": "Device storage should be encrypted"
+      "description": "Device storage should be encrypted, This property reports the encryption state of the device internal storage (userdata partition)."
     },
     {
       "category": "CRYPTOGRAPHY",
       "label": "Encryption Type",
       "command": "getprop ro.crypto.type",
-      "safe_pattern": "file|block",
+      "safe_pattern": "^(file|block)$",
       "level": "info",
-      "description": "Type of encryption used (file-based or block)"
+      "description": "Indicates encryption type. Safe ONLY if output is exactly 'file' (FBE) or 'block' (FDE). Prevents partial matches or noisy output."
+    },
+    {
+      "category": "CRYPTOGRAPHY",
+      "label": "Default Encryption Password Check",
+      "command": "getprop ro.crypto.uses_default_password",
+      "safe_pattern": "^0$",
+      "level": "high",
+      "description": "Safe ONLY when '0'. '1' means encryption uses default password, which is insecure. Strict anchoring avoids matching numbers inside longer strings."
+    },
+    {
+      "category": "CRYPTOGRAPHY",
+      "label": "Encryption Completion Status",
+      "command": "vdc cryptfs cryptocomplete",
+      "safe_pattern": "^1$",
+      "level": "high",
+      "description": "Full Disk Encryption is complete only if output is exactly '1'. A strict equality match ensures no accidental pattern hits."
+    },
+    {
+      "category": "CRYPTOGRAPHY",
+      "label": "Data Partition Encryption Check",
+      "command": "mount | grep ' /data '",
+      "safe_pattern": "dm-",
+      "level": "critical",
+      "description": "Safe ONLY if /data is mounted on a 'dm-*' device, which indicates encryption. Raw eMMC partitions ('mmcblk0pXX') mean unencrypted storage. This match is stable because dm- devices cannot appear in plain, unencrypted mounts."
+    },
+    {
+      "category": "CRYPTOGRAPHY",
+      "label": "FBE FUSE Layer Status",
+      "command": "getprop ro.crypto.fuse.connected",
+      "safe_pattern": "^true$",
+      "level": "medium",
+      "description": "File-Based Encryption is active only if output is exactly 'true'. Anchors prevent accidental matches of longer boolean strings."
+    },
+    {
+      "category": "CRYPTOGRAPHY",
+      "label": "Service-Based Encryption Check",
+      "command": "service call mount 7",
+      "safe_pattern": "00000001",
+      "level": "medium",
+      "description": "Encryption is typically active when the response contains '00000001'. Because binder output is structured, this specific pattern is reliable with minimal false-positive risk."
+    },
+    {
+      "category": "CRYPTOGRAPHY",
+      "label": "SD Card Encryption",
+      "command": "getprop security.sdcard.encrypted",
+      "safe_pattern": "^1$",
+      "level": "high",
+      "description": "Safe ONLY when output is exactly '1'. Strict match prevents accidental detection from logs or metadata containing '1'."
+    },
+    {
+      "category": "CRYPTOGRAPHY",
+      "label": "SD Card Mount Check",
+      "command": "mount | grep /mnt/media_rw",
+      "safe_pattern": "^(.*dm-.*|.*fuse.*)$",
+      "level": "low",
+      "description": "Safe if SD card is mounted via dm-crypt or FUSE. Pattern is strict enough to avoid accidental substring matches on unrelated mount entries."
     },
     {
       "category": "CRYPTOGRAPHY",
