@@ -3,7 +3,7 @@
 HARDAX - Hardening Audit eXaminer
 Android OS based Connected Devices Security Configuration Auditor
 
-539 Security Checks | 19 Categories | 3 Report Formats
+619 Security Checks | 19 Categories | 3 Report Formats
 Author : Mr-IoT (IOTSRG)
 License: MIT
 """
@@ -19,6 +19,7 @@ import html
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -318,7 +319,11 @@ class SshDevice(Device):
 
     def shell(self, command: str) -> str:
         try:
-            stdin, stdout, stderr = self.client.exec_command(command)
+            # Wrap in sh -c so that pipes, redirects, &&, || all work and the
+            # remote shell's PATH (including /system/bin on Android) is active.
+            stdin, stdout, stderr = self.client.exec_command(
+                f"sh -c {shlex.quote(command)}", timeout=30
+            )
             out = stdout.read().decode("utf-8", errors="replace")
             err = stderr.read().decode("utf-8", errors="replace")
             return (out + (("\n" + err) if err else "")).strip()
@@ -416,7 +421,8 @@ def applyFilters(output: str, original: str) -> str:
 
 def executeWithFallback(device: Device, command: str,
                         showCommands: bool = False,
-                        isRooted: bool = None) -> str:
+                        isRooted: bool = None,
+                        rootMethod: str = "none") -> str:
     """
     Smart execution for netstat/ss network commands.
     Tries multiple strategies: root → non-root → drop -p → swap tool.
@@ -483,25 +489,28 @@ def executeWithFallback(device: Device, command: str,
     for block in blocks:
         baseCmd, pipeline = splitPipeline(block)
 
+        # Already root natively (ssh-root / adbd-root) → su wrapping is pointless
+        _nativeSu = rootMethod not in ("ssh-root", "adbd-root")
+
         candidates = []
-        if isRooted or isRooted is None:
+        if _nativeSu and (isRooted or isRooted is None):
             candidates.append('su -c "%s"' % baseCmd)
         candidates.append(baseCmd)
 
         noP = dropPidFlag(baseCmd)
         if noP != baseCmd:
-            if isRooted or isRooted is None:
+            if _nativeSu and (isRooted or isRooted is None):
                 candidates.append('su -c "%s"' % noP)
             candidates.append(noP)
 
         swapped = swapTool(baseCmd)
         if swapped:
-            if isRooted or isRooted is None:
+            if _nativeSu and (isRooted or isRooted is None):
                 candidates.append('su -c "%s"' % swapped)
             candidates.append(swapped)
             swappedNoP = dropPidFlag(swapped)
             if swappedNoP != swapped:
-                if isRooted or isRooted is None:
+                if _nativeSu and (isRooted or isRooted is None):
                     candidates.append('su -c "%s"' % swappedNoP)
                 candidates.append(swappedNoP)
 
@@ -535,8 +544,15 @@ def detectRootStatus(device: Device) -> Tuple[bool, str]:
     """
     Probe the device for root access.
     Returns (isRooted, method) where method is one of:
-        adbd-root | magisk | su | su-present-not-working | none
+        ssh-root | adbd-root | magisk | su | su-present-not-working | none
     """
+
+    # 0. SSH sessions already running as root - no su needed
+    if isinstance(device, SshDevice):
+        out = device.shell("id 2>/dev/null").strip()
+        if out and ("uid=0(" in out or out.split()[0:1] == ["uid=0"]):
+            return True, "ssh-root"
+        # Not root over SSH - fall through to su probing below
 
     # 1. Try ADBD root (eng / userdebug builds)
     try:
@@ -757,8 +773,8 @@ def isEmptyOrError(output: str) -> bool:
     errorIndicators = [
         "not found", "no such", "error", "exception",
         "permission denied", "unknown", "invalid", "failed",
-        "inaccessible", "cmd: can't find", "not supported",
-        "service not found", "does not exist", "no output",
+        "inaccessible", "cmd: can't find", "can't find service",
+        "not supported", "service not found", "does not exist", "no output",
     ]
     if lower in ["", "(empty)"]:
         return True
@@ -770,7 +786,8 @@ def isEmptyOrError(output: str) -> bool:
 
 def runChecks(device: Device, checks: List[Dict[str, Any]],
               onProgress=None, showCommands: bool = False,
-              isRooted: bool = False) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
+              isRooted: bool = False,
+              rootMethod: str = "none") -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
     """
     Execute every check against the device and classify the result.
     Returns (rows, counts) where rows is the full audit data.
@@ -780,6 +797,7 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
     total = len(checks)
     startTime = time.time()
     consecutiveAdbErrors = 0
+    _lastCategory = None   # tracks category for section headers
 
     for idx, chk in enumerate(checks, start=1):
         category = chk.get("category", "General")
@@ -792,9 +810,9 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
         requiresOutput = chk.get("requires_output", True)
         nullIsSafe = chk.get("null_is_safe", False)
 
-        raw = executeWithFallback(device, command, showCommands, isRooted=isRooted) if command else ""
+        raw = executeWithFallback(device, command, showCommands, isRooted=isRooted, rootMethod=rootMethod) if command else ""
 
-        # ── ADB transport error → SKIPPED ──
+        # ADB transport error - SKIPPED
         if raw and isAdbTransportError(raw):
             consecutiveAdbErrors += 1
             status = "SKIPPED"
@@ -855,7 +873,7 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                 except re.error:
                     matched = safePattern.lower() in normalized.lower()
 
-            # ── Determine status ──
+            # Determine status
             if outputIsNull:
                 nullInPattern = safePattern and "null" in safePattern.lower()
                 if nullIsSafe or nullInPattern:
@@ -890,55 +908,83 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                     status = "INFO"
                     counts["info"] += 1
 
-        # ── Progress display ──
-        if onProgress or showCommands:
-            try:
-                elapsed = time.time() - startTime
-                avgTime = elapsed / idx if idx > 0 else 0
-                remaining = int(avgTime * (total - idx))
-                etaStr = f"{remaining // 60}m {remaining % 60}s" if remaining > 60 else f"{remaining}s"
-                percentage = (idx / total) * 100
+        # Live output
+        try:
+            elapsed = time.time() - startTime
+            avgTime  = elapsed / idx if idx > 0 else 0
+            remaining = int(avgTime * (total - idx))
+            etaStr   = f"{remaining // 60}m{remaining % 60:02d}s" if remaining >= 60 else f"{remaining}s"
+            percentage = (idx / total) * 100
 
-                statusColor = {
-                    "SAFE": Colors.GREEN,
-                    "CRITICAL": Colors.BRIGHT_RED,
-                    "WARNING": Colors.YELLOW,
-                    "VERIFY": Colors.BRIGHT_MAGENTA,
-                    "SKIPPED": Colors.DIM,
-                }.get(status, Colors.CYAN)
-                statusSymbol = {
-                    "SAFE": "✓", "CRITICAL": "✗", "WARNING": "⚠",
-                    "VERIFY": "?", "SKIPPED": "⊘",
-                }.get(status, "ℹ")
+            # Per-status colour / symbol
+            _sfmt = {
+                "SAFE":     (Colors.GREEN,          "✓"),
+                "CRITICAL": (Colors.BRIGHT_RED,     "✗"),
+                "WARNING":  (Colors.YELLOW,         "⚠"),
+                "VERIFY":   (Colors.BRIGHT_MAGENTA, "?"),
+                "INFO":     (Colors.CYAN,           "ℹ"),
+                "SKIPPED":  (Colors.DIM,            "⊘"),
+            }
+            sc, sym = _sfmt.get(status, (Colors.CYAN, "ℹ"))
 
-                barWidth = 30
-                filled = int((idx / total) * barWidth)
-                bar = "█" * filled + "░" * (barWidth - filled)
+            if showCommands:
+                # Category header when section changes
+                if category != _lastCategory:
+                    if _lastCategory is not None:
+                        print()
+                    catLabel = category.upper()
+                    # Count checks in this category
+                    catTotal = sum(1 for c in checks if c.get("category", "General") == category)
+                    print(f"  {Colors.BRIGHT_CYAN}┌{'─' * 68}┐{Colors.RESET}")
+                    print(f"  {Colors.BRIGHT_CYAN}│{Colors.RESET} {Colors.BOLD}{Colors.BRIGHT_WHITE}{catLabel}{Colors.RESET}"
+                          f"{Colors.DIM} ({catTotal} checks){Colors.RESET}"
+                          f"{'':>{max(1, 60 - len(catLabel) - len(str(catTotal)))}}"
+                          f"{Colors.BRIGHT_CYAN}│{Colors.RESET}")
+                    print(f"  {Colors.BRIGHT_CYAN}└{'─' * 68}┘{Colors.RESET}")
+                    _lastCategory = category
 
+                # Per-check line with counter
+                rPreview = (raw or "").strip().split("\n")[0].replace("\r", "")
+                if len(rPreview) > 30:
+                    rPreview = rPreview[:29] + "…"
+
+                lbl = label[:40] + "…" if len(label) > 40 else label
+                counter = f"[{idx:03d}/{total}]"
                 print(
-                    f"\r{Colors.CYAN}[{idx:3d}/{total:3d}]{Colors.RESET} "
-                    f"{Colors.BRIGHT_BLUE}[{bar}]{Colors.RESET} "
-                    f"{Colors.BRIGHT_WHITE}{percentage:5.1f}%{Colors.RESET} "
-                    f"{Colors.DIM}ETA: {etaStr}{Colors.RESET}",
-                    end="", flush=True,
+                    f"  {Colors.DIM}{counter}{Colors.RESET} "
+                    f"{sc}{sym}{Colors.RESET} "
+                    f"{Colors.BRIGHT_WHITE}{lbl:<41}{Colors.RESET} "
+                    f"{Colors.DIM}→ {Colors.RESET}{sc}{rPreview or '(empty)'}{Colors.RESET}"
                 )
 
-                if showCommands:
-                    print()
-                    labelDisplay = label[:50] + "..." if len(label) > 50 else label
-                    print(
-                        f"  {Colors.BRIGHT_CYAN}▶{Colors.RESET} {Colors.BOLD}{labelDisplay}{Colors.RESET} "
-                        f"{statusColor}[{statusSymbol} {status}]{Colors.RESET}"
-                    )
-                    cmdDisplay = command[:70] + "..." if len(command) > 70 else command
-                    print(f"    {Colors.DIM}$ {cmdDisplay}{Colors.RESET}", flush=True)
+                # For critical/warning show the command
+                if status in ("CRITICAL", "WARNING") and command:
+                    cmdShort = command[:60] + "…" if len(command) > 60 else command
+                    print(f"  {Colors.DIM}{'':>10} └─ $ {cmdShort}{Colors.RESET}")
 
-                if onProgress:
-                    onProgress(idx, total)
-            except Exception:
-                pass
+            else:
+                # Compact progress bar with live counts
+                barWidth = 24
+                filled = int((idx / total) * barWidth)
+                bar = "█" * filled + "░" * (barWidth - filled)
+                sys.stdout.write(
+                    f"\r  {Colors.BRIGHT_BLUE}[{bar}]{Colors.RESET} "
+                    f"{Colors.BRIGHT_WHITE}{idx:3d}/{total}{Colors.RESET} "
+                    f"{Colors.DIM}({percentage:4.1f}%){Colors.RESET}  "
+                    f"{Colors.GREEN}✓{counts['safe']:<4}{Colors.RESET}"
+                    f"{Colors.BRIGHT_RED}✗{counts['critical']:<3}{Colors.RESET}"
+                    f"{Colors.YELLOW}⚠{counts['warning']:<3}{Colors.RESET}"
+                    f"{Colors.BRIGHT_MAGENTA}?{counts['verify']:<3}{Colors.RESET}"
+                    f"  {Colors.DIM}ETA {etaStr}{Colors.RESET}  "
+                )
+                sys.stdout.flush()
 
-        # ── Build row ──
+            if onProgress:
+                onProgress(idx, total)
+        except Exception:
+            pass
+
+        # Build row
         displayDesc = desc
         displayResult = raw
         if needsVerification:
@@ -1092,7 +1138,7 @@ def auditCertificates(device: Device) -> List[Dict[str, Any]]:
         print(f"[cert-debug] discovered total: {len(certFiles)}")
     today = datetime.now()
 
-    # IMPORTANT: No limit — process every discovered cert file
+    # IMPORTANT: No limit - process every discovered cert file
     for certPath in certFiles:
         try:
             rawBytes, kind = _readCertBytes(device, certPath)
@@ -1263,7 +1309,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
                     certs: List[Dict[str, Any]] = None) -> None:
     """Generate an interactive HTML report with hacker aesthetic and severity toggles."""
 
-    # ── Certificate section ──
+    # Certificate section
     certRowsHtml = ""
     expiredCount = expiringCount = userCount = validCount = 0
 
@@ -1322,7 +1368,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
         f'</div>'
     )
 
-    # ── Group rows by category ──
+    # Group rows by category
     categories = {}
     for r in rows:
         cat = r["category"]
@@ -1335,7 +1381,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
         else:
             categories[cat]["stats"]["INFO"] += 1
 
-    # ── Build category sections ──
+    # Build category sections
     categorySections = []
     for catIdx, (catName, catData) in enumerate(sorted(categories.items())):
         stats = catData["stats"]
@@ -1393,7 +1439,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
 
     categoriesHtml = "\n".join(categorySections)
 
-    # ── Device info ──
+    # Device info
     deviceItems = []
     for key, label in [("model", "Model"), ("brand", "Brand"), ("manufacturer", "Manufacturer"),
                        ("android_version", "Android"), ("sdk_level", "SDK"), ("build_id", "Build"),
@@ -1483,17 +1529,17 @@ Examples:
 
     args = ap.parse_args()
 
-    # ── Auto-detect commands/ directory ──
+    # Auto-detect commands/ directory
     if not args.json and not args.json_dir:
         scriptDir = os.path.dirname(os.path.abspath(__file__))
         defaultCmdDir = os.path.join(scriptDir, "commands")
         if os.path.isdir(defaultCmdDir):
             args.json_dir = defaultCmdDir
 
-    # ── Load checks ──
+    # Load checks
     checks = loadChecks(args.json, args.json_dir)
 
-    # ── Build device connection ──
+    # Build device connection
     device: Device
     if args.mode == "adb":
         if which("adb") is None:
@@ -1527,16 +1573,16 @@ Examples:
             sys.exit(1)
         device = SshDevice(args.host, args.port, args.ssh_user, args.ssh_pass)
 
-    # ── Banner ──
+    # Banner
     printBanner(device.idString())
 
-    # ── Progress callback ──
+    # Progress callback
     def _progress(idx: int, total: int):
         if args.progress_numbers:
             sys.stdout.write("\r" + f"{idx}/{total}")
             sys.stdout.flush()
 
-    # ── Output paths ──
+    # Output paths
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     txtDir = os.path.join(args.out, f"txt_report_{timestamp}")
     htmlDir = os.path.join(args.out, f"html_report_{timestamp}")
@@ -1546,20 +1592,23 @@ Examples:
     htmlFile = os.path.join(htmlDir, "audit_report.html")
     csvFile = os.path.join(htmlDir, "audit_report.csv")
 
-    # ── Root detection ──
+    # Root detection
     print(f"\n{Colors.BRIGHT_CYAN}🔍 Starting security audit with {len(checks)} checks...{Colors.RESET}\n")
 
     isRooted, rootMethod = detectRootStatus(device)
     if isRooted:
-        print(f"{Colors.GREEN}✓ Root detected ({rootMethod}) - will use su for privileged commands{Colors.RESET}")
+        if rootMethod == "ssh-root":
+            print(f"{Colors.GREEN}✓ Root detected ({rootMethod}) - running as root directly, no su needed{Colors.RESET}")
+        else:
+            print(f"{Colors.GREEN}✓ Root detected ({rootMethod}) - will use su for privileged commands{Colors.RESET}")
     else:
         print(f"{Colors.YELLOW}⚠ Device not rooted - some checks may have limited output{Colors.RESET}")
     print()
 
-    # ── Device info ──
+    # Device info
     deviceInfo = collectDeviceInfo(device)
 
-    # ── ADB pre-flight ──
+    # ADB pre-flight
     if isinstance(device, AdbDevice):
         preflight = device.shell("echo HARDAX_PREFLIGHT_OK")
         if "HARDAX_PREFLIGHT_OK" not in preflight:
@@ -1582,48 +1631,115 @@ Examples:
             print(f"{Colors.GREEN}✓ ADB connection verified{Colors.RESET}")
         print()
 
-    # ── Run all checks ──
+    # SSH pre-flight
+    elif isinstance(device, SshDevice):
+        preflight = device.shell("echo HARDAX_PREFLIGHT_OK")
+        if "HARDAX_PREFLIGHT_OK" not in preflight:
+            print(f"{Colors.BRIGHT_RED}✗ SSH pre-flight check failed!{Colors.RESET}")
+            print(f"  Response: {preflight!r}")
+            print(f"  Check that the SSH server on {device.host}:{device.port} allows command execution.")
+            sys.exit(1)
+        print(f"{Colors.GREEN}✓ SSH connection verified ({device.host}:{device.port}){Colors.RESET}")
+
+        # Probe shell environment so the user knows what will work
+        _ssh_pf = lambda cmd: device.shell(cmd)
+        shellPath   = _ssh_pf("which sh 2>/dev/null || command -v sh 2>/dev/null").strip()
+        bashPath    = _ssh_pf("which bash 2>/dev/null || command -v bash 2>/dev/null").strip()
+        idOut       = _ssh_pf("id 2>/dev/null").strip()
+        unameOut    = _ssh_pf("uname -a 2>/dev/null").strip()
+        isAndroid   = bool(_ssh_pf("test -f /system/build.prop && echo YES 2>/dev/null").strip() == "YES")
+        hasGetprop  = bool(_ssh_pf("command -v getprop >/dev/null 2>&1 && echo YES").strip() == "YES")
+        hasBusybox  = bool(_ssh_pf("command -v busybox >/dev/null 2>&1 && echo YES").strip() == "YES")
+        hasToybox   = bool(_ssh_pf("command -v toybox >/dev/null 2>&1 && echo YES").strip() == "YES")
+        pathOut     = _ssh_pf("echo $PATH").strip()
+
+        print(f"  Shell     : {shellPath or '(not found)'}"
+              + (f"  |  bash: {bashPath}" if bashPath else ""))
+        print(f"  Identity  : {idOut or '(unknown)'}")
+        print(f"  Kernel    : {unameOut or '(unknown)'}")
+        print(f"  PATH      : {pathOut or '(empty)'}")
+        tools = []
+        if isAndroid:  tools.append("Android/getprop" if hasGetprop else "Android(no getprop)")
+        if hasBusybox: tools.append("busybox")
+        if hasToybox:  tools.append("toybox")
+        if tools:
+            print(f"  Tools     : {', '.join(tools)}")
+        if not isAndroid:
+            print(f"  {Colors.YELLOW}⚠ /system/build.prop not found - device may not be Android."
+                  f" Android-specific checks will return empty results.{Colors.RESET}")
+        print()
+
+    # Run all checks
     rows, counts = runChecks(
         device, checks,
         onProgress=_progress,
         showCommands=args.show_commands or not args.progress_numbers,
         isRooted=isRooted,
+        rootMethod=rootMethod,
     )
 
     if args.progress_numbers:
         print()
 
-    # ── Certificate audit ──
+    # Certificate audit
+    # Works over both ADB and SSH - cert paths (/system/etc/security/cacerts, etc.)
+    # are filesystem-level reads that the shell can perform on any Android device.
     certs = []
-    if args.mode == "adb" and not args.skip_certs:
+    if not args.skip_certs:
         certs = auditCertificates(device)
 
-    # ── Generate reports ──
+    # Generate reports
     writeTxtReport(txtFile, deviceInfo, rows, counts, certs, device.idString())
     writeCsvReport(csvFile, rows)
     writeHtmlReport(htmlFile, deviceInfo, rows, counts, certs)
 
-    # ── Close SSH if used ──
+    # Close SSH if used
     if isinstance(device, SshDevice):
         device.close()
 
-    # ── Summary ──
-    print(f"\n{Colors.CYAN}{'═' * 70}{Colors.RESET}")
-    print(f"{Colors.BOLD}{Colors.BRIGHT_WHITE}✓ HARDAX AUDIT COMPLETED{Colors.RESET}")
-    print(f"{Colors.CYAN}{'═' * 70}{Colors.RESET}")
-    print(f"{Colors.BRIGHT_WHITE}📱 Target         : {Colors.BOLD}{Colors.BRIGHT_CYAN}{device.idString()}{Colors.RESET}")
-    print(f"{Colors.GREEN}✓  Safe Checks   : {Colors.BOLD}{counts['safe']}{Colors.RESET}")
-    print(f"{Colors.YELLOW}⚠  Warnings      : {Colors.BOLD}{counts['warning']}{Colors.RESET}")
-    print(f"{Colors.BRIGHT_RED}✗  Critical      : {Colors.BOLD}{counts['critical']}{Colors.RESET}")
-    print(f"{Colors.BRIGHT_MAGENTA}?  Verify        : {Colors.BOLD}{counts['verify']}{Colors.RESET}")
-    print(f"{Colors.CYAN}ℹ  Info          : {Colors.BOLD}{counts['info']}{Colors.RESET}")
-    if counts.get("skipped", 0) > 0:
-        print(f"{Colors.DIM}⊘  Skipped (ADB) : {Colors.BOLD}{counts['skipped']}{Colors.RESET}")
-    print(f"{Colors.CYAN}{'─' * 70}{Colors.RESET}")
-    print(f"{Colors.DIM}📄 TXT Report    : {txtFile}{Colors.RESET}")
-    print(f"{Colors.DIM}🌐 HTML Report   : {htmlFile}{Colors.RESET}")
-    print(f"{Colors.DIM}📊 CSV Report    : {csvFile}{Colors.RESET}")
-    print(f"{Colors.CYAN}{'═' * 70}{Colors.RESET}\n")
+    # Summary panel
+    total_checks = sum(counts.values())
+    C = Colors.BRIGHT_CYAN
+    R = Colors.RESET
+    B = Colors.BOLD
+    D = Colors.DIM
+
+    def _bar(n, tot, width=16, col=Colors.GREEN):
+        filled = int((n / tot) * width) if tot else 0
+        return f"{col}{'█' * filled}{D}{'░' * (width - filled)}{R}"
+
+    # Use print without right-border alignment (ANSI codes break padding).
+    # The visual width is controlled by fixed-width content only.
+    print(f"\n{C}  ╔{'═' * 68}╗{R}")
+    print(f"{C}  ║{R}  {B}{Colors.BRIGHT_WHITE}HARDAX  AUDIT COMPLETE{R}"
+          f"                                {D}{total_checks} checks{R}  {C}║{R}")
+    print(f"{C}  ║{R}  {D}target{R}  {Colors.BRIGHT_WHITE}{device.idString()}{R}"
+          f"{'':>{max(1, 50 - len(device.idString()))}}{C}║{R}")
+    print(f"{C}  ╠{'═' * 68}╣{R}")
+
+    summary_rows = [
+        (Colors.BRIGHT_RED,     "✗", "CRITICAL", counts["critical"]),
+        (Colors.YELLOW,         "⚠", "WARNING",  counts["warning"]),
+        (Colors.BRIGHT_MAGENTA, "?", "VERIFY",   counts["verify"]),
+        (Colors.GREEN,          "✓", "SAFE",     counts["safe"]),
+        (Colors.CYAN,           "ℹ", "INFO",     counts["info"]),
+    ]
+    if counts.get("skipped", 0):
+        summary_rows.append((D, "⊘", "SKIPPED", counts["skipped"]))
+
+    for col, sym, lbl, cnt in summary_rows:
+        pct = f"{cnt / total_checks * 100:5.1f}%" if total_checks else "  0.0%"
+        bar = _bar(cnt, total_checks, width=16, col=col)
+        # Fixed visual width: sym(1) + space(1) + lbl(8) + spaces(2) + cnt(4) + spaces(2) + pct(6) + spaces(2) + bar(16) = ~42
+        print(f"{C}  ║{R}    {col}{sym} {lbl:<8}{R}"
+              f"  {B}{col}{cnt:>4}{R}  {pct}  {bar}"
+              f"            {C}║{R}")
+
+    print(f"{C}  ╠{'═' * 68}╣{R}")
+    print(f"{C}  ║{R}  {D}TXT {R}  {D}{txtFile}{R}")
+    print(f"{C}  ║{R}  {D}HTML{R}  {D}{htmlFile}{R}")
+    print(f"{C}  ║{R}  {D}CSV {R}  {D}{csvFile}{R}")
+    print(f"{C}  ╚{'═' * 68}╝{R}\n")
 
 
 if __name__ == "__main__":
