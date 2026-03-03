@@ -27,14 +27,6 @@
     },
     {
       "category": "SYSTEM",
-      "label": "User-installed Apps",
-      "command": "pm list packages -3 2>/dev/null",
-      "safe_pattern": ".+",
-      "level": "info",
-      "description": "Check how many user apps installed"
-    },
-    {
-      "category": "SYSTEM",
       "label": "Unusual Files in /sdcard/",
       "command": "ls /sdcard/ 2>/dev/null | grep -Ei '(key|creds|dump|log|backup)'",
       "safe_pattern": "^$",
@@ -409,38 +401,6 @@
       "safe_pattern": "^1$",
       "level": "warning",
       "description": "Restricting dmesg access prevents unprivileged users from reading kernel logs."
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Android Automotive OS Detected",
-      "command": "getprop ro.build.characteristics 2>/dev/null | grep -i automotive || pm list features 2>/dev/null | grep -i 'android.hardware.type.automotive'",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Device is Android Automotive platform"
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Vehicle HAL Service",
-      "command": "service list 2>/dev/null | grep -i 'vehicle\\|car\\|vhal'",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Vehicle Hardware Abstraction Layer service status"
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Car Service Running",
-      "command": "dumpsys activity services 2>/dev/null | grep -i 'CarService\\|android.car' | head -5",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Android Car Service status"
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Automotive Build Flavor",
-      "command": "getprop ro.build.flavor 2>/dev/null",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Build flavor - check if automotive variant"
     },
     {
       "category": "SYSTEM",
