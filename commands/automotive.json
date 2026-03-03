@@ -1,0 +1,177 @@
+{
+  "checks": [
+    {
+      "category": "AUTOMOTIVE",
+      "label": "Installed Automotive Apps",
+      "command": "pm list packages 2>/dev/null | grep -iE 'car|auto|vehicle|obd|drive|navigation' | head -15",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Automotive-related applications installed"
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "OEM Vehicle Apps",
+      "command": "pm list packages 2>/dev/null | grep -iE 'toyota|honda|ford|gm|bmw|mercedes|audi|vw|tesla|hyundai|kia|nissan|mazda|subaru' | head -10",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "OEM-specific vehicle apps"
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "Third-Party OBD Apps",
+      "command": "pm list packages 2>/dev/null | grep -iE 'torque|carscanner|obdeleven|carly|forscan|bimmercode' | head -5",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Third-party OBD diagnostic apps - can read vehicle data",
+      "empty_is_safe": true
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "Apps with VEHICLE Permissions",
+      "command": "for perm in CAR_INFO CAR_EXTERIOR_ENVIRONMENT CAR_SPEED CAR_MILEAGE; do echo \"==$perm==\"; dumpsys package 2>/dev/null | grep -B5 \"android.car.permission.$perm\" | grep 'Package \\[' | head -2; done 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Apps with vehicle data access permissions"
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "System Apps with Car Privileges",
+      "command": "pm list packages -s 2>/dev/null | grep -iE 'car|vehicle|automotive' | head -10",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "System-level automotive applications"
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "CAN Bus Interface Exposed",
+      "command": "ls /dev/can* /sys/class/net/can* /sys/class/net/vcan* 2>/dev/null",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "CAN bus interface accessible from Android - CRITICAL if exposed!",
+      "empty_is_safe": true
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "OBD-II Service Running",
+      "command": "ps -A 2>/dev/null | grep -iE 'obd|elm327|canbus|socketcan'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "OBD-II diagnostic service detected",
+      "empty_is_safe": true
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "Vehicle Diagnostic Permissions",
+      "command": "timeout 8 dumpsys package 2>/dev/null | grep -E 'android.car.permission.CAR_DIAGNOSTICS|android.car.permission.CAR_ENGINE' | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Apps with vehicle diagnostic permissions"
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "Vehicle Control Permissions",
+      "command": "timeout 8 dumpsys package 2>/dev/null | grep -E 'CAR_CONTROL|CAR_SPEED|CAR_ENERGY|CAR_POWERTRAIN' | head -5",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Apps with vehicle control permissions - review carefully!",
+      "empty_is_safe": true
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "Telematics Service",
+      "command": "ps -A 2>/dev/null | grep -iE 'telematics|tcu|tbox|connectivity'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Telematics/connectivity service running"
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "Cellular Modem for Telematics",
+      "command": "getprop gsm.version.baseband 2>/dev/null; getprop ro.telephony.default_network 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Cellular connectivity for telematics/OTA"
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "GPS/Location Always On",
+      "command": "settings get secure location_mode 2>/dev/null",
+      "safe_pattern": "0",
+      "level": "warning",
+      "description": "Location tracking enabled - privacy concern for vehicles"
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "Driving Mode Restrictions",
+      "command": "settings get global car_dock_sound 2>/dev/null; dumpsys car_service 2>/dev/null | grep -i 'driving\\|restriction' | head -3",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Driving mode and UX restrictions status"
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "Vehicle Network Interfaces",
+      "command": "ip link show 2>/dev/null | grep -iE 'can|eth|vlan|vehicle'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Network interfaces including vehicle networks"
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "Ethernet to Vehicle Gateway",
+      "command": "ip addr show 2>/dev/null | grep -A2 'eth0\\|eth1' | grep inet",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Ethernet connection - may connect to vehicle gateway"
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "Bluetooth OBD Adapters",
+      "command": "dumpsys bluetooth_manager 2>/dev/null | grep -iE 'OBD\\|ELM\\|OBDII\\|Vgate\\|Carista' | head -3",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Bluetooth OBD-II adapters paired - can access vehicle data",
+      "empty_is_safe": true
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "WiFi Direct for CarPlay/Android Auto",
+      "command": "dumpsys wifi 2>/dev/null | grep -i 'p2p\\|direct\\|carplay\\|androidauto' | head -3",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "WiFi Direct status for phone projection"
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "Android Automotive OS Detected",
+      "command": "getprop ro.build.characteristics 2>/dev/null | grep -i automotive || pm list features 2>/dev/null | grep -i 'android.hardware.type.automotive'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Device is Android Automotive platform"
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "Vehicle HAL Service",
+      "command": "service list 2>/dev/null | grep -i 'vehicle\\|car\\|vhal'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Vehicle Hardware Abstraction Layer service status"
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "Car Service Running",
+      "command": "dumpsys activity services 2>/dev/null | grep -i 'CarService\\|android.car' | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Android Car Service status"
+    },
+    {
+      "category": "AUTOMOTIVE",
+      "label": "Automotive Build Flavor",
+      "command": "getprop ro.build.flavor 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Build flavor - check if automotive variant"
+    }
+  ]
+}
