@@ -80,68 +80,11 @@
     },
     {
       "category": "APPS",
-      "label": "Installed Automotive Apps",
-      "command": "pm list packages 2>/dev/null | grep -iE 'car|auto|vehicle|obd|drive|navigation' | head -15",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Automotive-related applications installed"
-    },
-    {
-      "category": "APPS",
-      "label": "OEM Vehicle Apps",
-      "command": "pm list packages 2>/dev/null | grep -iE 'toyota|honda|ford|gm|bmw|mercedes|audi|vw|tesla|hyundai|kia|nissan|mazda|subaru' | head -10",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "OEM-specific vehicle apps"
-    },
-    {
-      "category": "APPS",
-      "label": "Third-Party OBD Apps",
-      "command": "pm list packages 2>/dev/null | grep -iE 'torque|carscanner|obdeleven|carly|forscan|bimmercode' | head -5",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "Third-party OBD diagnostic apps - can read vehicle data",
-      "empty_is_safe": true
-    },
-    {
-      "category": "APPS",
       "label": "Navigation Apps",
       "command": "pm list packages 2>/dev/null | grep -iE 'maps|waze|here|tomtom|sygic|navigation' | head -5",
       "safe_pattern": ".",
       "level": "info",
       "description": "Navigation applications tracking location"
-    },
-    {
-      "category": "APPS",
-      "label": "Apps with VEHICLE Permissions",
-      "command": "for perm in CAR_INFO CAR_EXTERIOR_ENVIRONMENT CAR_SPEED CAR_MILEAGE; do echo \"==$perm==\"; dumpsys package 2>/dev/null | grep -B5 \"android.car.permission.$perm\" | grep 'Package \\[' | head -2; done 2>/dev/null",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Apps with vehicle data access permissions"
-    },
-    {
-      "category": "APPS",
-      "label": "System Apps with Car Privileges",
-      "command": "pm list packages -s 2>/dev/null | grep -iE 'car|vehicle|automotive' | head -10",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "System-level automotive applications"
-    },
-    {
-      "category": "APPS",
-      "label": "Medical/Healthcare Apps Detected",
-      "command": "pm list packages 2>/dev/null | grep -iE 'medical|health|patient|clinical|diagnostic|therapy|monitor|vital|ecg|ekg|pulse|oximeter|glucose|insulin|infusion|ventilator|imaging|dicom|pacs|ehr|emr|epic|cerner' | head -15",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Medical/healthcare applications installed - device may handle PHI"
-    },
-    {
-      "category": "APPS",
-      "label": "FDA/Medical Build Properties",
-      "command": "getprop 2>/dev/null | grep -iE 'medical|fda|iec|hipaa|clinical|regulated' | head -5",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Medical/regulatory build properties set by manufacturer"
     },
     {
       "category": "APPS",
@@ -167,24 +110,6 @@
       "safe_pattern": ".*",
       "level": "info",
       "description": "Running services on device"
-    },
-    {
-      "category": "APPS",
-      "label": "Frida Detected",
-      "command": "pm list packages | grep frida",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "Frida binary indicates runtime manipulation",
-      "empty_is_safe": true
-    },
-    {
-      "category": "APPS",
-      "label": "Magisk Detected",
-      "command": "pm list packages | grep magisk",
-      "safe_pattern": "^$",
-      "level": "critical",
-      "description": "Magisk can hide root access",
-      "empty_is_safe": true
     },
     {
       "category": "APPS",
@@ -432,6 +357,24 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Third-party apps with allowBackup=true - ADB backup can extract app data including credentials and tokens",
+      "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
+      "label": "Frida Detected",
+      "command": "pm list packages | grep frida",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Frida binary indicates runtime manipulation",
+      "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
+      "label": "Magisk Detected",
+      "command": "pm list packages | grep magisk",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Magisk can hide root access",
       "empty_is_safe": true
     }
   ]
