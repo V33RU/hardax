@@ -133,15 +133,6 @@
     },
     {
       "category": "DEVICE_MANAGEMENT",
-      "label": "Guest Mode Enabled",
-      "command": "pm list users 2>/dev/null | grep -i guest",
-      "safe_pattern": "^$",
-      "level": "info",
-      "description": "Guest mode allows unauthenticated temporary device access",
-      "empty_is_safe": true
-    },
-    {
-      "category": "DEVICE_MANAGEMENT",
       "label": "Secondary User Profiles",
       "command": "pm list users 2>/dev/null | grep -v 'UserInfo{0' | wc -l",
       "safe_pattern": "^0$",
