@@ -32,21 +32,6 @@ HARDAX is designed for:
 
 ---
 
-## What's New in v3.0
-
-| Change | Details |
-|--------|---------|
-| **619 Security Checks** | Up from 539 - 80 new checks added across all categories |
-| **Bluetooth Expansion** | Bluetooth checks expanded from 29 to 101 - covers BLE, Classic, PAN, PBAP, HFP, HSP, A2DP, AVRCP, HID, HOGP, SPP, OPP, MAP, GAP, ATT, SMP, L2CAP profiles and attack surfaces |
-| **SSH Root Detection** | Distinguishes `ssh-root` (running as root directly) from `su`-based root - no false "su needed" messages |
-| **False Positive Prevention** | `isEmptyOrError()` now catches `"Can't find service: <name>"` from `dumpsys` - unavailable services are marked SKIPPED instead of CRITICAL |
-| **Certificate Audit Expanded** | Certificate audit checks increased from 11 to 27 |
-| **Forensic Indicators Expanded** | Forensic checks increased from 11 to 24 |
-| **Malware Detection Expanded** | Malware checks increased from 16 to 18 |
-| **Code Cleanup** | Removed AI-generated Unicode markers (em dashes, box-drawing chars) from all comments |
-
----
-
 ## Features
 
 | Feature | Description |
