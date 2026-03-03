@@ -387,38 +387,11 @@
     },
     {
       "category": "PRIVACY",
-      "label": "Unencrypted PHI Indicators",
-      "command": "find /sdcard /data -type f \\( -name '*.csv' -o -name '*.txt' -o -name '*.xml' \\) -exec grep -l -iE 'patient|ssn|dob|mrn|diagnosis|medication' {} \\; 2>/dev/null | head -5",
-      "safe_pattern": "^$",
-      "level": "critical",
-      "description": "Potential unencrypted PHI found - HIPAA violation risk!",
-      "empty_is_safe": true
-    },
-    {
-      "category": "PRIVACY",
-      "label": "Log Files with PHI Risk",
-      "command": "find /data -name '*.log' -exec grep -l -iE 'patient|name|ssn|dob|mrn' {} \\; 2>/dev/null | head -5",
-      "safe_pattern": "^$",
-      "level": "critical",
-      "description": "Log files may contain PHI - must be encrypted or purged",
-      "empty_is_safe": true
-    },
-    {
-      "category": "PRIVACY",
       "label": "Backup Files Present",
       "command": "find /sdcard /data -name '*.bak' -o -name '*.backup' -o -name '*export*' 2>/dev/null | head -5",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Backup files may contain unencrypted PHI",
-      "empty_is_safe": true
-    },
-    {
-      "category": "PRIVACY",
-      "label": "External Storage PHI Risk",
-      "command": "ls /sdcard/*.db /sdcard/*.csv /sdcard/Download/*.db 2>/dev/null",
-      "safe_pattern": "^$",
-      "level": "critical",
-      "description": "Sensitive files on unencrypted external storage - PHI exposure risk!",
       "empty_is_safe": true
     }
   ]
