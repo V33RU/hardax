@@ -22,27 +22,6 @@
       "severity": "MEDIUM"
     },
     {
-      "id": "BT-002",
-      "category": "BLUETOOTH",
-      "label": "Address rotation toggle (if available)",
-      "command": "settings get global bluetooth_address_rotation_enabled",
-      "safe_pattern": "^1$|^null$",
-      "level": "high",
-      "description": "Rotating addresses mitigates persistent tracking.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§6.2",
-      "why": "Rotating addresses mitigates persistent tracking.",
-      "risk_if_fail": "If disabled, long-lived BLE identifiers allow tracking/correlation.",
-      "tags": [
-        "privacy",
-        "ble"
-      ],
-      "control_area": "BLE privacy / MAC randomization",
-      "expected_secure_state": "1 (enabled) if supported; null = unknown",
-      "severity": "HIGH"
-    },
-    {
       "id": "BT-003",
       "category": "BLUETOOTH",
       "label": "Adapter address exposure via settings (should be restricted)",
@@ -138,26 +117,6 @@
       "control_area": "BT enabled state and auto-enable",
       "expected_secure_state": "0 (OFF) when not actively used",
       "severity": "HIGH"
-    },
-    {
-      "id": "BT-008",
-      "category": "BLUETOOTH",
-      "label": "Developer options enabled (risk surface)",
-      "command": "settings get global development_settings_enabled",
-      "safe_pattern": "^0$|^null$",
-      "level": "medium",
-      "description": "Developer options often expose diagnostic toggles (including HCI snoop logging) and weaken hardening.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§3.2",
-      "why": "Developer options often expose diagnostic toggles (including HCI snoop logging) and weaken hardening.",
-      "risk_if_fail": "If enabled, misconfiguration risk rises (debug logs, test toggles, etc.).",
-      "tags": [
-        "ops"
-      ],
-      "control_area": "BT enabled state and auto-enable",
-      "expected_secure_state": "0 (disabled) on production devices",
-      "severity": "MEDIUM"
     },
     {
       "id": "BT-009",
@@ -322,25 +281,6 @@
       "severity": "LOW"
     },
     {
-      "id": "BT-017",
-      "category": "BLUETOOTH",
-      "label": "Build type is production",
-      "command": "getprop ro.build.type",
-      "safe_pattern": "^user$",
-      "level": "high",
-      "description": "Production builds typically ship hardened and are expected in operational environments.",
-      "empty_is_safe": false,
-      "nist_sp_800_121_rev2": "§3.2",
-      "why": "Production builds typically ship hardened and are expected in operational environments.",
-      "risk_if_fail": "Debug builds can enable additional interfaces and weaken security posture.",
-      "tags": [
-        "hardening"
-      ],
-      "control_area": "BT-related system properties",
-      "expected_secure_state": "user",
-      "severity": "HIGH"
-    },
-    {
       "id": "BT-018",
       "category": "BLUETOOTH",
       "label": "Android version (inventory)",
@@ -359,26 +299,6 @@
       "control_area": "BT-related system properties",
       "expected_secure_state": "Record value",
       "severity": "LOW"
-    },
-    {
-      "id": "BT-019",
-      "category": "BLUETOOTH",
-      "label": "Security patch level",
-      "command": "getprop ro.build.version.security_patch",
-      "safe_pattern": "^\\\\d{4}-\\\\d{2}-\\\\d{2}$",
-      "level": "medium",
-      "description": "Patch level is required for vulnerability management of known Bluetooth CVEs.",
-      "empty_is_safe": false,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§3.2",
-      "why": "Patch level is required for vulnerability management of known Bluetooth CVEs.",
-      "risk_if_fail": "Old patches correlate strongly with known exploitable Bluetooth issues.",
-      "tags": [
-        "patch"
-      ],
-      "control_area": "BT-related system properties",
-      "expected_secure_state": "Recent patch date",
-      "severity": "MEDIUM"
     },
     {
       "id": "BT-020",
@@ -418,24 +338,6 @@
       ],
       "control_area": "Bonded/paired device audit",
       "expected_secure_state": "Only authorized devices bonded (minimal list)",
-      "severity": "HIGH"
-    },
-    {
-      "id": "BT-022",
-      "category": "BLUETOOTH",
-      "label": "Bonded devices listing",
-      "command": "dumpsys bluetooth_manager | grep -A 80 -i 'Bonded devices'",
-      "safe_pattern": "Bonded",
-      "level": "high",
-      "description": "NIST recommends auditing paired devices and removing unauthorized or stale trust relationships.",
-      "empty_is_safe": false,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§5.2",
-      "why": "NIST recommends auditing paired devices and removing unauthorized or stale trust relationships.",
-      "risk_if_fail": "Unknown bonded devices can silently reconnect and access data/services permitted by profiles.",
-      "notes": "Implement your own allowlist matching (MAC/name) on the host side to auto-flag unknown bonds.",
-      "control_area": "Bonded/paired device audit",
-      "expected_secure_state": "Only authorized devices bonded (prefer minimal list)",
       "severity": "HIGH"
     },
     {
@@ -557,27 +459,6 @@
       "severity": "CRITICAL"
     },
     {
-      "id": "BT-029",
-      "category": "BLUETOOTH",
-      "label": "Encryption flags (generic)",
-      "command": "dumpsys bluetooth_manager | grep -iE 'isEncrypted|encrypted|encryption'",
-      "safe_pattern": "(isEncrypted=true|encrypted: true|Encryption:.*Enabled|ENCRYPTED)",
-      "level": "critical",
-      "description": "Encryption is required to protect confidentiality of Bluetooth communications.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§4.4",
-      "why": "Encryption is required to protect confidentiality of Bluetooth communications.",
-      "risk_if_fail": "Unencrypted sessions can be passively captured and decoded.",
-      "notes": "Most useful when a connection is active.",
-      "tags": [
-        "encryption"
-      ],
-      "control_area": "Encryption enforcement",
-      "expected_secure_state": "All active links encrypted",
-      "severity": "CRITICAL"
-    },
-    {
       "id": "BT-030",
       "category": "BLUETOOTH",
       "label": "Encryption key length (KNOB risk heuristic)",
@@ -593,27 +474,6 @@
       "notes": "If key length isn't printed, validate via patch level and SC enforcement.",
       "control_area": "Encryption enforcement",
       "expected_secure_state": "Key length should indicate 16 octets / 128-bit when reported",
-      "severity": "HIGH"
-    },
-    {
-      "id": "BT-031",
-      "category": "BLUETOOTH",
-      "label": "Encryption key length (if exposed)",
-      "command": "dumpsys bluetooth_manager | grep -iE 'key length|encryption key|enc.*key'",
-      "safe_pattern": "(16|128)",
-      "level": "high",
-      "description": "Strong keys resist brute-force decryption.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§4.4",
-      "why": "Strong keys resist brute-force decryption.",
-      "risk_if_fail": "Weak/negotiated-down key length enables traffic decryption (e.g., KNOB-style risks on vulnerable stacks).",
-      "tags": [
-        "encryption",
-        "keylength"
-      ],
-      "control_area": "Encryption enforcement",
-      "expected_secure_state": "Prefer 16 octets / 128-bit",
       "severity": "HIGH"
     },
     {
@@ -824,67 +684,6 @@
       "severity": "HIGH"
     },
     {
-      "id": "BT-042",
-      "category": "BLUETOOTH",
-      "label": "Boot SELinux mode property",
-      "command": "getprop ro.boot.selinux",
-      "safe_pattern": "enforcing|1",
-      "level": "critical",
-      "description": "SELinux confinement is part of platform hardening for system services.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§3.2",
-      "why": "SELinux confinement is part of platform hardening for system services.",
-      "risk_if_fail": "Permissive/disabled SELinux increases blast radius of Bluetooth stack vulnerabilities.",
-      "notes": "If absent, treat as unknown under these command constraints.",
-      "tags": [
-        "selinux"
-      ],
-      "control_area": "SELinux enforcement impacting BT",
-      "expected_secure_state": "enforcing",
-      "severity": "CRITICAL"
-    },
-    {
-      "id": "BT-043",
-      "category": "BLUETOOTH",
-      "label": "Device state (bootloader lock signal)",
-      "command": "getprop ro.boot.vbmeta.device_state",
-      "safe_pattern": "^locked$",
-      "level": "high",
-      "description": "A locked device state supports integrity of platform security controls.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§3.2",
-      "why": "A locked device state supports integrity of platform security controls.",
-      "risk_if_fail": "Unlocked state increases tampering risk for BT stack/policies.",
-      "tags": [
-        "integrity"
-      ],
-      "control_area": "SELinux enforcement impacting BT",
-      "expected_secure_state": "locked",
-      "severity": "HIGH"
-    },
-    {
-      "id": "BT-044",
-      "category": "BLUETOOTH",
-      "label": "Verified Boot state",
-      "command": "getprop ro.boot.verifiedbootstate",
-      "safe_pattern": "^green$",
-      "level": "high",
-      "description": "Verified Boot provides confidence that system components (including BT stack) are not modified.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§3.2",
-      "why": "Verified Boot provides confidence that system components (including BT stack) are not modified.",
-      "risk_if_fail": "Non-green states indicate a modified/untrusted system image.",
-      "tags": [
-        "integrity"
-      ],
-      "control_area": "SELinux enforcement impacting BT",
-      "expected_secure_state": "green",
-      "severity": "HIGH"
-    },
-    {
       "id": "BT-045",
       "category": "BLUETOOTH",
       "label": "Just Works usage indicators",
@@ -1000,15 +799,6 @@
       "nist_800_121": "§6.2"
     },
     {
-      "id": "BT-053",
-      "category": "BLUETOOTH",
-      "label": "BLE MAC Randomization",
-      "command": "VAR=$(settings get global bluetooth_address_rotation_enabled 2>/dev/null); if [ -z \"$VAR\" ]; then echo NotSupported; elif [ \"$VAR\" = \"1\" ]; then echo Enabled; else echo Disabled; fi",
-      "safe_pattern": "Enabled",
-      "level": "info",
-      "description": "Should be enabled to randomize BLE MAC (prevents device tracking/leakage)."
-    },
-    {
       "id": "BT-054",
       "category": "BLUETOOTH",
       "label": "Bluetooth Stack (Not Bluedroid)",
@@ -1040,15 +830,6 @@
       "nist_800_121": "§4.3"
     },
     {
-      "id": "BT-057",
-      "category": "BLUETOOTH",
-      "label": "Authentication Required",
-      "command": "dumpsys bluetooth_manager | grep 'Authentication:'",
-      "safe_pattern": "Authentication:.*Required",
-      "level": "warning",
-      "description": "Authentication must be required for pairing (IA-2)"
-    },
-    {
       "id": "BT-058",
       "category": "BLUETOOTH",
       "label": "Paired Devices Count",
@@ -1065,15 +846,6 @@
       "safe_pattern": "Encryption:.*Enabled",
       "level": "warning",
       "description": "Bluetooth encryption must be enabled (SC-13)"
-    },
-    {
-      "id": "BT-060",
-      "category": "BLUETOOTH",
-      "label": "LE Security Mode",
-      "command": "dumpsys bluetooth_manager | grep 'LE Security Mode:'",
-      "safe_pattern": "LE Security Mode: [2-4]",
-      "level": "warning",
-      "description": "LE should use Mode 2 (Secure Connections) or higher (SC-13)"
     },
     {
       "id": "BT-061",
@@ -1146,15 +918,6 @@
       "level": "warning",
       "description": "Bluetooth debugging interfaces must be disabled in production (CM-6)",
       "empty_is_safe": true
-    },
-    {
-      "id": "BT-068",
-      "category": "BLUETOOTH",
-      "label": "Link Key Strength",
-      "command": "dumpsys bluetooth_manager | grep -i 'Key Length'",
-      "safe_pattern": "128",
-      "level": "warning",
-      "description": "Link encryption key length must be at least 128 bits (IA-5)"
     },
     {
       "id": "BT-069",
@@ -1367,16 +1130,6 @@
       "nist_800_121": "§2.1"
     },
     {
-      "id": "BT-089",
-      "category": "BLUETOOTH",
-      "label": "Bluetooth Debug Properties",
-      "command": "getprop | grep -i bluetooth | grep -i debug",
-      "safe_pattern": "^$",
-      "level": "info",
-      "description": "Debug properties for Bluetooth should not be set on production.",
-      "empty_is_safe": true
-    },
-    {
       "id": "BT-090",
       "category": "BLUETOOTH",
       "label": "Bluetooth Debug Properties",
@@ -1479,16 +1232,6 @@
       "safe_pattern": "null|0|^$",
       "level": "warning",
       "description": "Device should not be discoverable (AC-18)"
-    },
-    {
-      "id": "BT-100",
-      "category": "BLUETOOTH",
-      "label": "MAC Randomization",
-      "command": "settings get secure bluetooth_address | grep -E '([0-9A-F]{2}:){5}[0-9A-F]{2}'",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "Static MAC addresses should be avoided (SC-8(1))",
-      "empty_is_safe": true
     },
     {
       "id": "BT-101",
