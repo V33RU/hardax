@@ -100,106 +100,6 @@
     },
     {
       "category": "NETWORK",
-      "label": "CAN Bus Interface Exposed",
-      "command": "ls /dev/can* /sys/class/net/can* /sys/class/net/vcan* 2>/dev/null",
-      "safe_pattern": "^$",
-      "level": "critical",
-      "description": "CAN bus interface accessible from Android - CRITICAL if exposed!",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "OBD-II Service Running",
-      "command": "ps -A 2>/dev/null | grep -iE 'obd|elm327|canbus|socketcan'",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "OBD-II diagnostic service detected",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "Vehicle Diagnostic Permissions",
-      "command": "timeout 8 dumpsys package 2>/dev/null | grep -E 'android.car.permission.CAR_DIAGNOSTICS|android.car.permission.CAR_ENGINE' | head -5",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Apps with vehicle diagnostic permissions"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Vehicle Control Permissions",
-      "command": "timeout 8 dumpsys package 2>/dev/null | grep -E 'CAR_CONTROL|CAR_SPEED|CAR_ENERGY|CAR_POWERTRAIN' | head -5",
-      "safe_pattern": "^$",
-      "level": "critical",
-      "description": "Apps with vehicle control permissions - review carefully!",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "Telematics Service",
-      "command": "ps -A 2>/dev/null | grep -iE 'telematics|tcu|tbox|connectivity'",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Telematics/connectivity service running"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Cellular Modem for Telematics",
-      "command": "getprop gsm.version.baseband 2>/dev/null; getprop ro.telephony.default_network 2>/dev/null",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Cellular connectivity for telematics/OTA"
-    },
-    {
-      "category": "NETWORK",
-      "label": "GPS/Location Always On",
-      "command": "settings get secure location_mode 2>/dev/null",
-      "safe_pattern": "0",
-      "level": "warning",
-      "description": "Location tracking enabled - privacy concern for vehicles"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Driving Mode Restrictions",
-      "command": "settings get global car_dock_sound 2>/dev/null; dumpsys car_service 2>/dev/null | grep -i 'driving\\|restriction' | head -3",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Driving mode and UX restrictions status"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Vehicle Network Interfaces",
-      "command": "ip link show 2>/dev/null | grep -iE 'can|eth|vlan|vehicle'",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Network interfaces including vehicle networks"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Ethernet to Vehicle Gateway",
-      "command": "ip addr show 2>/dev/null | grep -A2 'eth0\\|eth1' | grep inet",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Ethernet connection - may connect to vehicle gateway"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Bluetooth OBD Adapters",
-      "command": "dumpsys bluetooth_manager 2>/dev/null | grep -iE 'OBD\\|ELM\\|OBDII\\|Vgate\\|Carista' | head -3",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "Bluetooth OBD-II adapters paired - can access vehicle data",
-      "empty_is_safe": true
-    },
-    {
-      "category": "NETWORK",
-      "label": "WiFi Direct for CarPlay/Android Auto",
-      "command": "dumpsys wifi 2>/dev/null | grep -i 'p2p\\|direct\\|carplay\\|androidauto' | head -3",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "WiFi Direct status for phone projection"
-    },
-    {
-      "category": "NETWORK",
       "label": "Firebase Config Present",
       "command": "ls /data/data/*/google-services.json /data/data/*/files/google-services.json 2>/dev/null || find /data -maxdepth 6 -name 'google-services.json' 2>/dev/null | head -3",
       "safe_pattern": ".",
@@ -374,22 +274,6 @@
     },
     {
       "category": "NETWORK",
-      "label": "HL7/FHIR Ports (2575, 8080)",
-      "command": "netstat -tlnp 2>/dev/null | grep -E ':2575|:8080|:8443' || ss -tlnp 2>/dev/null | grep -E ':2575|:8080|:8443'",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "HL7/FHIR API ports - verify TLS and authentication"
-    },
-    {
-      "category": "NETWORK",
-      "label": "DICOM Ports (104, 11112)",
-      "command": "netstat -tlnp 2>/dev/null | grep -E ':104\\b|:11112' || ss -tlnp 2>/dev/null | grep -E ':104\\b|:11112'",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "DICOM imaging ports - verify security configuration"
-    },
-    {
-      "category": "NETWORK",
       "label": "WiFi Security Protocol",
       "command": "dumpsys wifi 2>/dev/null | grep -iE 'security|wpa|wep|open' | head -3",
       "safe_pattern": "WPA2|WPA3",
@@ -467,22 +351,6 @@
       "safe_pattern": "^\\s*$",
       "level": "critical",
       "description": "CRITICAL: 69(TFTP), 1900(SSDP), 500(IPsec) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: No auth, DDoS amplification!"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Listening TCP Ports (IPv6, excluding ::1)",
-      "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -v '::1'",
-      "safe_pattern": "^\\s*$",
-      "level": "info",
-      "description": "INFO: IPv6 TCP listening ports. 🟢 SAFE=empty or ::1 only. 🔴 UNSAFE if ::: (all interfaces). IPv6 often overlooked!"
-    },
-    {
-      "category": "NETWORK",
-      "label": "Common TCP Ports Exposed (IPv6, Warning)",
-      "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -E ':(53|80|25|110|143|465|587|993|995|8080|8443|22)[^0-9]' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -E ':(53|80|22)[^0-9]' | grep -v '::1'",
-      "safe_pattern": "^\\s*$",
-      "level": "warning",
-      "description": "WARNING: Common TCP on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Often missed in firewall rules!"
     },
     {
       "category": "NETWORK",
@@ -612,6 +480,22 @@
       "level": "warning",
       "description": "Active outbound connections to external IPs - unexpected connections may indicate C2 communication or data exfiltration",
       "empty_is_safe": false
+    },
+    {
+      "category": "NETWORK",
+      "label": "Listening TCP Ports (IPv6, excluding ::1)",
+      "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -v '::1'",
+      "safe_pattern": "^\\s*$",
+      "level": "info",
+      "description": "INFO: IPv6 TCP listening ports. 🟢 SAFE=empty or ::1 only. 🔴 UNSAFE if ::: (all interfaces). IPv6 often overlooked!"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Common TCP Ports Exposed (IPv6, Warning)",
+      "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -E ':(53|80|25|110|143|465|587|993|995|8080|8443|22)[^0-9]' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -E ':(53|80|22)[^0-9]' | grep -v '::1'",
+      "safe_pattern": "^\\s*$",
+      "level": "warning",
+      "description": "WARNING: Common TCP on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Often missed in firewall rules!"
     }
   ]
 }
