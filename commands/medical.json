@@ -1,0 +1,63 @@
+{
+  "checks": [
+    {
+      "category": "MEDICAL",
+      "label": "Medical/Healthcare Apps Detected",
+      "command": "pm list packages 2>/dev/null | grep -iE 'medical|health|patient|clinical|diagnostic|therapy|monitor|vital|ecg|ekg|pulse|oximeter|glucose|insulin|infusion|ventilator|imaging|dicom|pacs|ehr|emr|epic|cerner' | head -15",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Medical/healthcare applications installed - device may handle PHI"
+    },
+    {
+      "category": "MEDICAL",
+      "label": "FDA/Medical Build Properties",
+      "command": "getprop 2>/dev/null | grep -iE 'medical|fda|iec|hipaa|clinical|regulated' | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Medical/regulatory build properties set by manufacturer"
+    },
+    {
+      "category": "MEDICAL",
+      "label": "HL7/FHIR Ports (2575, 8080)",
+      "command": "netstat -tlnp 2>/dev/null | grep -E ':2575|:8080|:8443' || ss -tlnp 2>/dev/null | grep -E ':2575|:8080|:8443'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "HL7/FHIR API ports - verify TLS and authentication"
+    },
+    {
+      "category": "MEDICAL",
+      "label": "DICOM Ports (104, 11112)",
+      "command": "netstat -tlnp 2>/dev/null | grep -E ':104\\b|:11112' || ss -tlnp 2>/dev/null | grep -E ':104\\b|:11112'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "DICOM imaging ports - verify security configuration"
+    },
+    {
+      "category": "MEDICAL",
+      "label": "Unencrypted PHI Indicators",
+      "command": "find /sdcard /data -type f \\( -name '*.csv' -o -name '*.txt' -o -name '*.xml' \\) -exec grep -l -iE 'patient|ssn|dob|mrn|diagnosis|medication' {} \\; 2>/dev/null | head -5",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Potential unencrypted PHI found - HIPAA violation risk!",
+      "empty_is_safe": true
+    },
+    {
+      "category": "MEDICAL",
+      "label": "Log Files with PHI Risk",
+      "command": "find /data -name '*.log' -exec grep -l -iE 'patient|name|ssn|dob|mrn' {} \\; 2>/dev/null | head -5",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Log files may contain PHI - must be encrypted or purged",
+      "empty_is_safe": true
+    },
+    {
+      "category": "MEDICAL",
+      "label": "External Storage PHI Risk",
+      "command": "ls /sdcard/*.db /sdcard/*.csv /sdcard/Download/*.db 2>/dev/null",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Sensitive files on unencrypted external storage - PHI exposure risk!",
+      "empty_is_safe": true
+    }
+  ]
+}
