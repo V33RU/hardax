@@ -96,7 +96,7 @@
       "category": "AUTOMOTIVE",
       "label": "GPS/Location Always On",
       "command": "settings get secure location_mode 2>/dev/null",
-      "safe_pattern": "0",
+      "safe_pattern": "^0$",
       "level": "warning",
       "description": "Location tracking enabled - privacy concern for vehicles"
     },
