@@ -772,7 +772,7 @@
       "category": "BLUETOOTH",
       "label": "Airplane Mode Enforces BT Off",
       "command": "APM=$(settings get global airplane_mode_on); BT=$(settings get global bluetooth_on); echo \"AirplaneMode=$APM BT=$BT\"",
-      "safe_pattern": "AirplaneMode=0|AirplaneMode=1 BT=0",
+      "safe_pattern": "^AirplaneMode=0|^AirplaneMode=1 BT=0$",
       "level": "medium",
       "description": "When airplane mode is on, Bluetooth must also be off to prevent RF emissions in restricted environments.",
       "nist_800_53": "AC-18(3), CM-7",
@@ -873,8 +873,8 @@
       "category": "BLUETOOTH",
       "label": "Bonded/Paired Device Audit",
       "command": "dumpsys bluetooth_manager | grep -A 20 'Bonded devices:'",
-      "safe_pattern": ".*",
-      "level": "high",
+      "safe_pattern": ".",
+      "level": "info",
       "description": "Manually review bonded devices. Any unknown MAC indicates unauthorized pairing or a silent backdoor.",
       "nist_800_53": "AC-3, AC-17, CM-8",
       "nist_800_121": "§5.2"
@@ -948,8 +948,8 @@
       "category": "BLUETOOTH",
       "label": "I/O Capability (Not NoInputNoOutput)",
       "command": "dumpsys bluetooth_manager | grep -i 'io.*cap\\|ioCap\\|ioCapability'",
-      "safe_pattern": ".*",
-      "level": "high",
+      "safe_pattern": ".",
+      "level": "info",
       "description": "I/O capability should allow MITM protection (e.g., DisplayYesNo). NoInputNoOutput forces JustWorks and is insecure.",
       "nist_800_53": "IA-2",
       "nist_800_121": "§4.3"
@@ -1036,7 +1036,7 @@
       "category": "BLUETOOTH",
       "label": "Bluetooth Stack Version",
       "command": "dumpsys package com.android.bluetooth | grep versionName",
-      "safe_pattern": ".*",
+      "safe_pattern": "",
       "level": "info",
       "description": "Check the Bluetooth stack version against the latest for your Android version; outdated versions may contain known CVEs.",
       "nist_800_53": "SI-2, CM-8",
@@ -1069,7 +1069,7 @@
       "category": "BLUETOOTH",
       "label": "bluetooth.opp Property",
       "command": "getprop bluetooth.opp",
-      "safe_pattern": "false|^$",
+      "safe_pattern": "^(false|)$",
       "level": "warning",
       "description": "OPP (Object Push Profile) should be disabled if not needed."
     },
@@ -1078,7 +1078,7 @@
       "category": "BLUETOOTH",
       "label": "bluetooth.pan Property",
       "command": "getprop bluetooth.pan",
-      "safe_pattern": "false|^$",
+      "safe_pattern": "^(false|)$",
       "level": "warning",
       "description": "PAN (Personal Area Networking) profile should be disabled if not needed."
     },
@@ -1087,7 +1087,7 @@
       "category": "BLUETOOTH",
       "label": "bluetooth.pbap Property",
       "command": "getprop bluetooth.pbap",
-      "safe_pattern": "false|^$",
+      "safe_pattern": "^(false|)$",
       "level": "warning",
       "description": "PBAP (Phone Book Access Profile) should be disabled if not needed."
     },
@@ -1096,7 +1096,7 @@
       "category": "BLUETOOTH",
       "label": "bluetooth.sap Property",
       "command": "getprop bluetooth.sap",
-      "safe_pattern": "false|^$",
+      "safe_pattern": "^(false|)$",
       "level": "warning",
       "description": "SAP (SIM Access Profile) should be disabled if not needed."
     },
@@ -1105,7 +1105,7 @@
       "category": "BLUETOOTH",
       "label": "bluetooth.secure Property",
       "command": "getprop bluetooth.secure",
-      "safe_pattern": "true",
+      "safe_pattern": "^true$",
       "level": "warning",
       "description": "Bluetooth secure mode should be enabled (property)."
     },
@@ -1180,9 +1180,10 @@
       "category": "BLUETOOTH",
       "label": "Apps with BLUETOOTH Permission",
       "command": "pm list permissions -g -d | grep -A1 'BLUETOOTH$' | grep -c 'package:'",
-      "safe_pattern": "^[1-3]$",
+      "safe_pattern": "^[0-9]$",
       "level": "warning",
-      "description": "Too many apps with BLUETOOTH permission increases risk."
+      "description": "Too many apps (10+) with BLUETOOTH permission increases risk. Zero is safe.",
+      "empty_is_safe": true
     },
     {
       "id": "BT-096",
@@ -1209,7 +1210,7 @@
       "category": "BLUETOOTH",
       "label": "BR/EDR Secure Connections Enforcement",
       "command": "settings get global bluetooth_br_edr_secure_connections 2>/dev/null | grep -q '^1$' && echo Enforced || echo NotEnforced",
-      "safe_pattern": "Enforced",
+      "safe_pattern": "^Enforced$",
       "level": "critical",
       "description": "BR/EDR Secure Connections must be enforced to prevent the KNOB attack (CVE-2019-9506).",
       "nist_800_53": "SC-8, SC-13, IA-2",
@@ -1220,7 +1221,7 @@
       "category": "BLUETOOTH",
       "label": "Discoverable Mode",
       "command": "settings get global bluetooth_discoverability",
-      "safe_pattern": "null|0|^$",
+      "safe_pattern": "^(null|0|)$",
       "level": "warning",
       "description": "Device should not be discoverable (AC-18)"
     },
