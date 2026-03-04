@@ -4,7 +4,7 @@
       "category": "STORAGE",
       "label": "ADB Backup Enabled",
       "command": "settings get secure backup_enabled",
-      "safe_pattern": "0|null",
+      "safe_pattern": "^(0|null)$",
       "level": "warning",
       "description": "ADB backup can extract sensitive data"
     },
@@ -36,9 +36,9 @@
       "category": "STORAGE",
       "label": "Mount Points (rw/ro)",
       "command": "mount | grep -E ' rw| ro'",
-      "safe_pattern": ".*",
+      "safe_pattern": "",
       "level": "info",
-      "description": "Review mounted partitions and access permissions"
+      "description": "Review mounted partitions and access permissions (evidence collector)"
     },
     {
       "category": "STORAGE",
@@ -52,18 +52,18 @@
       "category": "STORAGE",
       "label": "World-Readable Files Count",
       "command": "find /data -maxdepth 4 -type f -perm -o+r 2>/dev/null | wc -l",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "No sensitive files should be world-readable (scans top 4 levels)",
+      "safe_pattern": "^[0-9]$|^[1-4][0-9]$",
+      "level": "info",
+      "description": "World-readable files in /data (top 4 levels). Some are normal; large counts may indicate misconfigured permissions.",
       "empty_is_safe": true
     },
     {
       "category": "STORAGE",
       "label": "World-Readable Files List",
-      "command": "find /data -maxdepth 4 -type f -perm -o+r 2>/dev/null",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "No sensitive files should be world-readable (scans top 4 levels)",
+      "command": "find /data -maxdepth 4 -type f -perm -o+r 2>/dev/null | head -20",
+      "safe_pattern": "^$",
+      "level": "info",
+      "description": "World-readable files in /data (evidence collector — review for sensitive files).",
       "empty_is_safe": true
     },
     {
