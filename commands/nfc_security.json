@@ -12,7 +12,7 @@
       "category": "NFC_SECURITY",
       "label": "Android Beam",
       "command": "settings get global android_beam_enabled",
-      "safe_pattern": "0|null",
+      "safe_pattern": "^(0|null)$",
       "level": "warning",
       "description": "Android Beam can be used for data exfiltration"
     },
@@ -45,7 +45,7 @@
       "category": "NFC_SECURITY",
       "label": "NFC Reader Mode Active",
       "command": "dumpsys nfc 2>/dev/null | grep -i 'mReaderModeParams'",
-      "safe_pattern": "null",
+      "safe_pattern": "null$",
       "level": "warning",
       "description": "NFC reader mode parameters active - may indicate relay attack preparation or unauthorized card reading",
       "empty_is_safe": false
