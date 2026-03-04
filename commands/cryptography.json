@@ -154,9 +154,10 @@
       "category": "CRYPTOGRAPHY",
       "label": "Database Files with Potential Secrets",
       "command": "find /data -name '*.db' -o -name '*.sqlite' 2>/dev/null | head -10",
-      "safe_pattern": ".",
+      "safe_pattern": "^$",
       "level": "info",
-      "description": "Database files - may contain sensitive data"
+      "description": "Database files - may contain sensitive data",
+      "empty_is_safe": true
     }
   ]
 }
