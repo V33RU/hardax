@@ -101,8 +101,8 @@
       "label": "Hardcoded Passwords in Config",
       "command": "find /system /vendor /data -type f \\( -name '*.conf' -o -name '*.cfg' -o -name '*.ini' -o -name '*.properties' \\) -exec grep -l -i 'password\\|passwd\\|pwd=' {} \\; 2>/dev/null | head -10",
       "safe_pattern": "^$",
-      "level": "critical",
-      "description": "Config files containing passwords - CRITICAL",
+      "level": "warning",
+      "description": "Config files containing password-related keywords (keyword detection — verify manually whether actual credentials are present)",
       "empty_is_safe": true
     },
     {
@@ -110,8 +110,8 @@
       "label": "API Keys in Files",
       "command": "find /system /vendor /data -type f \\( -name '*.json' -o -name '*.xml' -o -name '*.conf' \\) -exec grep -l -iE 'api_key|apikey|api-key|secret_key|secretkey|access_token' {} \\; 2>/dev/null | head -10",
       "safe_pattern": "^$",
-      "level": "critical",
-      "description": "Files containing API keys or secrets",
+      "level": "warning",
+      "description": "Files containing API key-related keywords (keyword detection — verify manually whether actual secrets are present)",
       "empty_is_safe": true
     },
     {
