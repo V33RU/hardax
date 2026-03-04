@@ -262,7 +262,7 @@
       "category": "PRIVACY",
       "label": "Biometric Strength",
       "command": "dumpsys biometric | grep 'Strength='",
-      "safe_pattern": "STRONG",
+      "safe_pattern": "=STRONG",
       "level": "warning",
       "description": "Biometric auth should be 'STRONG' (not 'WEAK')"
     },
