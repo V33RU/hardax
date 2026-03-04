@@ -768,15 +768,6 @@
       "nist_800_121": "§3.2"
     },
     {
-      "id": "BT-050",
-      "category": "BLUETOOTH",
-      "label": "bluetoothd Hardening",
-      "command": "(ps -A -o cmd 2>/dev/null | grep -E 'bluetoothd|bluetooth' | grep -q -- -n) && echo HARDENED || echo UNPROTECTED",
-      "safe_pattern": "HARDENED",
-      "level": "warning",
-      "description": "Checks if the Bluetooth daemon runs in hardened (no-privilege) mode."
-    },
-    {
       "id": "BT-051",
       "category": "BLUETOOTH",
       "label": "Airplane Mode Enforces BT Off",
