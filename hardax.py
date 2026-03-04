@@ -2092,48 +2092,109 @@ Examples:
 
     # Summary panel
     total_checks = sum(counts.values())
+
+    # ── Visual‑width helpers (ANSI safe) ─────────────────────────────────
+    try:
+        from wcwidth import wcswidth  # precise visual width for Unicode
+    except Exception:
+        def wcswidth(s: str) -> int:  # graceful fallback
+            return len(s)
+
+    _ANSI_VIS_RE = re.compile(r'\x1b\[[0-9;]*m')
+
+    def _strip_ansi(s: str) -> str:
+        return _ANSI_VIS_RE.sub('', s)
+
+    def _vwidth(s: str) -> int:
+        return wcswidth(_strip_ansi(s))
+
+    def _rpad_vis(s: str, width: int) -> str:
+        need = width - _vwidth(s)
+        return s if need <= 0 else s + (' ' * need)
+
+    def _lpad_vis(s: str, width: int) -> str:
+        need = width - _vwidth(s)
+        return s if need <= 0 else (' ' * need) + s
+
+    # ── Box geometry + safe printers ─────────────────────────────────────
     C = Colors.BRIGHT_CYAN
     R = Colors.RESET
     B = Colors.BOLD
     D = Colors.DIM
 
-    def _bar(n, tot, width=16, col=Colors.GREEN):
-        filled = int((n / tot) * width) if tot else 0
-        return f"{col}{'█' * filled}{D}{'░' * (width - filled)}{R}"
+    FRAME_WIDTH = 68       # number of '═' between corners (kept as-is)
+    INNER_WIDTH = FRAME_WIDTH  # inner content width between the two ║
 
-    # Use print without right-border alignment (ANSI codes break padding).
-    # The visual width is controlled by fixed-width content only.
-    print(f"\n{C}  ╔{'═' * 68}╗{R}")
-    print(f"{C}  ║{R}  {B}{Colors.BRIGHT_WHITE}HARDAX  AUDIT COMPLETE{R}"
-          f"                                {D}{total_checks} checks{R}  {C}║{R}")
-    print(f"{C}  ║{R}  {D}target{R}  {Colors.BRIGHT_WHITE}{device.idString()}{R}"
-          f"{'':>{max(1, 50 - len(device.idString()))}}{C}║{R}")
-    print(f"{C}  ╠{'═' * 68}╣{R}")
+    def _box_top():
+        print(f"\n{C}  ╔{'═' * FRAME_WIDTH}╗{R}")
+    def _box_sep():
+        print(f"{C}  ╠{'═' * FRAME_WIDTH}╣{R}")
 
-    summary_rows = [
-        (Colors.BRIGHT_RED,     "✗", "CRITICAL", counts["critical"]),
-        (Colors.YELLOW,         "⚠", "WARNING",  counts["warning"]),
-        (Colors.BRIGHT_MAGENTA, "?", "VERIFY",   counts["verify"]),
-        (Colors.GREEN,          "✓", "SAFE",     counts["safe"]),
-        (Colors.CYAN,           "ℹ", "INFO",     counts["info"]),
+    def _box_bottom():
+        print(f"{C}  ╚{'═' * FRAME_WIDTH}╝{R}\n")
+    def _box_line(content: str):
+        print(f"{C}  ║{R}{_rpad_vis(content, INNER_WIDTH)}{C}║{R}")
+
+    # ── Fixed-width progress bar (exact visual width) ────────────────────
+    def _bar_fixed(n: int, tot: int, width: int = 16, col: str = Colors.GREEN) -> str:
+        filled = int(round((n / tot) * width)) if tot else 0
+        filled = max(0, min(width, filled))
+        filled_seg = f"{col}{'█' * filled}{R}" if filled else ""
+        empty_seg  = f"{D}{'░' * (width - filled)}{R}" if width - filled > 0 else ""
+        bar = filled_seg + empty_seg
+        return _rpad_vis(bar, width)
+
+    # ── Header lines (left title + right checks) ─────────────────────────
+    title_left  = f"  {B}{Colors.BRIGHT_WHITE}HARDAX  AUDIT COMPLETE{R}"
+    title_right = f"{D}{total_checks} checks{R}"
+
+    used = _vwidth(title_left) + _vwidth(title_right)
+    mid_spaces = max(0, INNER_WIDTH - used)
+    _box_top()
+    _box_line(title_left + (" " * mid_spaces) + title_right)
+
+    # target line
+    target_line = f"  {D}target{R}  {Colors.BRIGHT_WHITE}{device.idString()}{R}"
+    _box_line(target_line)
+
+    _box_sep()
+
+    # ── Summary rows: exact column plan ──────────────────────────────────
+    # Layout (visual widths):
+    #   2 spaces + sym(1) + space(1) + label(8 L) + 2 + count(4 R) + 2 + pct(6 R) + 2 + bar(16)
+    def _summary_row(col, sym, lbl, cnt, tot):
+        pct = f"{(cnt / tot * 100):5.1f}%" if tot else "  0.0%"
+        bar = _bar_fixed(cnt, tot, width=16, col=col)
+
+        part1 = "  " + f"{col}{sym}{R}" + " "
+        part2 = _rpad_vis(f"{col}{lbl}{R}", 8)
+        part3 = "  " + _lpad_vis(f"{B}{col}{cnt}{R}", 4)
+        part4 = "  " + _lpad_vis(pct, 6)
+        part5 = "  " + _rpad_vis(bar, 16)
+
+        _box_line(part1 + part2 + part3 + part4 + part5)
+
+    rows = [
+        (Colors.BRIGHT_RED,     '✗', 'CRITICAL', counts['critical']),
+        (Colors.YELLOW,         '⚠', 'WARNING',  counts['warning']),
+        (Colors.BRIGHT_MAGENTA, '?', 'VERIFY',   counts['verify']),
+        (Colors.GREEN,          '✓', 'SAFE',     counts['safe']),
+        (Colors.CYAN,           'ℹ', 'INFO',     counts['info']),
     ]
-    if counts.get("skipped", 0):
-        summary_rows.append((D, "⊘", "SKIPPED", counts["skipped"]))
+    if counts.get('skipped', 0):
+        rows.append((D, '⊘', 'SKIPPED', counts['skipped']))
 
-    for col, sym, lbl, cnt in summary_rows:
-        pct = f"{cnt / total_checks * 100:5.1f}%" if total_checks else "  0.0%"
-        bar = _bar(cnt, total_checks, width=16, col=col)
-        # Fixed visual width: sym(1) + space(1) + lbl(8) + spaces(2) + cnt(4) + spaces(2) + pct(6) + spaces(2) + bar(16) = ~42
-        print(f"{C}  ║{R}    {col}{sym} {lbl:<8}{R}"
-              f"  {B}{col}{cnt:>4}{R}  {pct}  {bar}"
-              f"            {C}║{R}")
+    for col, sym, lbl, cnt in rows:
+        _summary_row(col, sym, lbl, cnt, total_checks)
 
-    print(f"{C}  ╠{'═' * 68}╣{R}")
-    print(f"{C}  ║{R}  {D}TXT {R}  {D}{txtFile}{R}")
-    print(f"{C}  ║{R}  {D}HTML{R}  {D}{htmlFile}{R}")
-    print(f"{C}  ║{R}  {D}CSV {R}  {D}{csvFile}{R}")
-    print(f"{C}  ╚{'═' * 68}╝{R}\n")
+    _box_sep()
 
+    # footer file paths
+    _box_line(f"  {D}TXT {R}  {D}{txtFile}{R}")
+    _box_line(f"  {D}HTML{R}  {D}{htmlFile}{R}")
+    _box_line(f"  {D}CSV {R}  {D}{csvFile}{R}")
+
+    _box_bottom()
 
 if __name__ == "__main__":
     main()
