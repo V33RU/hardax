@@ -4,7 +4,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-3.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.11+-green.svg" alt="Python">
-  <img src="https://img.shields.io/badge/checks-619-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-599-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-19-purple.svg" alt="Categories">
   <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
   <a href="https://github.com/V33RU/hardax/wiki">
@@ -21,7 +21,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **619 security checks** across **19 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **599 security checks** across **19 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -36,7 +36,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **619 Security Checks** | Comprehensive coverage across 19 security categories |
+| **599 Security Checks** | Comprehensive coverage across 19 security categories |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
 | **Malware & Hooking Detection** | 18 checks for rootkits, RATs, Frida, Xposed, keyloggers, memory scrapers |
 | **Certificate Audit** | CA certificate analysis with expiry/age calculation - 27 checks |
@@ -175,7 +175,7 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **619 checks** into **19 security categories**:
+HARDAX organizes **599 checks** into **19 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
