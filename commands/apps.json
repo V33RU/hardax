@@ -124,7 +124,7 @@
       "category": "APPS",
       "label": "Unapproved APKs in /data/local/tmp",
       "command": "ls /data/local/tmp/*.apk 2>/dev/null",
-      "safe_pattern": "^ls:.*No such file or directory$",
+      "safe_pattern": "^$",
       "level": "warning",
       "description": "Unauthorized sideloading or testing APKs",
       "empty_is_safe": true
@@ -249,7 +249,7 @@
       "label": "SMS Permission Apps",
       "command": "pm list packages -p android.permission.SEND_SMS 2>/dev/null | head -20",
       "safe_pattern": ".",
-      "level": "warning",
+      "level": "info",
       "description": "Apps with SMS sending permission"
     },
     {
@@ -264,7 +264,7 @@
       "category": "APPS",
       "label": "Unknown Sources Disabled",
       "command": "settings get secure install_non_market_apps",
-      "safe_pattern": "0|null",
+      "safe_pattern": "^(0|null)$",
       "level": "critical",
       "description": "Installing from unknown sources should be disabled"
     },
@@ -272,7 +272,7 @@
       "category": "APPS",
       "label": "Package Verifier Enabled",
       "command": "settings get global package_verifier_enable",
-      "safe_pattern": "1",
+      "safe_pattern": "^1$",
       "level": "warning",
       "description": "Package verification should be enabled"
     },
@@ -280,7 +280,7 @@
       "category": "APPS",
       "label": "Verify Apps Over USB",
       "command": "settings get global verifier_verify_adb_installs",
-      "safe_pattern": "1",
+      "safe_pattern": "^1$",
       "level": "warning",
       "description": "Verify apps installed via ADB"
     },
@@ -288,7 +288,7 @@
       "category": "APPS",
       "label": "Play Protect Enabled",
       "command": "settings get global package_verifier_user_consent",
-      "safe_pattern": "1",
+      "safe_pattern": "^1$",
       "level": "warning",
       "description": "Google Play Protect consent status"
     },
@@ -296,7 +296,7 @@
       "category": "APPS",
       "label": "Install via ADB Blocked",
       "command": "settings get global install_allow_adb",
-      "safe_pattern": "0|null",
+      "safe_pattern": "^(0|null)$",
       "level": "warning",
       "description": "Block app installation via ADB"
     },
@@ -321,7 +321,7 @@
       "label": "Background Location Apps",
       "command": "appops query-op --uid android.permission.ACCESS_BACKGROUND_LOCATION 2>/dev/null | head -10",
       "safe_pattern": ".",
-      "level": "warning",
+      "level": "info",
       "description": "Apps with background location access"
     },
     {
@@ -345,10 +345,9 @@
       "category": "APPS",
       "label": "Current Foreground Window",
       "command": "dumpsys window windows 2>/dev/null | grep -E 'mCurrentFocus|mFocusedApp' | head -5",
-      "safe_pattern": "",
+      "safe_pattern": ".",
       "level": "info",
-      "description": "Currently focused window and app - useful for detecting active overlay attacks in real-time",
-      "empty_is_safe": false
+      "description": "Currently focused window and app - useful for detecting active overlay attacks in real-time"
     },
     {
       "category": "APPS",
