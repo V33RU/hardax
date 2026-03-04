@@ -3,7 +3,7 @@
 HARDAX - Hardening Audit eXaminer
 Android OS based Connected Devices Security Configuration Auditor
 
-619 Security Checks | 19 Categories | 3 Report Formats
+Android OS based Connected Devices Security Configuration Auditor | 3 Report Formats
 Author : Mr-IoT (IOTSRG)
 License: MIT
 """
@@ -14,6 +14,7 @@ License: MIT
 
 import argparse
 import base64
+import collections
 import csv
 import html
 import json
@@ -21,6 +22,7 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -138,6 +140,343 @@ if not supportsColor():
     for attr in dir(Colors):
         if not attr.startswith("_"):
             setattr(Colors, attr, "")
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  TERMINAL HELPERS (pure ANSI, no curses)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class Terminal:
+    """Low-level terminal cursor / screen helpers using ANSI escape codes."""
+
+    @staticmethod
+    def hideCursor():
+        sys.stdout.write("\033[?25l")
+        sys.stdout.flush()
+
+    @staticmethod
+    def showCursor():
+        sys.stdout.write("\033[?25h")
+        sys.stdout.flush()
+
+    @staticmethod
+    def cursorUp(n: int):
+        if n > 0:
+            sys.stdout.write(f"\033[{n}A")
+
+    @staticmethod
+    def clearLine():
+        sys.stdout.write("\033[2K\r")
+
+    @staticmethod
+    def getSize() -> Tuple[int, int]:
+        """Return (columns, rows) of the terminal."""
+        sz = shutil.get_terminal_size(fallback=(80, 24))
+        return sz.columns, sz.lines
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  HUD TACTICAL DASHBOARD
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Regex to strip ANSI escape codes for visual-width calculations
+_ANSI_RE = re.compile(r'\033\[[0-9;]*m')
+
+
+def _vlen(s: str) -> int:
+    """Visual length of a string, ignoring ANSI escape codes."""
+    return len(_ANSI_RE.sub('', s))
+
+
+def _vpad(s: str, width: int) -> str:
+    """Right-pad a string with spaces to reach a target *visual* width."""
+    diff = width - _vlen(s)
+    return s + (' ' * diff) if diff > 0 else s
+
+
+def _vtrunc(s: str, maxLen: int) -> str:
+    """Truncate a plain string to maxLen visual chars, adding … if needed."""
+    if len(s) <= maxLen:
+        return s
+    return s[:maxLen - 1] + "…"
+
+
+class HUDDashboard:
+    """Live split-panel HUD with categories on left, findings feed on right.
+
+    Every line is built by:
+      1. composing *plain text* segments first (known visual widths)
+      2. wrapping with ANSI colour
+      3. using _vpad() to pad to the exact column before adding borders
+
+    This guarantees the right-hand │ always aligns.
+    """
+
+    _STATUS_FMT = {
+        "SAFE":     (Colors.GREEN,          "✓"),
+        "CRITICAL": (Colors.BRIGHT_RED,     "✗"),
+        "WARNING":  (Colors.YELLOW,         "⚠"),
+        "VERIFY":   (Colors.BRIGHT_MAGENTA, "?"),
+        "INFO":     (Colors.CYAN,           "ℹ"),
+        "SKIPPED":  (Colors.DIM,            "⊘"),
+    }
+
+    # Fixed layout constants  (inner widths, excluding the border chars)
+    LW = 34        # left-panel visual width (between │…│)
+    RW = 36        # right-panel visual width (between │…│)
+    # Total inner = LW + 1(sep│) + RW = 71   + 2 outer │ = 73 visual
+    # With 2-space indent: 75 chars per line — fits 80-col terminals.
+
+    def __init__(self, checks: List[Dict[str, Any]], deviceInfo: str = ""):
+        seen: Dict[str, int] = {}
+        for chk in checks:
+            cat = chk.get("category", "General")
+            seen[cat] = seen.get(cat, 0) + 1
+
+        self.categoryOrder = list(seen.keys())
+        self.categoryTotals = seen
+        self.categoryDone = {c: 0 for c in self.categoryOrder}
+        self.activeCategory = self.categoryOrder[0] if self.categoryOrder else ""
+        self.totalChecks = len(checks)
+        self.totalDone = 0
+        self.deviceInfo = deviceInfo
+        self.startTime = time.time()
+
+        self._maxFindings = len(self.categoryOrder)
+        self.findings: collections.deque = collections.deque(maxlen=self._maxFindings)
+
+        self.counts = {"safe": 0, "critical": 0, "warning": 0,
+                        "verify": 0, "info": 0, "skipped": 0}
+
+        # Panel height = header(3) + cat rows + blankrow(1) + sep(1) + progress(1) + tally(1) + bottom(1) = cats+8
+        self._catRows = len(self.categoryOrder)
+        self.panelHeight = self._catRows + 8
+
+        W = self.LW + 1 + self.RW  # full inner width (between outer │ │)
+        self._W = W
+
+        Terminal.hideCursor()
+        self._render(first=True)
+
+    # ── helpers ────────────────────────────────────────────
+
+    @staticmethod
+    def _bar(done: int, total: int, width: int = 20) -> str:
+        """█░ progress bar with colour gradient, exact *width* visual chars."""
+        if total == 0:
+            return Colors.DIM + "░" * width + Colors.RESET
+        frac = min(done / total, 1.0)
+        filled = int(frac * width)
+        col = Colors.BRIGHT_RED if frac < 0.33 else Colors.YELLOW if frac < 0.66 else Colors.GREEN
+        return col + "█" * filled + Colors.DIM + "░" * (width - filled) + Colors.RESET
+
+    def _eta(self) -> str:
+        if self.totalDone == 0:
+            return "--:--"
+        elapsed = time.time() - self.startTime
+        remaining = int((elapsed / self.totalDone) * (self.totalChecks - self.totalDone))
+        return f"{remaining // 60}m{remaining % 60:02d}s" if remaining >= 60 else f"{remaining}s"
+
+    # ── line builders (each returns a string with ANSI, exact visual width) ──
+
+    def _lineTop(self) -> str:
+        """Top border: ┌─── HARDAX v3.0 ── device ── N checks ──────┐"""
+        D = Colors.DIM; R = Colors.RESET; B = Colors.BOLD; W = Colors.BRIGHT_WHITE
+        C = Colors.BRIGHT_CYAN; Y = Colors.YELLOW
+        # Build plain segments and their visual lengths
+        seg1 = f"─── HARDAX v{__version__} "
+        seg2 = f"── {_vtrunc(self.deviceInfo, 20)} " if self.deviceInfo else ""
+        seg3 = f"── {self.totalChecks} checks "
+        used = len(seg1) + len(seg2) + len(seg3)
+        fill = max(1, self._W - used)
+        # Now build with colours
+        return (f"  {D}┌{R}"
+                f"{D}───{R} {B}{W}HARDAX v{__version__}{R} "
+                f"{D}──{R} {C}{_vtrunc(self.deviceInfo, 20)}{R} " if self.deviceInfo else f"  {D}┌{R}{D}───{R} {B}{W}HARDAX v{__version__}{R} ") + \
+               (f"{D}──{R} {Y}{self.totalChecks} checks{R} "
+                f"{D}{'─' * fill}┐{R}")
+
+    def _lineTopSafe(self) -> str:
+        """Top border built with guaranteed alignment."""
+        D = Colors.DIM; R = Colors.RESET; B = Colors.BOLD
+        W = Colors.BRIGHT_WHITE; C = Colors.BRIGHT_CYAN; Y = Colors.YELLOW
+        dev = _vtrunc(self.deviceInfo, 20) if self.deviceInfo else ""
+        # plain text (no colour) to measure
+        plain = f"─── HARDAX v{__version__} ── {dev} ── {self.totalChecks} checks "
+        fill = max(1, self._W - len(plain))
+        coloured = (f"{D}───{R} {B}{W}HARDAX v{__version__}{R} "
+                    f"{D}──{R} {C}{dev}{R} "
+                    f"{D}──{R} {Y}{self.totalChecks} checks{R} "
+                    f"{D}{'─' * fill}{R}")
+        return f"  {D}┌{R}{coloured}{D}┐{R}"
+
+    def _lineHeaders(self) -> str:
+        D = Colors.DIM; R = Colors.RESET; B = Colors.BOLD; W = Colors.BRIGHT_WHITE
+        left = _vpad(f" {B}{W}CATEGORIES{R}", self.LW)
+        right = _vpad(f"{B}{W}LIVE FINDINGS{R}", self.RW)
+        return f"  {D}│{R}{left}{D}│{R}{right}{D}│{R}"
+
+    def _lineSepInner(self) -> str:
+        """Sub-header separator: │ ─────────│─────────│"""
+        D = Colors.DIM; R = Colors.RESET
+        return f"  {D}│{'─' * self.LW}│{'─' * self.RW}│{R}"
+
+    def _lineCatRow(self, cat: str, findIdx: int) -> str:
+        """One category row with left + right panels."""
+        D = Colors.DIM; R = Colors.RESET; B = Colors.BOLD
+        W = Colors.BRIGHT_WHITE; G = Colors.GREEN; C = Colors.BRIGHT_CYAN
+        done = self.categoryDone.get(cat, 0)
+        total = self.categoryTotals.get(cat, 0)
+
+        # Icon (1 visual char)
+        if done >= total > 0:
+            icon = f"{G}✓{R}"
+        elif cat == self.activeCategory and done > 0:
+            icon = f"{C}◈{R}"
+        elif cat == self.activeCategory:
+            icon = f"{C}▶{R}"
+        else:
+            icon = f"{D}·{R}"
+
+        # Name (16 visual chars)
+        name16 = _vtrunc(cat, 16)
+        if cat == self.activeCategory:
+            nameC = f"{B}{W}{name16}{R}"
+        elif done >= total > 0:
+            nameC = f"{G}{name16}{R}"
+        else:
+            nameC = f"{D}{name16}{R}"
+        nameC = _vpad(nameC, 16)
+
+        # Count: "  4/84 " (7 visual)
+        countPlain = f"{done:>3}/{total}"
+        countC = f"{W}{countPlain}{R}" if done > 0 else f"{D}{countPlain}{R}"
+
+        # Pct: "100%" or " --" (4 visual)
+        if total > 0 and done > 0:
+            pctPlain = f"{done * 100 // total:3d}%"
+        else:
+            pctPlain = "  --"
+        pctC = f"{D}{pctPlain}{R}"
+
+        # left: icon(1) + sp(1) + name(16) + sp(1) + count(~7) + sp(1) + pct(4) + sp(~3)
+        # Total left visual = 1+1+16+1+7+1+4 = 31, pad to LW
+        leftContent = f"{icon} {nameC} {countC} {pctC}"
+        left = _vpad(leftContent, self.LW)
+
+        # Right panel: finding
+        right = self._findingCell(findIdx)
+
+        return f"  {D}│{R}{left}{D}│{R}{right}{D}│{R}"
+
+    def _findingCell(self, idx: int) -> str:
+        """Build right-panel cell for findings row idx, padded to RW."""
+        R = Colors.RESET; D = Colors.DIM
+        if idx < len(self.findings):
+            status, label = self.findings[idx]
+            col, _ = self._STATUS_FMT.get(status, (D, "·"))
+            tag = status[:4]
+            lbl = _vtrunc(label, self.RW - 8)
+            cell = f"{col}[{tag}]{R} {lbl}"
+        else:
+            cell = ""
+        return _vpad(cell, self.RW)
+
+    def _lineBlank(self) -> str:
+        D = Colors.DIM; R = Colors.RESET
+        return f"  {D}│{' ' * self.LW}│{' ' * self.RW}│{R}"
+
+    def _lineSepFull(self) -> str:
+        """Separator: ├──────┴──────┤"""
+        D = Colors.DIM; R = Colors.RESET
+        return f"  {D}├{'─' * self.LW}┴{'─' * self.RW}┤{R}"
+
+    def _lineProgress(self) -> str:
+        D = Colors.DIM; R = Colors.RESET; W = Colors.BRIGHT_WHITE
+        barW = 20
+        bar = self._bar(self.totalDone, self.totalChecks, barW)
+        pct = (self.totalDone / self.totalChecks * 100) if self.totalChecks else 0
+        # plain: "  " + bar(20) + "  " + "NNN/NNN" + "  " + "PPP.P%" + "    ETA XXmXXs"
+        countPlain = f"{self.totalDone:>3}/{self.totalChecks}"
+        pctPlain = f"{pct:5.1f}%"
+        etaPlain = f"ETA {self._eta()}"
+        content = f" {bar}  {W}{countPlain}{R}  {D}{pctPlain}{R}    {D}{etaPlain}{R}"
+        return f"  {D}│{R}{_vpad(content, self._W)}{D}│{R}"
+
+    def _lineTally(self) -> str:
+        D = Colors.DIM; R = Colors.RESET
+        G = Colors.GREEN; RD = Colors.BRIGHT_RED; Y = Colors.YELLOW; C = Colors.CYAN
+        c = self.counts
+        tally = (f" {G}✓{c['safe']}{R} SAFE  "
+                 f"{RD}✗{c['critical']}{R} CRIT  "
+                 f"{Y}⚠{c['warning']}{R} WARN  "
+                 f"{D}⊘{c['skipped']}{R} SKIP  "
+                 f"{C}ℹ{c['info']}{R} INFO")
+        return f"  {D}│{R}{_vpad(tally, self._W)}{D}│{R}"
+
+    def _lineBottom(self) -> str:
+        D = Colors.DIM; R = Colors.RESET
+        return f"  {D}└{'─' * self._W}┘{R}"
+
+    # ── full frame ──────────────────────────────────────────
+
+    def _buildFrame(self) -> str:
+        lines = [
+            self._lineTopSafe(),
+            self._lineHeaders(),
+            self._lineSepInner(),
+        ]
+        for i, cat in enumerate(self.categoryOrder):
+            lines.append(self._lineCatRow(cat, i))
+        lines.append(self._lineBlank())
+        lines.append(self._lineSepFull())
+        lines.append(self._lineProgress())
+        lines.append(self._lineTally())
+        lines.append(self._lineBottom())
+        return "\n".join(lines)
+
+    def _render(self, first: bool = False):
+        if not first:
+            Terminal.cursorUp(self.panelHeight)
+            sys.stdout.write("\r")
+        print(self._buildFrame())
+        sys.stdout.flush()
+
+    # ── public API ──────────────────────────────────────────
+
+    def onCheckComplete(self, category: str, label: str, status: str):
+        """Called after each check completes. Updates stats and redraws."""
+        self.activeCategory = category
+        self.categoryDone[category] = self.categoryDone.get(category, 0) + 1
+        self.totalDone += 1
+
+        bucket = status.lower()
+        if bucket in self.counts:
+            self.counts[bucket] += 1
+
+        if status not in ("SAFE", "INFO"):
+            self.findings.append((status, label))
+
+        self._render()
+
+    def finish(self):
+        """Restore cursor and print completion message."""
+        Terminal.showCursor()
+        elapsed = time.time() - self.startTime
+        mins = int(elapsed) // 60
+        secs = int(elapsed) % 60
+        print(f"\n  {Colors.GREEN}✓{Colors.RESET} {Colors.BOLD}Audit complete{Colors.RESET} in {mins}m{secs:02d}s\n")
+
+
+# Global dashboard reference for signal handler
+_active_dashboard: Optional['HUDDashboard'] = None
+
+
+def _signalHandler(signum, frame):
+    """Restore terminal on Ctrl+C."""
+    Terminal.showCursor()
+    print(f"\n\n  {Colors.YELLOW}⚠ Audit interrupted by user (Ctrl+C){Colors.RESET}\n")
+    sys.exit(130)
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -787,7 +1126,8 @@ def isEmptyOrError(output: str) -> bool:
 def runChecks(device: Device, checks: List[Dict[str, Any]],
               onProgress=None, showCommands: bool = False,
               isRooted: bool = False,
-              rootMethod: str = "none") -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
+              rootMethod: str = "none",
+              dashboard: Optional['HUDDashboard'] = None) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
     """
     Execute every check against the device and classify the result.
     Returns (rows, counts) where rows is the full audit data.
@@ -962,8 +1302,12 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                     cmdShort = command[:60] + "…" if len(command) > 60 else command
                     print(f"  {Colors.DIM}{'':>10} └─ $ {cmdShort}{Colors.RESET}")
 
+            elif dashboard:
+                # HUD Tactical Dashboard mode
+                dashboard.onCheckComplete(category, label, status)
+
             else:
-                # Compact progress bar with live counts
+                # Compact progress bar fallback (no dashboard, no --show-commands)
                 barWidth = 24
                 filled = int((idx / total) * barWidth)
                 bar = "█" * filled + "░" * (barWidth - filled)
@@ -1479,8 +1823,10 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
 #  CLI BANNER
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-def printBanner(idLine: Optional[str]) -> None:
+def printBanner(idLine: Optional[str], checkCount: int = 0, categoryCount: int = 0) -> None:
     """Print the ASCII art banner with terminal colours."""
+    checksStr = f"[{checkCount} Checks]" if checkCount else "[--- Checks]"
+    catsStr = f"[{categoryCount} Categories]" if categoryCount else "[--- Categories]"
     print(f"""
 {Colors.BRIGHT_CYAN}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃  {Colors.BRIGHT_WHITE}██   ██  █████  ██████  ██████   █████  ██   ██{Colors.BRIGHT_CYAN}                  ┃
@@ -1491,7 +1837,7 @@ def printBanner(idLine: Optional[str]) -> None:
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ┃  {Colors.BOLD}Hardening Audit eXaminer{Colors.RESET}{Colors.BRIGHT_CYAN} v{__version__}                                    ┃
 ┃  {Colors.DIM}Android OS based Connected Devices Security Configuration Auditor{Colors.BRIGHT_CYAN}┃
-┃  {Colors.YELLOW}[539 Checks]{Colors.RESET} {Colors.GREEN}[18 Categories]{Colors.BRIGHT_CYAN}                                     ┃
+┃  {Colors.YELLOW}{checksStr}{Colors.RESET} {Colors.GREEN}{catsStr}{Colors.BRIGHT_CYAN}{' ' * max(1, 53 - len(checksStr) - len(catsStr))}┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛{Colors.RESET}
 """)
     if idLine:
@@ -1573,8 +1919,9 @@ Examples:
             sys.exit(1)
         device = SshDevice(args.host, args.port, args.ssh_user, args.ssh_pass)
 
-    # Banner
-    printBanner(device.idString())
+    # Banner (dynamic counts)
+    _catSet = {c.get("category", "General") for c in checks}
+    printBanner(device.idString(), checkCount=len(checks), categoryCount=len(_catSet))
 
     # Progress callback
     def _progress(idx: int, total: int):
@@ -1669,14 +2016,30 @@ Examples:
                   f" Android-specific checks will return empty results.{Colors.RESET}")
         print()
 
+    # Set up HUD dashboard (only in default mode, not --show-commands)
+    global _active_dashboard
+    _hud = None
+    useShowCommands = args.show_commands
+
+    if not useShowCommands and sys.stdout.isatty():
+        # HUD Tactical dashboard mode
+        signal.signal(signal.SIGINT, _signalHandler)
+        _hud = HUDDashboard(checks, deviceInfo=device.idString())
+        _active_dashboard = _hud
+
     # Run all checks
     rows, counts = runChecks(
         device, checks,
         onProgress=_progress,
-        showCommands=args.show_commands or not args.progress_numbers,
+        showCommands=useShowCommands,
         isRooted=isRooted,
         rootMethod=rootMethod,
+        dashboard=_hud,
     )
+
+    if _hud:
+        _hud.finish()
+        _active_dashboard = None
 
     if args.progress_numbers:
         print()
