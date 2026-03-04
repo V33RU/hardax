@@ -518,6 +518,26 @@ def bucketFromLevel(level: str) -> str:
     return "info"
 
 
+SERVICE_ERRORS = [
+    "can't find service",
+    "service not found",
+    "failed to find service",
+    "does not exist",
+    "cmd: can't find",
+]
+
+
+def isServiceError(output: str) -> bool:
+    """Return True when *output* indicates a missing Android service."""
+    if not output:
+        return False
+    lower = output.lower().strip()
+    for indicator in SERVICE_ERRORS:
+        if indicator in lower and len(lower) < 150:
+            return True
+    return False
+
+
 def isAdbTransportError(output: str) -> bool:
     """Return True when *output* looks like an ADB transport / connection error."""
     if not output:
@@ -1164,6 +1184,7 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
             outputIsNull = False
 
             if consecutiveAdbErrors >= 5:
+
                 print(f"\n  {Colors.BRIGHT_RED}✗ Device unresponsive after {consecutiveAdbErrors} consecutive ADB errors.{Colors.RESET}")
                 print(f"  {Colors.YELLOW}  Attempting reconnect...{Colors.RESET}")
                 if isinstance(device, AdbDevice):
@@ -1196,9 +1217,18 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                             })
                             counts["skipped"] += 1
                         break
+        # Service not found error (e.g. "Can't find service: bluetooth_manager") - SKIPPED
+        elif raw and isServiceError(raw):
+            status = "SKIPPED"
+            counts["skipped"] += 1
+            raw = f"[SERVICE N/A] {raw.strip()}"
+            matched = False
+            needsVerification = False
+            bucket = bucketFromLevel(level)
+            outputIsNull = False
         else:
             consecutiveAdbErrors = 0
-            normalized = normalizeForMatch(raw)
+            normalized = normalizeForMatch(raw).strip()
             bucket = bucketFromLevel(level)
             matched = False
             needsVerification = False
