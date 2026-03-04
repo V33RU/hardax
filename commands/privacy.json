@@ -36,7 +36,7 @@
       "category": "PRIVACY",
       "label": "Face Unlock Status",
       "command": "settings get secure face_unlock_method",
-      "safe_pattern": "0|null",
+      "safe_pattern": "^(0|null)$",
       "level": "warning",
       "description": "Face unlock may be less secure than fingerprint"
     },
@@ -52,7 +52,7 @@
       "category": "PRIVACY",
       "label": "Biometric Keyguard Enabled",
       "command": "settings get secure biometric_keyguard_enabled",
-      "safe_pattern": "1",
+      "safe_pattern": "^1$",
       "level": "warning",
       "description": "Biometric keyguard should be enabled for secure unlock"
     },
@@ -60,7 +60,7 @@
       "category": "PRIVACY",
       "label": "Clipboard Access Notification",
       "command": "settings get secure show_clipboard_access_notification",
-      "safe_pattern": "1",
+      "safe_pattern": "^1$",
       "level": "warning",
       "description": "Should notify when apps access clipboard"
     },
@@ -124,7 +124,7 @@
       "category": "PRIVACY",
       "label": "Location History",
       "command": "settings get secure location_history_enabled",
-      "safe_pattern": "0|null",
+      "safe_pattern": "^(0|null)$",
       "level": "warning",
       "description": "Location history can be privacy concern"
     },
@@ -140,7 +140,7 @@
       "category": "PRIVACY",
       "label": "Notification Listeners",
       "command": "settings get secure enabled_notification_listeners",
-      "safe_pattern": "^$|null",
+      "safe_pattern": "^(|null)$",
       "level": "warning",
       "description": "Notification listeners can read all notifications including OTPs"
     },
@@ -156,7 +156,7 @@
       "category": "PRIVACY",
       "label": "Lock Screen Notifications",
       "command": "settings get secure lock_screen_allow_private_notifications",
-      "safe_pattern": "0",
+      "safe_pattern": "^0$",
       "level": "warning",
       "description": "Private notifications on lock screen"
     },
@@ -172,7 +172,7 @@
       "category": "PRIVACY",
       "label": "Screen Lock Enabled",
       "command": "settings get secure lockscreen.password_type",
-      "safe_pattern": "65536|131072|196608|262144|327680|393216",
+      "safe_pattern": "^(65536|131072|196608|262144|327680|393216)$",
       "level": "critical",
       "description": "Device should have PIN/Password/Pattern lock enabled"
     },
@@ -188,7 +188,7 @@
       "category": "PRIVACY",
       "label": "Show Passwords Disabled",
       "command": "settings get system show_password",
-      "safe_pattern": "0|null",
+      "safe_pattern": "^(0|null)$",
       "level": "warning",
       "description": "Passwords should not be shown when typing"
     },
@@ -196,7 +196,7 @@
       "category": "PRIVACY",
       "label": "Lock Screen Notification Visibility",
       "command": "settings get secure lock_screen_show_notifications",
-      "safe_pattern": "0",
+      "safe_pattern": "^0$",
       "level": "warning",
       "description": "Sensitive notifications should be hidden on lock screen"
     },
@@ -204,7 +204,7 @@
       "category": "PRIVACY",
       "label": "Smart Lock Disabled",
       "command": "settings get secure trust_agents_initialized",
-      "safe_pattern": "0|null",
+      "safe_pattern": "^(0|null)$",
       "level": "warning",
       "description": "Smart Lock may reduce security by keeping device unlocked"
     },
@@ -264,7 +264,8 @@
       "command": "dumpsys biometric | grep 'Strength='",
       "safe_pattern": "=STRONG",
       "level": "warning",
-      "description": "Biometric auth should be 'STRONG' (not 'WEAK')"
+      "description": "Biometric auth should be 'STRONG' (not 'WEAK'). Empty if no biometric hardware.",
+      "empty_is_safe": true
     },
     {
       "category": "PRIVACY",
@@ -339,7 +340,7 @@
       "category": "PRIVACY",
       "label": "SD Card Encryption",
       "command": "getprop ro.crypto.sdcard 2>/dev/null",
-      "safe_pattern": "encrypted|true",
+      "safe_pattern": "^(encrypted|true)$",
       "level": "warning",
       "description": "SD card should be encrypted if present"
     },
