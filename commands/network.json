@@ -29,7 +29,7 @@
       "category": "NETWORK",
       "label": "Data Roaming",
       "command": "settings get global data_roaming",
-      "safe_pattern": "0|null",
+      "safe_pattern": "^(0|null)$",
       "level": "warning",
       "description": "Data roaming can incur costs and security risks"
     },
@@ -436,7 +436,7 @@
       "category": "NETWORK",
       "label": "WiFi MAC Randomization",
       "command": "settings get global wifi_connected_mac_randomization_enabled",
-      "safe_pattern": "1",
+      "safe_pattern": "^1$",
       "level": "warning",
       "description": "MAC randomization protects privacy"
     },
@@ -444,7 +444,7 @@
       "category": "NETWORK",
       "label": "WiFi Scan Always Available",
       "command": "settings get global wifi_scan_always_enabled",
-      "safe_pattern": "0|null",
+      "safe_pattern": "^(0|null)$",
       "level": "warning",
       "description": "WiFi scanning when WiFi off can leak location"
     },
@@ -476,10 +476,10 @@
       "category": "NETWORK",
       "label": "Active External Connections (ESTABLISHED)",
       "command": "netstat -tunp 2>/dev/null | grep ESTABLISHED | grep -vE '127.0.0.1|::1|localhost' | head -20 || ss -tunp 2>/dev/null | grep ESTAB | grep -vE '127.0.0.1|::1' | head -20",
-      "safe_pattern": "",
+      "safe_pattern": "^$",
       "level": "warning",
       "description": "Active outbound connections to external IPs - unexpected connections may indicate C2 communication or data exfiltration",
-      "empty_is_safe": false
+      "empty_is_safe": true
     },
     {
       "category": "NETWORK",
