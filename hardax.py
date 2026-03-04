@@ -1867,7 +1867,7 @@ def printBanner(idLine: Optional[str], checkCount: int = 0, categoryCount: int =
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ┃  {Colors.BOLD}Hardening Audit eXaminer{Colors.RESET}{Colors.BRIGHT_CYAN} v{__version__}                                    ┃
 ┃  {Colors.DIM}Android OS based Connected Devices Security Configuration Auditor{Colors.BRIGHT_CYAN}┃
-┃  {Colors.YELLOW}{checksStr}{Colors.RESET} {Colors.GREEN}{catsStr}{Colors.BRIGHT_CYAN}{' ' * max(1, 53 - len(checksStr) - len(catsStr))}┃
+┃  {Colors.YELLOW}{checksStr}{Colors.RESET} {Colors.GREEN}{catsStr}{Colors.BRIGHT_CYAN}{' ' * max(1, 53 - len(checksStr) - len(catsStr))}           ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛{Colors.RESET}
 """)
     if idLine:
