@@ -121,7 +121,7 @@
       "category": "SYSTEM",
       "label": "Executable Stack",
       "command": "cat /proc/sys/kernel/exec-shield 2>/dev/null || cat /proc/sys/kernel/randomize_va_space 2>/dev/null",
-      "safe_pattern": "1|2",
+      "safe_pattern": "^[12]$",
       "level": "warning",
       "description": "ASLR should be enabled"
     },
@@ -326,9 +326,9 @@
       "category": "SYSTEM",
       "label": "Audit Logs Enabled",
       "command": "cat /proc/sys/kernel/printk",
-      "safe_pattern": ".*",
-      "level": "warning",
-      "description": "Non-zero values indicate audit logs may be active"
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Kernel printk log levels (evidence collector)"
     },
     {
       "category": "SYSTEM",
@@ -414,7 +414,7 @@
       "category": "SYSTEM",
       "label": "Test Keys Used",
       "command": "getprop ro.build.tags 2>/dev/null",
-      "safe_pattern": "release-keys",
+      "safe_pattern": "^release-keys$",
       "level": "critical",
       "description": "Must use release-keys. test-keys means unsigned/development build"
     },
@@ -438,7 +438,7 @@
       "category": "SYSTEM",
       "label": "ADB Root Access",
       "command": "id 2>/dev/null",
-      "safe_pattern": "uid=[1-9]|shell",
+      "safe_pattern": "^uid=[1-9]",
       "level": "critical",
       "description": "ADB shell should NOT run as root (uid=0)"
     },
@@ -531,7 +531,7 @@
       "category": "SYSTEM",
       "label": "Screen Lock Enforced",
       "command": "settings get secure lockscreen.password_type 2>/dev/null",
-      "safe_pattern": "[1-9]",
+      "safe_pattern": "^[1-9]",
       "level": "critical",
       "description": "Screen lock MUST be enabled to protect PHI access"
     },
@@ -563,7 +563,7 @@
       "category": "SYSTEM",
       "label": "TPM Keystore Presence",
       "command": "ls /system/lib64/hw/keystore.* 2>/dev/null",
-      "safe_pattern": "^ls:.*No such file or directory$",
+      "safe_pattern": ".",
       "level": "info",
       "description": "Checks for hardware-backed keystore modules"
     },
@@ -571,7 +571,7 @@
       "category": "SYSTEM",
       "label": "Auto Time Enabled",
       "command": "settings get global auto_time",
-      "safe_pattern": "1",
+      "safe_pattern": "^1$",
       "level": "warning",
       "description": "Auto time sync helps prevent cert/token attacks"
     },
@@ -645,10 +645,9 @@
       "category": "SYSTEM",
       "label": "System Memory Status",
       "command": "cat /proc/meminfo 2>/dev/null | grep -iE 'MemTotal|MemFree|MemAvailable'",
-      "safe_pattern": "",
+      "safe_pattern": ".",
       "level": "info",
-      "description": "System memory baseline - abnormally low available memory may indicate memory scraping attacks or crypto mining",
-      "empty_is_safe": false
+      "description": "System memory baseline - abnormally low available memory may indicate memory scraping attacks or crypto mining"
     },
     {
       "category": "SYSTEM",
@@ -663,10 +662,9 @@
       "category": "SYSTEM",
       "label": "SIM Card / Cellular Status",
       "command": "getprop gsm.sim.state 2>/dev/null",
-      "safe_pattern": "",
+      "safe_pattern": ".",
       "level": "info",
-      "description": "SIM card state - POS terminals and IoT kiosks typically should not have active cellular connectivity",
-      "empty_is_safe": false
+      "description": "SIM card state - POS terminals and IoT kiosks typically should not have active cellular connectivity"
     },
     {
       "category": "SYSTEM",
