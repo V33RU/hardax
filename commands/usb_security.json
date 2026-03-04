@@ -4,7 +4,7 @@
       "category": "USB_SECURITY",
       "label": "USB Debugging Enabled",
       "command": "settings get global adb_enabled",
-      "safe_pattern": "0|null",
+      "safe_pattern": "^(0|null)$",
       "level": "critical",
       "description": "USB debugging should be disabled in production"
     },
@@ -12,17 +12,17 @@
       "category": "USB_SECURITY",
       "label": "USB File Transfer Disabled",
       "command": "settings get global usb_mass_storage_enabled 2>/dev/null",
-      "safe_pattern": "^0$",
+      "safe_pattern": "^(0|null)$",
       "level": "warning",
-      "description": "Should be disabled to block unauthorized USB file access"
+      "description": "Should be disabled to block unauthorized USB file access. Null means not configured (safe default)."
     },
     {
       "category": "USB_SECURITY",
       "label": "USB Mass Storage",
       "command": "getprop sys.usb.config",
-      "safe_pattern": "^(none|mtp|ptp|charging)$",
+      "safe_pattern": "^(none|mtp|ptp|charging|adb|mtp,adb|ptp,adb|charging,adb)$",
       "level": "warning",
-      "description": "Check USB configuration mode"
+      "description": "Check USB configuration mode. ADB mode is expected during audit."
     },
     {
       "category": "USB_SECURITY",
@@ -36,9 +36,9 @@
       "category": "USB_SECURITY",
       "label": "USB Accessory Mode",
       "command": "getprop sys.usb.state",
-      "safe_pattern": "^(none|mtp|ptp|charging)$",
+      "safe_pattern": "^(none|mtp|ptp|charging|adb|mtp,adb|ptp,adb|charging,adb)$",
       "level": "info",
-      "description": "Current USB state"
+      "description": "Current USB state. ADB mode is expected during audit."
     },
     {
       "category": "USB_SECURITY",
