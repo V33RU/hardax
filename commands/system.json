@@ -129,7 +129,7 @@
       "category": "SYSTEM",
       "label": "Ptrace Scope",
       "command": "cat /proc/sys/kernel/yama/ptrace_scope 2>/dev/null",
-      "safe_pattern": "[123]",
+      "safe_pattern": "^[123]$",
       "level": "warning",
       "description": "Ptrace restrictions (1+ recommended)"
     },
@@ -229,7 +229,7 @@
       "category": "SYSTEM",
       "label": "Kernel Pointer Exposure",
       "command": "cat /proc/sys/kernel/kptr_restrict 2>/dev/null",
-      "safe_pattern": "[12]",
+      "safe_pattern": "^[12]$",
       "level": "warning",
       "description": "Kernel pointers should be restricted (1 or 2)"
     },
