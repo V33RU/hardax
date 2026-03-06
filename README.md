@@ -4,7 +4,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-3.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.11+-green.svg" alt="Python">
-  <img src="https://img.shields.io/badge/checks-619-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-599-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-19-purple.svg" alt="Categories">
   <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
   <a href="https://github.com/V33RU/hardax/wiki">
@@ -21,7 +21,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **619 security checks** across **19 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **599 security checks** across **19 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -36,14 +36,15 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **619 Security Checks** | Comprehensive coverage across 19 security categories |
+| **599 Security Checks** | Comprehensive coverage across 19 security categories |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
 | **Malware & Hooking Detection** | 18 checks for rootkits, RATs, Frida, Xposed, keyloggers, memory scrapers |
 | **Certificate Audit** | CA certificate analysis with expiry/age calculation - 27 checks |
 | **No Root Required** | Runs entirely via ADB shell commands |
-| **Root Auto-Detection** | Detects root method (Magisk/SuperSU/su/ssh-root) and adapts privilege escalation accordingly |
+| **Root Auto-Detection** | Detects root method (Magisk/SuperSU/su/ssh-root/uart-root) and adapts privilege escalation accordingly |
 | **ADB Resilience** | 5-layer protection: connection check, auto-reconnect, timeout, SKIPPED status |
-| **Dual Connection Modes** | ADB (USB/Network) and SSH support |
+| **Triple Connection Modes** | ADB (USB/Network), SSH, and UART serial console support |
+| **UART Shell Support** | Connect over serial console with auto baud detection, user/root shell identification |
 | **SSH Root Awareness** | Detects when SSH session is already root - skips unnecessary `su` probing |
 | **6 Status Levels** | SAFE, WARNING, CRITICAL, VERIFY, INFO, SKIPPED |
 | **3 Report Formats** | TXT, CSV, HTML with interactive dashboard |
@@ -57,7 +58,7 @@ HARDAX is designed for:
 
 ## Supported Devices
 
-HARDAX works with any Android-based device accessible via ADB or SSH:
+HARDAX works with any Android-based device accessible via ADB, SSH, or UART:
 
 | Device Type | Examples |
 |-------------|----------|
@@ -99,7 +100,7 @@ python3 hardax.py
 
 ```bash
 # For Linux
-pip install paramiko cryptography
+pip install paramiko cryptography pyserial
 
 # For Windows
 py -m pip install -r requirements.txt
@@ -135,6 +136,19 @@ python3 hardax.py --skip-certs
 
 ```bash
 python3 hardax.py --mode ssh --host 192.168.1.100 --ssh-user root --ssh-pass password
+```
+
+### UART Mode (Serial Console)
+
+```bash
+# Auto-detect baud rate
+python3 hardax.py --mode uart --uart-port /dev/ttyUSB0
+
+# Specify baud rate
+python3 hardax.py --mode uart --uart-port /dev/ttyUSB0 --baud 115200
+
+# Windows
+python3 hardax.py --mode uart --uart-port COM3 --baud 115200
 ```
 
 ### Network ADB
