@@ -43,7 +43,7 @@ if sys.version_info < (3, 11):
 #  VERSION & CONSTANTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-__version__ = "3.0"
+__version__ = "4.0"
 
 REQUIRED_CHECK_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
 
@@ -500,7 +500,7 @@ def runLocal(cmd: List[str], timeout: int = None) -> Tuple[int, str, str]:
 
 
 def htmlEscape(s: str) -> str:
-    return html.escape(s, quote=False)
+    return html.escape(s, quote=True)
 
 
 def normalizeForMatch(s: str) -> str:
@@ -770,10 +770,12 @@ class UartDevice(Device):
         print(f"  {Colors.YELLOW}  Tip: specify --baud manually if the device uses a non-standard rate.{Colors.RESET}")
         return 115200
 
+    _UART_MAX_BUF = 4 * 1024 * 1024  # 4 MB max buffer per command
+
     def _sendRecv(self, command: str, timeout: float = 10) -> str:
         """Send a command over UART and collect the output."""
-        # Use a unique marker to delimit command output
-        marker = f"__HARDAX_{int(time.time() * 1000) % 100000}__"
+        # Use a unique marker to delimit command output (hex random to avoid collisions)
+        marker = f"__HARDAX_{os.urandom(8).hex()}__"
         wrapped = f"{command}; echo {marker}\n"
 
         self.conn.reset_input_buffer()
@@ -781,34 +783,35 @@ class UartDevice(Device):
         self.conn.flush()
 
         buf = b""
+        marker_bytes = marker.encode("utf-8")
         deadline = time.time() + timeout
         while time.time() < deadline:
             waiting = self.conn.in_waiting
             if waiting:
                 buf += self.conn.read(waiting)
-                if marker.encode("utf-8") in buf:
+                if marker_bytes in buf:
+                    break
+                if len(buf) > self._UART_MAX_BUF:
                     break
             else:
                 time.sleep(0.1)
 
         text = buf.decode("utf-8", errors="replace")
 
-        # Strip the echoed command line and the marker line
+        # Strip the echoed command line and the marker line.
+        # Strategy: find the first line containing the marker echo command,
+        # then collect everything between that line and the marker output.
         lines = text.splitlines()
         out_lines = []
         started = False
+        # Build a match string from the full wrapped command for exact echo detection
+        echo_sig = f"echo {marker}"
         for ln in lines:
             if not started:
-                # Skip the echoed command
-                if command.split(";")[0].strip() in ln or wrapped.strip() in ln:
+                # Look for the echoed command line (contains our unique marker echo)
+                if echo_sig in ln:
                     started = True
                     continue
-                # Also skip prompt lines
-                if ln.strip().endswith("$") or ln.strip().endswith("#"):
-                    continue
-                # If marker already appeared before we found the command echo, skip
-                if marker in ln:
-                    break
                 continue
             if marker in ln:
                 break
@@ -818,6 +821,9 @@ class UartDevice(Device):
     def shell(self, command: str) -> str:
         try:
             return self._sendRecv(command)
+        except self.serial_mod.SerialException as e:
+            print(f"\n{Colors.BRIGHT_RED}✗ UART connection lost: {e}{Colors.RESET}", file=sys.stderr)
+            raise RuntimeError(f"UART connection lost: {e}") from e
         except Exception as e:
             return f"[UART Error] {e}"
 
@@ -926,8 +932,10 @@ def applyFilters(output: str, original: str) -> str:
         else:
             filtered = [ln for ln in filtered if matchFn(ln)]
 
-    if tailN is not None and tailN >= 0:
+    if tailN is not None and tailN > 0:
         filtered = filtered[-tailN:]
+    elif tailN == 0:
+        filtered = []
     if headN is not None and headN >= 0:
         filtered = filtered[:headN]
 
@@ -1007,26 +1015,29 @@ def executeWithFallback(device: Device, command: str,
         # Already root natively (uart-root / ssh-root / adbd-root) → su wrapping is pointless
         _nativeSu = rootMethod not in ("uart-root", "ssh-root", "adbd-root")
 
+        def _suWrap(cmd: str) -> str:
+            return "su -c %s" % shlex.quote(cmd)
+
         candidates = []
         if _nativeSu and (isRooted or isRooted is None):
-            candidates.append('su -c "%s"' % baseCmd)
+            candidates.append(_suWrap(baseCmd))
         candidates.append(baseCmd)
 
         noP = dropPidFlag(baseCmd)
         if noP != baseCmd:
             if _nativeSu and (isRooted or isRooted is None):
-                candidates.append('su -c "%s"' % noP)
+                candidates.append(_suWrap(noP))
             candidates.append(noP)
 
         swapped = swapTool(baseCmd)
         if swapped:
             if _nativeSu and (isRooted or isRooted is None):
-                candidates.append('su -c "%s"' % swapped)
+                candidates.append(_suWrap(swapped))
             candidates.append(swapped)
             swappedNoP = dropPidFlag(swapped)
             if swappedNoP != swapped:
                 if _nativeSu and (isRooted or isRooted is None):
-                    candidates.append('su -c "%s"' % swappedNoP)
+                    candidates.append(_suWrap(swappedNoP))
                 candidates.append(swappedNoP)
 
         if NET_DEBUG:
@@ -1106,9 +1117,10 @@ def detectRootStatus(device: Device) -> Tuple[bool, str]:
         hasCut = False
 
     def suCmd(cmd: str, seconds: int = 2) -> str:
+        q = shlex.quote(cmd)
         if hasTimeout:
-            return device.shell(f"timeout {seconds} su -c '{cmd}' 2>/dev/null")
-        return device.shell(f"su -c '{cmd}' 2>/dev/null")
+            return device.shell(f"timeout {seconds} su -c {q} 2>/dev/null")
+        return device.shell(f"su -c {q} 2>/dev/null")
 
     if hasSu:
         # 3a. Proof by UID
@@ -1993,7 +2005,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
     with open(_tmplPath, "r", encoding="utf-8") as _f:
         _tmpl = Template(_f.read())
 
-    doc = _tmpl.substitute(
+    doc = _tmpl.safe_substitute(
         VERSION=__version__,
         COUNT_CRITICAL=counts.get("critical", 0),
         COUNT_WARNING=counts.get("warning", 0),
