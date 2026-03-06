@@ -699,6 +699,162 @@ class SshDevice(Device):
             pass
 
 
+# Common baud rates for UART auto-detection (ordered by popularity)
+UART_COMMON_BAUDS = [115200, 9600, 38400, 57600, 19200, 230400, 460800, 921600, 4800, 1200]
+
+class UartDevice(Device):
+    """Execute commands on a device over UART serial console (pyserial)."""
+
+    def __init__(self, port: str, baud: int = 0):
+        try:
+            import serial
+        except ImportError:
+            print("ERROR: pyserial is required for UART mode. Install with: pip install pyserial",
+                  file=sys.stderr)
+            sys.exit(1)
+
+        self.serial_mod = serial
+        self.port = port
+        self.baud = baud
+        self._shell_uid = None  # cached after probe
+
+        if baud == 0:
+            self.baud = self._autoBaud()
+        else:
+            self.baud = baud
+
+        try:
+            self.conn = self.serial_mod.Serial(
+                port=self.port,
+                baudrate=self.baud,
+                timeout=3,
+                write_timeout=3,
+            )
+        except self.serial_mod.SerialException as e:
+            print(f"ERROR: Cannot open UART port {port}: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        # Flush any leftover data
+        time.sleep(0.3)
+        self.conn.reset_input_buffer()
+        self.conn.reset_output_buffer()
+
+    def _autoBaud(self) -> int:
+        """Try common baud rates and return the first one that gives a coherent shell response."""
+        print(f"{Colors.BRIGHT_CYAN}⟳ Auto-detecting baud rate on {self.port}...{Colors.RESET}")
+        for rate in UART_COMMON_BAUDS:
+            try:
+                conn = self.serial_mod.Serial(
+                    port=self.port, baudrate=rate, timeout=2, write_timeout=2
+                )
+                time.sleep(0.3)
+                conn.reset_input_buffer()
+                # Send a newline to trigger a prompt, then echo test
+                conn.write(b"\n")
+                time.sleep(0.3)
+                conn.reset_input_buffer()
+                conn.write(b"echo HARDAX_BAUD_OK\n")
+                time.sleep(1)
+                resp = conn.read(conn.in_waiting or 256).decode("utf-8", errors="replace")
+                conn.close()
+                if "HARDAX_BAUD_OK" in resp:
+                    print(f"  {Colors.GREEN}✓ Detected baud rate: {rate}{Colors.RESET}")
+                    return rate
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                continue
+        print(f"  {Colors.BRIGHT_RED}✗ Auto-detection failed. Defaulting to 115200.{Colors.RESET}")
+        print(f"  {Colors.YELLOW}  Tip: specify --baud manually if the device uses a non-standard rate.{Colors.RESET}")
+        return 115200
+
+    def _sendRecv(self, command: str, timeout: float = 10) -> str:
+        """Send a command over UART and collect the output."""
+        # Use a unique marker to delimit command output
+        marker = f"__HARDAX_{int(time.time() * 1000) % 100000}__"
+        wrapped = f"{command}; echo {marker}\n"
+
+        self.conn.reset_input_buffer()
+        self.conn.write(wrapped.encode("utf-8"))
+        self.conn.flush()
+
+        buf = b""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            waiting = self.conn.in_waiting
+            if waiting:
+                buf += self.conn.read(waiting)
+                if marker.encode("utf-8") in buf:
+                    break
+            else:
+                time.sleep(0.1)
+
+        text = buf.decode("utf-8", errors="replace")
+
+        # Strip the echoed command line and the marker line
+        lines = text.splitlines()
+        out_lines = []
+        started = False
+        for ln in lines:
+            if not started:
+                # Skip the echoed command
+                if command.split(";")[0].strip() in ln or wrapped.strip() in ln:
+                    started = True
+                    continue
+                # Also skip prompt lines
+                if ln.strip().endswith("$") or ln.strip().endswith("#"):
+                    continue
+                # If marker already appeared before we found the command echo, skip
+                if marker in ln:
+                    break
+                continue
+            if marker in ln:
+                break
+            out_lines.append(ln)
+        return "\n".join(out_lines).strip()
+
+    def shell(self, command: str) -> str:
+        try:
+            return self._sendRecv(command)
+        except Exception as e:
+            return f"[UART Error] {e}"
+
+    def idString(self) -> str:
+        return f"uart:{self.port}@{self.baud}"
+
+    def probeShell(self) -> dict:
+        """Probe the UART shell environment and return info dict."""
+        info = {}
+        info["uid"] = self._sendRecv("id 2>/dev/null").strip()
+        info["shell"] = self._sendRecv("which sh 2>/dev/null || command -v sh 2>/dev/null").strip()
+        info["bash"] = self._sendRecv("which bash 2>/dev/null || command -v bash 2>/dev/null").strip()
+        info["uname"] = self._sendRecv("uname -a 2>/dev/null").strip()
+        info["is_root"] = "uid=0(" in info.get("uid", "")
+        info["is_android"] = self._sendRecv(
+            "test -f /system/build.prop && echo YES 2>/dev/null"
+        ).strip() == "YES"
+        info["has_getprop"] = self._sendRecv(
+            "command -v getprop >/dev/null 2>&1 && echo YES"
+        ).strip() == "YES"
+        info["has_busybox"] = self._sendRecv(
+            "command -v busybox >/dev/null 2>&1 && echo YES"
+        ).strip() == "YES"
+        info["has_toybox"] = self._sendRecv(
+            "command -v toybox >/dev/null 2>&1 && echo YES"
+        ).strip() == "YES"
+        info["path"] = self._sendRecv("echo $PATH").strip()
+        self._shell_uid = info["uid"]
+        return info
+
+    def close(self):
+        try:
+            self.conn.close()
+        except Exception:
+            pass
+
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  COMMAND EXECUTION ENGINE
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -848,8 +1004,8 @@ def executeWithFallback(device: Device, command: str,
     for block in blocks:
         baseCmd, pipeline = splitPipeline(block)
 
-        # Already root natively (ssh-root / adbd-root) → su wrapping is pointless
-        _nativeSu = rootMethod not in ("ssh-root", "adbd-root")
+        # Already root natively (uart-root / ssh-root / adbd-root) → su wrapping is pointless
+        _nativeSu = rootMethod not in ("uart-root", "ssh-root", "adbd-root")
 
         candidates = []
         if _nativeSu and (isRooted or isRooted is None):
@@ -903,10 +1059,17 @@ def detectRootStatus(device: Device) -> Tuple[bool, str]:
     """
     Probe the device for root access.
     Returns (isRooted, method) where method is one of:
-        ssh-root | adbd-root | magisk | su | su-present-not-working | none
+        uart-root | ssh-root | adbd-root | magisk | su | su-present-not-working | none
     """
 
-    # 0. SSH sessions already running as root - no su needed
+    # 0a. UART sessions already running as root - no su needed
+    if isinstance(device, UartDevice):
+        out = device.shell("id 2>/dev/null").strip()
+        if out and ("uid=0(" in out or out.split()[0:1] == ["uid=0"]):
+            return True, "uart-root"
+        # Not root over UART - fall through to su probing below
+
+    # 0b. SSH sessions already running as root - no su needed
     if isinstance(device, SshDevice):
         out = device.shell("id 2>/dev/null").strip()
         if out and ("uid=0(" in out or out.split()[0:1] == ["uid=0"]):
@@ -1887,17 +2050,21 @@ Examples:
   %(prog)s --json-dir ./commands
   %(prog)s --json-dir ./commands --serial DEVICE123
   %(prog)s --mode ssh --host 192.168.1.100 --ssh-user root --ssh-pass password
+  %(prog)s --mode uart --uart-port /dev/ttyUSB0
+  %(prog)s --mode uart --uart-port /dev/ttyUSB0 --baud 115200
         """,
     )
     ap.add_argument("--version", action="version", version=f"HARDAX v{__version__}")
-    ap.add_argument("--mode", choices=["adb", "ssh"], default="adb", help="Connection mode (default: adb)")
+    ap.add_argument("--mode", choices=["adb", "ssh", "uart"], default="adb", help="Connection mode (default: adb)")
     ap.add_argument("--json", help="Path to a single commands JSON file")
     ap.add_argument("--json-dir", help="Folder containing *.json check files to merge")
     ap.add_argument("--serial", default=os.environ.get("ANDROID_SERIAL", ""), help="ADB device serial")
     ap.add_argument("--host", help="SSH hostname/IP")
-    ap.add_argument("--port", type=int, default=22, help="SSH port")
+    ap.add_argument("--port", type=int, default=22, help="SSH port (or overridden by UART)")
     ap.add_argument("--ssh-user", help="SSH username")
     ap.add_argument("--ssh-pass", help="SSH password")
+    ap.add_argument("--uart-port", help="UART serial port (e.g. /dev/ttyUSB0, /dev/ttyS0, COM3)")
+    ap.add_argument("--baud", type=int, default=0, help="UART baud rate (0 = auto-detect, common: 115200, 9600)")
     ap.add_argument("--out", default="hardax_output", help="Output directory")
     ap.add_argument("--progress-numbers", action="store_true", help="Show numeric progress counter")
     ap.add_argument("--show-commands", action="store_true", help="Print each command as it runs")
@@ -1936,7 +2103,7 @@ Examples:
             explainAdbDevicesAndExit(exitCode=3)
         device = adbDev
 
-    else:
+    elif args.mode == "ssh":
         missing = []
         if not args.host:
             missing.append("--host")
@@ -1948,6 +2115,12 @@ Examples:
             print("ERROR: For --mode ssh you must provide: " + ", ".join(missing), file=sys.stderr)
             sys.exit(1)
         device = SshDevice(args.host, args.port, args.ssh_user, args.ssh_pass)
+
+    else:  # uart
+        if not args.uart_port:
+            print("ERROR: For --mode uart you must provide --uart-port (e.g. /dev/ttyUSB0)", file=sys.stderr)
+            sys.exit(1)
+        device = UartDevice(args.uart_port, args.baud)
 
     # Banner (dynamic counts)
     _catSet = {c.get("category", "General") for c in checks}
@@ -1974,7 +2147,7 @@ Examples:
 
     isRooted, rootMethod = detectRootStatus(device)
     if isRooted:
-        if rootMethod == "ssh-root":
+        if rootMethod in ("ssh-root", "uart-root"):
             print(f"{Colors.GREEN}✓ Root detected ({rootMethod}) - running as root directly, no su needed{Colors.RESET}")
         else:
             print(f"{Colors.GREEN}✓ Root detected ({rootMethod}) - will use su for privileged commands{Colors.RESET}")
@@ -2046,6 +2219,45 @@ Examples:
                   f" Android-specific checks will return empty results.{Colors.RESET}")
         print()
 
+    # UART pre-flight
+    elif isinstance(device, UartDevice):
+        preflight = device.shell("echo HARDAX_PREFLIGHT_OK")
+        if "HARDAX_PREFLIGHT_OK" not in preflight:
+            print(f"{Colors.BRIGHT_RED}✗ UART pre-flight check failed!{Colors.RESET}")
+            print(f"  Response: {preflight!r}")
+            print(f"  {Colors.YELLOW}Check that:{Colors.RESET}")
+            print(f"    • UART TX/RX/GND are wired correctly")
+            print(f"    • Baud rate is correct (current: {device.baud})")
+            print(f"    • The device has a shell on this UART port")
+            print(f"    • Try pressing Enter on the serial console first")
+            sys.exit(1)
+        print(f"{Colors.GREEN}✓ UART connection verified ({device.port} @ {device.baud} baud){Colors.RESET}")
+
+        # Probe shell environment
+        uart_info = device.probeShell()
+
+        shellType = "root shell" if uart_info["is_root"] else "user shell"
+        print(f"  {Colors.BRIGHT_WHITE}Shell type : {Colors.BOLD}{shellType}{Colors.RESET}")
+        print(f"  Shell     : {uart_info['shell'] or '(not found)'}"
+              + (f"  |  bash: {uart_info['bash']}" if uart_info["bash"] else ""))
+        print(f"  Identity  : {uart_info['uid'] or '(unknown)'}")
+        print(f"  Kernel    : {uart_info['uname'] or '(unknown)'}")
+        print(f"  PATH      : {uart_info['path'] or '(empty)'}")
+        tools = []
+        if uart_info["is_android"]:
+            tools.append("Android/getprop" if uart_info["has_getprop"] else "Android(no getprop)")
+        if uart_info["has_busybox"]: tools.append("busybox")
+        if uart_info["has_toybox"]:  tools.append("toybox")
+        if tools:
+            print(f"  Tools     : {', '.join(tools)}")
+
+        if uart_info["is_root"]:
+            print(f"  {Colors.BRIGHT_RED}⚠ UART drops directly into ROOT shell - no authentication!{Colors.RESET}")
+        if not uart_info["is_android"]:
+            print(f"  {Colors.YELLOW}⚠ /system/build.prop not found - device may not be Android."
+                  f" Android-specific checks will return empty results.{Colors.RESET}")
+        print()
+
     # Set up HUD dashboard (only in default mode, not --show-commands)
     global _active_dashboard
     _hud = None
@@ -2086,8 +2298,8 @@ Examples:
     writeCsvReport(csvFile, rows)
     writeHtmlReport(htmlFile, deviceInfo, rows, counts, certs)
 
-    # Close SSH if used
-    if isinstance(device, SshDevice):
+    # Close SSH / UART if used
+    if isinstance(device, (SshDevice, UartDevice)):
         device.close()
 
     # Summary panel
