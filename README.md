@@ -189,7 +189,7 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **619 checks** into **19 security categories**:
+HARDAX organizes **599 checks** into **19 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
