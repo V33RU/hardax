@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/version-3.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.11+-green.svg" alt="Python">
   <img src="https://img.shields.io/badge/checks-599-orange.svg" alt="Checks">
-  <img src="https://img.shields.io/badge/categories-19-purple.svg" alt="Categories">
+  <img src="https://img.shields.io/badge/categories-21-purple.svg" alt="Categories">
   <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
   <a href="https://github.com/V33RU/hardax/wiki">
     <img src="https://img.shields.io/badge/wiki-documentation-lightgrey.svg" alt="Wiki">
@@ -21,7 +21,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **599 security checks** across **19 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **599 security checks** across **21 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -165,12 +165,14 @@ usage: hardax.py [OPTIONS]
 
 Options:
   --version             Show version
-  --mode {adb,ssh}      Connection mode (default: adb)
+  --mode {adb,ssh,uart} Connection mode (default: adb)
   --serial SERIAL       ADB device serial number
   --host HOST           SSH hostname/IP
   --port PORT           SSH port (default: 22)
   --ssh-user USER       SSH username
   --ssh-pass PASS       SSH password
+  --uart-port PORT      UART serial port (e.g. /dev/ttyUSB0, COM3)
+  --baud RATE           UART baud rate (0 = auto-detect, default: 0)
   --json FILE           Path to single JSON checks file
   --json-dir DIR        Directory with JSON check files
   --out DIR             Output directory (default: hardax_output)
@@ -193,17 +195,18 @@ HARDAX organizes **599 checks** into **19 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
-| **SYSTEM** | 89 | Kernel, memory, TEE, time, power, build properties, emulator detection, SIM status |
-| **BLUETOOTH** | 101 | BLE/Classic, pairing, profiles (PAN, HFP, A2DP, HID, SPP, OPP, MAP), L2CAP, ATT, SMP, GAP, attack surfaces |
-| **NETWORK** | 74 | Ports, WiFi, cellular, VPN, MQTT, CoAP, CAN bus, HL7, DICOM, active connections |
-| **APPS** | 52 | Permissions, overlay attacks, installation sources, backup audit, dangerous perms |
-| **PRIVACY** | 51 | Biometrics, screen lock, location, sensors, clipboard, audio |
+| **SYSTEM** | 84 | Kernel, memory, TEE, time, power, build properties, emulator detection, SIM status |
+| **BLUETOOTH** | 84 | BLE/Classic, pairing, profiles (PAN, HFP, A2DP, HID, SPP, OPP, MAP), L2CAP, ATT, SMP, GAP, attack surfaces |
+| **NETWORK** | 60 | Ports, WiFi, cellular, VPN, MQTT, CoAP, CAN bus, HL7, DICOM, active connections |
+| **APPS** | 45 | Permissions, overlay attacks, installation sources, backup audit, dangerous perms |
+| **PRIVACY** | 48 | Biometrics, screen lock, location, sensors, clipboard, audio |
 | **CERTIFICATE_AUDIT** | 27 | CA certificates, user certs, pinning bypass, keystore, expiry analysis |
 | **SELINUX** | 25 | SELinux enforcement, policy, audit, context, boot flags |
-| **FORENSIC_INDICATORS** | 24 | Crash history, kernel panics, logcat anomalies, temp artifacts, clipboard forensics |
-| **STORAGE** | 24 | Filesystem, backup, encryption, partitions |
+| **FORENSIC_INDICATORS** | 23 | Crash history, kernel panics, logcat anomalies, temp artifacts, clipboard forensics |
+| **STORAGE** | 23 | Filesystem, backup, encryption, partitions |
 | **POS_SECURITY** | 24 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper, NFC relay, PAX CVE |
 | **BOOT_SECURITY** | 22 | Verified boot, AVB, dm-verity, bootloader, integrity |
+| **AUTOMOTIVE** | 21 | Vehicle-specific checks, CAN bus, infotainment |
 | **CIS_BENCHMARK** | 20 | CIS Android Benchmark v1.6.0 controls (89% coverage) |
 | **CRYPTOGRAPHY** | 19 | Encryption, keys, credentials, API keys, certificates |
 | **MALWARE** | 18 | Root/Magisk/SuperSU, Frida, Xposed/LSPosed, RATs, keyloggers, memory scrapers, root cloaking |
@@ -211,6 +214,7 @@ HARDAX organizes **599 checks** into **19 security categories**:
 | **DEVICE_MANAGEMENT** | 13 | MDM, accounts, developer options |
 | **INPUT** | 9 | Keyboards, accessibility, input methods |
 | **NFC_SECURITY** | 7 | NFC state, Android Beam, tap-to-pay, reader mode, secure element (eSE/UICC) |
+| **MEDICAL** | 7 | Medical device-specific checks |
 | **ADB_SECURITY** | 4 | ADB keys, network ADB, debugging |
 
 ---
@@ -273,23 +277,24 @@ Create or modify JSON files in the `commands/` directory:
 
 ```
 HARDAX/
-├── hardax.py              # Main engine (1746 lines)
-├── requirements.txt       # Python dependencies
+├── hardax.py              # Main engine
+├── requirements.txt       # Python dependencies (paramiko, cryptography, pyserial)
 ├── README.md              # This file
 ├── templates/             # Report templates
 │   └── report.html        # Interactive HTML report template
-└── commands/              # Security check definitions
-    ├── system.json        #  89 checks - Kernel, TEE, build, emulator, memory
-    ├── bluetooth.json     # 101 checks - BLE/Classic, pairing, all profiles
-    ├── network.json       #  74 checks - Ports, WiFi, VPN, IoT protocols
-    ├── apps.json          #  52 checks - Permissions, overlay, backup, install
-    ├── privacy.json       #  51 checks - Biometrics, location, sensors
+└── commands/              # Security check definitions (599 checks, 21 categories)
+    ├── system.json        #  84 checks - Kernel, TEE, build, emulator, memory
+    ├── bluetooth.json     #  84 checks - BLE/Classic, pairing, all profiles
+    ├── network.json       #  60 checks - Ports, WiFi, VPN, IoT protocols
+    ├── apps.json          #  45 checks - Permissions, overlay, backup, install
+    ├── privacy.json       #  48 checks - Biometrics, location, sensors
     ├── certificate_audit.json # 27 checks - CA certs, expiry, MITM
-    ├── forensic_indicators.json # 24 checks - Crashes, logcat, temp artifacts
     ├── selinux.json       #  25 checks - Enforcement, policy, audit
-    ├── storage.json       #  24 checks - Encryption, partitions, backup
     ├── pos_security.json  #  24 checks - PCI-DSS, kiosk, NFC relay, PAX CVE
+    ├── forensic_indicators.json # 23 checks - Crashes, logcat, temp artifacts
+    ├── storage.json       #  23 checks - Encryption, partitions, backup
     ├── boot_security.json #  22 checks - Verified boot, AVB, dm-verity
+    ├── automotive.json    #  21 checks - Vehicle, CAN bus, infotainment
     ├── cis_benchmark.json #  20 checks - CIS Android Benchmark v1.6.0
     ├── cryptography.json  #  19 checks - Keystore, StrongBox, algorithms
     ├── malware.json       #  18 checks - Root, Frida, Xposed, RATs, scrapers
@@ -297,6 +302,7 @@ HARDAX/
     ├── device_management.json # 13 checks - MDM, accounts, dev options
     ├── input.json         #   9 checks - Keyboards, accessibility, IME
     ├── nfc_security.json  #   7 checks - NFC, reader mode, secure element
+    ├── medical.json       #   7 checks - Medical device-specific
     └── adb_security.json  #   4 checks - ADB keys, network ADB
 ```
 
