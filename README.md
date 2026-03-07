@@ -2,7 +2,7 @@
 
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.1-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.11+-green.svg" alt="Python">
   <img src="https://img.shields.io/badge/checks-599-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-21-purple.svg" alt="Categories">
