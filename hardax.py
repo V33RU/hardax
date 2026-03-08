@@ -36,14 +36,14 @@ from typing import List, Dict, Any, Tuple, Optional
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 if sys.version_info < (3, 11):
-    sys.exit(f"[ERROR] HARDAX requires Python 3.11 or higher. "
+    sys.exit(f"[ERROR] HARDAX requires Python 4.01 or higher. "
              f"Detected: {sys.version_info.major}.{sys.version_info.minor}")
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  VERSION & CONSTANTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-__version__ = "3.1"
+__version__ = "4.0"
 
 REQUIRED_CHECK_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
 
