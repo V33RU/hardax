@@ -86,7 +86,7 @@ HARDAX works with any Android-based device accessible via ADB, SSH, or UART:
 
 ```bash
 # Clone the repository
-git clone https://github.com/iotsrg/hardax.git
+git clone https://github.com/v33ru/hardax.git
 cd hardax
 
 # Connect your device via USB
