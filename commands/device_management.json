@@ -96,6 +96,22 @@
       "safe_pattern": ".",
       "level": "info",
       "description": "Password quality requirements"
+    },
+    {
+      "category": "DEVICE_MANAGEMENT",
+      "label": "Accessibility Services Enabled",
+      "command": "settings get secure accessibility_enabled 2>/dev/null",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Accessibility services enabled on kiosk or POS devices can be abused to bypass lock task mode, simulate user input, or exfiltrate screen content."
+    },
+    {
+      "category": "DEVICE_MANAGEMENT",
+      "label": "Active Accessibility Services",
+      "command": "settings get secure enabled_accessibility_services 2>/dev/null",
+      "safe_pattern": "^(null|)$",
+      "level": "high",
+      "description": "Lists active accessibility service components. Any enabled service on a hardened device is a potential kiosk bypass or input injection vector."
     }
   ]
 }
