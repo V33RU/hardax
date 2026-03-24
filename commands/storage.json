@@ -191,6 +191,15 @@
       "safe_pattern": "^aes-256-cts$",
       "level": "warning",
       "description": "External storage filenames should be encrypted"
+    },
+    {
+      "category": "STORAGE",
+      "label": "Swap Partition Active",
+      "command": "cat /proc/swaps 2>/dev/null | awk 'NR>1{print $1}'",
+      "safe_pattern": "^$",
+      "empty_is_safe": true,
+      "level": "warning",
+      "description": "Active swap partitions can expose sensitive data (encryption keys, passwords, session tokens) to persistent storage and forensic recovery."
     }
   ]
 }
