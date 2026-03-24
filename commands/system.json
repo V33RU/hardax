@@ -537,14 +537,6 @@
     },
     {
       "category": "SYSTEM",
-      "label": "TEE Driver Presence (Empty → Verify)",
-      "command": "ls /dev/tee* /dev/trusty* 2>/dev/null",
-      "safe_pattern": "^\\s*$",
-      "level": "verify",
-      "description": "No TEE device nodes visible under /dev. Common on some devices; verify via dmesg or TEE logs."
-    },
-    {
-      "category": "SYSTEM",
       "label": "TEE Driver Presence (Present → Info)",
       "command": "ls /dev/tee* /dev/trusty* 2>/dev/null",
       "safe_pattern": "/dev/(tee|trusty)",
