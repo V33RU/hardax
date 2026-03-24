@@ -158,6 +158,14 @@
       "level": "info",
       "description": "Database files - may contain sensitive data",
       "empty_is_safe": true
+    },
+    {
+      "category": "CRYPTOGRAPHY",
+      "label": "KeyMint HAL Present",
+      "command": "ls /vendor/lib64/hw/android.hardware.keymint* /vendor/lib/hw/android.hardware.keymint* 2>/dev/null | head -3",
+      "safe_pattern": "keymint",
+      "level": "warning",
+      "description": "KeyMint HAL (Android 12+) provides stronger key attestation and hardware-backed cryptography than legacy Keymaster. Absence may indicate an older or less-secure keystore implementation."
     }
   ]
 }
