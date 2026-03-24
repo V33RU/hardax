@@ -40,7 +40,6 @@ HARDAX is designed for:
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
 | **Malware & Hooking Detection** | 18 checks for rootkits, RATs, Frida, Xposed, keyloggers, memory scrapers |
 | **Certificate Audit** | CA certificate analysis with expiry/age calculation - 27 checks |
-| **No Root Required** | Runs entirely via ADB shell commands |
 | **Root Auto-Detection** | Detects root method (Magisk/SuperSU/su/ssh-root/uart-root) and adapts privilege escalation accordingly |
 | **ADB Resilience** | 5-layer protection: connection check, auto-reconnect, timeout, SKIPPED status |
 | **Triple Connection Modes** | ADB (USB/Network), SSH, and UART serial console support |
