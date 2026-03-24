@@ -338,14 +338,6 @@
     },
     {
       "category": "PRIVACY",
-      "label": "SD Card Encryption",
-      "command": "getprop ro.crypto.sdcard 2>/dev/null",
-      "safe_pattern": "^(encrypted|true)$",
-      "level": "warning",
-      "description": "SD card should be encrypted if present"
-    },
-    {
-      "category": "PRIVACY",
       "label": "Backup Files on Device",
       "command": "find /sdcard /data -name '*.bak' -o -name '*.backup' -o -name '*.old' 2>/dev/null | head -5",
       "safe_pattern": "^$",
