@@ -375,6 +375,15 @@
       "level": "critical",
       "description": "Magisk can hide root access",
       "empty_is_safe": true
+    },
+    {
+      "category": "APPS",
+      "label": "Third-party Shared UID Packages",
+      "command": "dumpsys package 2>/dev/null | grep 'SharedUser:' | grep -vE '(android\\.|com\\.android\\.|com\\.google\\.)' | head -10",
+      "safe_pattern": "^$",
+      "empty_is_safe": true,
+      "level": "warning",
+      "description": "Non-system apps sharing UIDs may indicate privilege escalation risk. Apps sharing a UID run in the same process sandbox and can access each other's data."
     }
   ]
 }
