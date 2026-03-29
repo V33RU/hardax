@@ -6,7 +6,8 @@
       "command": "getprop ro.crypto.state",
       "safe_pattern": "^encrypted$",
       "level": "critical",
-      "description": "Device storage should be encrypted, This property reports the encryption state of the device internal storage (userdata partition)."
+      "description": "Device storage should be encrypted, This property reports the encryption state of the device internal storage (userdata partition).",
+      "remediation": "Enable full-disk or file-based encryption via device settings or by flashing an encrypted system image."
     },
     {
       "category": "CRYPTOGRAPHY",
@@ -14,7 +15,8 @@
       "command": "getprop ro.crypto.type",
       "safe_pattern": "^(file|block)$",
       "level": "info",
-      "description": "Indicates encryption type. Safe ONLY if output is exactly 'file' (FBE) or 'block' (FDE). Prevents partial matches or noisy output."
+      "description": "Indicates encryption type. Safe ONLY if output is exactly 'file' (FBE) or 'block' (FDE). Prevents partial matches or noisy output.",
+      "remediation": "Ensure the device uses file-based (FBE) or full-disk (FDE) encryption. Reflash firmware if encryption type is missing."
     },
     {
       "category": "CRYPTOGRAPHY",
@@ -22,7 +24,8 @@
       "command": "getprop ro.crypto.uses_default_password",
       "safe_pattern": "^0$",
       "level": "high",
-      "description": "Safe ONLY when '0'. '1' means encryption uses default password, which is insecure. Strict anchoring avoids matching numbers inside longer strings."
+      "description": "Safe ONLY when '0'. '1' means encryption uses default password, which is insecure. Strict anchoring avoids matching numbers inside longer strings.",
+      "remediation": "Set a strong user-chosen encryption password via Settings > Security. Avoid leaving the default password in place."
     },
     {
       "category": "CRYPTOGRAPHY",
@@ -30,7 +33,8 @@
       "command": "vdc cryptfs cryptocomplete",
       "safe_pattern": "^1$",
       "level": "high",
-      "description": "Full Disk Encryption is complete only if output is exactly '1'. A strict equality match ensures no accidental pattern hits."
+      "description": "Full Disk Encryption is complete only if output is exactly '1'. A strict equality match ensures no accidental pattern hits.",
+      "remediation": "If encryption is incomplete, reboot and allow it to finish. If it fails, re-initiate encryption from recovery mode."
     },
     {
       "category": "CRYPTOGRAPHY",
@@ -38,7 +42,8 @@
       "command": "mount | grep ' /data '",
       "safe_pattern": "dm-",
       "level": "critical",
-      "description": "Safe ONLY if /data is mounted on a 'dm-*' device, which indicates encryption. Raw eMMC partitions ('mmcblk0pXX') mean unencrypted storage. This match is stable because dm- devices cannot appear in plain, unencrypted mounts."
+      "description": "Safe ONLY if /data is mounted on a 'dm-*' device, which indicates encryption. Raw eMMC partitions ('mmcblk0pXX') mean unencrypted storage. This match is stable because dm- devices cannot appear in plain, unencrypted mounts.",
+      "remediation": "Enable device encryption so /data is mounted via dm-crypt. Back up data first, then encrypt from Settings or recovery."
     },
     {
       "category": "CRYPTOGRAPHY",
@@ -46,7 +51,8 @@
       "command": "getprop ro.crypto.fuse.connected",
       "safe_pattern": "^true$",
       "level": "medium",
-      "description": "File-Based Encryption is active only if output is exactly 'true'. Anchors prevent accidental matches of longer boolean strings."
+      "description": "File-Based Encryption is active only if output is exactly 'true'. Anchors prevent accidental matches of longer boolean strings.",
+      "remediation": "Enable file-based encryption (FBE) in device settings or reflash with an FBE-enabled firmware image."
     },
     {
       "category": "CRYPTOGRAPHY",
@@ -54,7 +60,8 @@
       "command": "service call mount 7",
       "safe_pattern": "00000001",
       "level": "medium",
-      "description": "Encryption is typically active when the response contains '00000001'. Because binder output is structured, this specific pattern is reliable with minimal false-positive risk."
+      "description": "Encryption is typically active when the response contains '00000001'. Because binder output is structured, this specific pattern is reliable with minimal false-positive risk.",
+      "remediation": "Enable device encryption via Settings > Security. If the mount service reports inactive, reboot and retry."
     },
     {
       "category": "CRYPTOGRAPHY",
@@ -62,7 +69,8 @@
       "command": "getprop security.sdcard.encrypted",
       "safe_pattern": "^1$",
       "level": "high",
-      "description": "Safe ONLY when output is exactly '1'. Strict match prevents accidental detection from logs or metadata containing '1'."
+      "description": "Safe ONLY when output is exactly '1'. Strict match prevents accidental detection from logs or metadata containing '1'.",
+      "remediation": "Encrypt the SD card via Settings > Security > Encrypt SD card. Remove sensitive data from unencrypted cards."
     },
     {
       "category": "CRYPTOGRAPHY",
@@ -70,7 +78,8 @@
       "command": "mount | grep /mnt/media_rw",
       "safe_pattern": "^(.*dm-.*|.*fuse.*)$",
       "level": "low",
-      "description": "Safe if SD card is mounted via dm-crypt or FUSE. Pattern is strict enough to avoid accidental substring matches on unrelated mount entries."
+      "description": "Safe if SD card is mounted via dm-crypt or FUSE. Pattern is strict enough to avoid accidental substring matches on unrelated mount entries.",
+      "remediation": "Encrypt the SD card so it mounts through dm-crypt or FUSE. Reformat and re-encrypt if mounted as plain storage."
     },
     {
       "category": "CRYPTOGRAPHY",
@@ -78,7 +87,8 @@
       "command": "getprop ro.hardware.keystore",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Hardware-backed keystore availability"
+      "description": "Hardware-backed keystore availability",
+      "remediation": "Use a device with a hardware-backed keystore (TEE/SE). Avoid storing sensitive keys in software-only keystores."
     },
     {
       "category": "CRYPTOGRAPHY",
@@ -86,7 +96,8 @@
       "command": "getprop vold.decrypt",
       "safe_pattern": "trigger_restart_framework|null",
       "level": "info",
-      "description": "Filesystem decryption state"
+      "description": "Filesystem decryption state",
+      "remediation": "If decryption is stalled, reboot the device. Ensure a valid encryption password is set to allow proper unlock."
     },
     {
       "category": "CRYPTOGRAPHY",
@@ -94,7 +105,8 @@
       "command": "getprop ro.hardware.keystore_desede",
       "safe_pattern": ".",
       "level": "info",
-      "description": "StrongBox secure element support"
+      "description": "StrongBox secure element support",
+      "remediation": "Use a device with StrongBox support for highest key protection. Migrate critical keys to hardware-backed storage."
     },
     {
       "category": "CRYPTOGRAPHY",
@@ -102,7 +114,8 @@
       "command": "find /system /vendor /data -type f \\( -name '*.conf' -o -name '*.cfg' -o -name '*.ini' -o -name '*.properties' \\) -exec grep -l -i 'password\\|passwd\\|pwd=' {} \\; 2>/dev/null | head -10",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Config files containing password-related keywords (keyword detection — verify manually whether actual credentials are present)",
+      "description": "Config files containing password-related keywords (keyword detection - verify manually whether actual credentials are present)",
+      "remediation": "Remove hardcoded passwords from config files. Use a secrets manager or environment variables instead.",
       "empty_is_safe": true
     },
     {
@@ -111,7 +124,8 @@
       "command": "find /system /vendor /data -type f \\( -name '*.json' -o -name '*.xml' -o -name '*.conf' \\) -exec grep -l -iE 'api_key|apikey|api-key|secret_key|secretkey|access_token' {} \\; 2>/dev/null | head -10",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Files containing API key-related keywords (keyword detection — verify manually whether actual secrets are present)",
+      "description": "Files containing API key-related keywords (keyword detection - verify manually whether actual secrets are present)",
+      "remediation": "Remove API keys from files. Store them in Android Keystore or a secure secrets management solution.",
       "empty_is_safe": true
     },
     {
@@ -121,6 +135,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Private key files found - should be protected",
+      "remediation": "Delete unnecessary private key files. Move required keys to hardware-backed storage with strict permissions.",
       "empty_is_safe": true
     },
     {
@@ -130,6 +145,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "SSH keys found - review if needed",
+      "remediation": "Remove SSH keys that are not required. Restrict file permissions to owner-only (chmod 600) for any that remain.",
       "empty_is_safe": true
     },
     {
@@ -139,6 +155,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Credential files in system - check permissions",
+      "remediation": "Remove default credential files from /system and /vendor. Use Android Keystore for credential management.",
       "empty_is_safe": true
     },
     {
@@ -148,6 +165,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "URLs with embedded credentials found",
+      "remediation": "Replace embedded credentials in URLs with token-based auth or secure credential storage.",
       "empty_is_safe": true
     },
     {
@@ -157,6 +175,7 @@
       "safe_pattern": "^$",
       "level": "info",
       "description": "Database files - may contain sensitive data",
+      "remediation": "Audit database files for sensitive data. Encrypt databases using SQLCipher or restrict access with strict permissions.",
       "empty_is_safe": true
     },
     {
@@ -165,7 +184,8 @@
       "command": "ls /vendor/lib64/hw/android.hardware.keymint* /vendor/lib/hw/android.hardware.keymint* 2>/dev/null | head -3",
       "safe_pattern": "keymint",
       "level": "warning",
-      "description": "KeyMint HAL (Android 12+) provides stronger key attestation and hardware-backed cryptography than legacy Keymaster. Absence may indicate an older or less-secure keystore implementation."
+      "description": "KeyMint HAL (Android 12+) provides stronger key attestation and hardware-backed cryptography than legacy Keymaster. Absence may indicate an older or less-secure keystore implementation.",
+      "remediation": "Update to Android 12+ firmware with KeyMint HAL support. Avoid relying on legacy Keymaster for key attestation."
     }
   ]
 }
