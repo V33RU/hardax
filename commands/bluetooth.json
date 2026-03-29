@@ -8,6 +8,7 @@
       "safe_pattern": "(privacy|random|resolvable|rpa)",
       "level": "medium",
       "description": "BLE privacy features reduce tracking.",
+      "remediation": "Enable BLE privacy in developer options or verify via: dumpsys bluetooth_manager | grep -i privacy.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§6.2",
@@ -29,6 +30,7 @@
       "safe_pattern": "^(null|)$",
       "level": "medium",
       "description": "Restricting access to the adapter address reduces app-level fingerprinting.",
+      "remediation": "Clear the stored address: settings delete secure bluetooth_address. Restrict app access to BT address via permissions.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§6.2",
@@ -49,6 +51,7 @@
       "safe_pattern": "Bluetooth|enabled|state",
       "level": "low",
       "description": "cmd bluetooth_manager may expose structured state useful for auditing.",
+      "remediation": "Review output manually. If unexpected state is found, disable Bluetooth: settings put global bluetooth_on 0.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.1",
@@ -69,6 +72,7 @@
       "safe_pattern": "Bluetooth|enabled|state",
       "level": "low",
       "description": "cmd bluetooth_manager can provide structured state on some Android versions.",
+      "remediation": "Review output manually. If unexpected state is found, disable Bluetooth: settings put global bluetooth_on 0.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.1",
@@ -87,6 +91,7 @@
       "safe_pattern": "^(0|null)$",
       "level": "high",
       "description": "Always-available BLE scanning can undermine user expectations and privacy.",
+      "remediation": "Disable always-on BLE scanning: settings put global ble_scan_always_enabled 0.",
       "empty_is_safe": true,
       "nist_sp_800_121_rev2": "§5.3",
       "why": "Always-available BLE scanning can undermine user expectations and privacy.",
@@ -107,6 +112,7 @@
       "safe_pattern": "^0$",
       "level": "high",
       "description": "Minimize radio exposure by keeping Bluetooth disabled when not needed.",
+      "remediation": "Disable Bluetooth when not in use: settings put global bluetooth_on 0.",
       "empty_is_safe": false,
       "nist_sp_800_121_rev2": "§3.1",
       "why": "Minimize radio exposure by keeping Bluetooth disabled when not needed.",
@@ -126,6 +132,7 @@
       "safe_pattern": "bluetooth",
       "level": "low",
       "description": "Inventorying settings keys helps detect OEM knobs that override UI expectations.",
+      "remediation": "Review each listed key manually. Remove or reset unexpected keys via: settings delete global <key_name>.",
       "empty_is_safe": false,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.1",
@@ -146,6 +153,7 @@
       "safe_pattern": "bluetooth",
       "level": "low",
       "description": "Secure settings commonly store HCI snoop and adapter identity keys.",
+      "remediation": "Review each listed key manually. Disable HCI snoop if found: settings put secure bluetooth_hci_log 0.",
       "empty_is_safe": false,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.1",
@@ -166,6 +174,7 @@
       "safe_pattern": "^$",
       "level": "medium",
       "description": "Third-party BT apps can increase attack surface.",
+      "remediation": "Uninstall suspicious third-party BT apps: pm uninstall <package_name>.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.2",
@@ -186,6 +195,7 @@
       "safe_pattern": "^$",
       "level": "low",
       "description": "Unexpectedly disabled BT packages can indicate tampering or broken policy.",
+      "remediation": "Re-enable or uninstall disabled BT packages: pm enable <package_name> or pm uninstall <package_name>.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.2",
@@ -206,6 +216,7 @@
       "safe_pattern": "bluetooth",
       "level": "medium",
       "description": "Inventory of BT packages helps detect overlays/replacements.",
+      "remediation": "Review listed packages. Remove unexpected BT packages: pm uninstall <package_name>.",
       "empty_is_safe": false,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.2",
@@ -227,6 +238,7 @@
       "safe_pattern": "^package:/",
       "level": "low",
       "description": "Validating the install path helps ensure the BT stack is system-managed.",
+      "remediation": "Verify path starts with /system/. If non-system, investigate tampering and restore from factory image.",
       "empty_is_safe": false,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.2",
@@ -248,6 +260,7 @@
       "safe_pattern": ".*",
       "level": "low",
       "description": "Library identifier helps correlate OEM components.",
+      "remediation": "Record the library name for inventory. Cross-reference with known OEM components for supply-chain review.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.2",
@@ -268,6 +281,7 @@
       "safe_pattern": ".*",
       "level": "low",
       "description": "Stack identifier supports triage (Fluoride/GD vs legacy).",
+      "remediation": "Record the stack value. If legacy (Bluedroid), update to a ROM with Fluoride/GD stack.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.2",
@@ -288,6 +302,7 @@
       "safe_pattern": "^\\\\d+",
       "level": "low",
       "description": "OS version influences which Bluetooth security features exist.",
+      "remediation": "Update to the latest Android version via system settings to get modern BT hardening features.",
       "empty_is_safe": false,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§2",
@@ -308,6 +323,7 @@
       "safe_pattern": "bluetooth|\\\\.bt\\\\.|persist\\\\.bt",
       "level": "low",
       "description": "Property inventory can reveal debug/logging/test toggles.",
+      "remediation": "Review properties for debug/test toggles. Remove unsafe ones: setprop <property_name> \"\" (requires root).",
       "empty_is_safe": false,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.2",
@@ -328,6 +344,7 @@
       "safe_pattern": "Bonded",
       "level": "high",
       "description": "Auditing bonded devices ensures only approved peripherals retain trust.",
+      "remediation": "Remove unknown bonded devices via Settings > Bluetooth > paired devices, or: bt_unpair <mac> via ADB.",
       "empty_is_safe": false,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§5.2",
@@ -348,6 +365,7 @@
       "safe_pattern": "^0$",
       "level": "medium",
       "description": "A smaller bonded list reduces persistent trust and reconnection risk.",
+      "remediation": "Reduce bonded devices to minimum. Unpair unused devices via Settings > Bluetooth > Forget device.",
       "empty_is_safe": false,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§5.2",
@@ -366,6 +384,7 @@
       "safe_pattern": "bond",
       "level": "low",
       "description": "Bond state lines can reveal unexpected bonding activity.",
+      "remediation": "Review bond state lines. If unexpected bonding activity is found, unpair unknown devices immediately.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§5.2",
@@ -387,6 +406,7 @@
       "safe_pattern": "SCAN_MODE_(CONNECTABLE|NONE)",
       "level": "critical",
       "description": "Discoverability should be OFF by default and used only briefly for pairing.",
+      "remediation": "Set scan mode to non-discoverable. Avoid CONNECTABLE_DISCOVERABLE outside active pairing windows.",
       "empty_is_safe": false,
       "nist_sp_800_121_rev2": "§3.4",
       "why": "Discoverability should be OFF by default and used only briefly for pairing.",
@@ -406,6 +426,7 @@
       "safe_pattern": "(120|300|600|3600)",
       "level": "medium",
       "description": "Timeout limits exposure window while discoverable.",
+      "remediation": "Set a short discoverable timeout (120s or less) in Bluetooth settings or via OEM configuration.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.4",
@@ -427,6 +448,7 @@
       "safe_pattern": "(discover|scan_mode|visibility)",
       "level": "low",
       "description": "Some OEMs expose discoverability toggles via global settings keys.",
+      "remediation": "Review listed keys. Set discoverability to off: settings put global <discover_key> 0.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.4",
@@ -448,6 +470,7 @@
       "safe_pattern": "(isEncrypted=true|encrypted: true|Encrypted: true|ENCRYPTED)",
       "level": "critical",
       "description": "NIST recommends encryption to protect confidentiality of Bluetooth communications.",
+      "remediation": "Ensure all active connections use encryption. Unpair and re-pair devices that show unencrypted links.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§4.4",
@@ -466,6 +489,7 @@
       "safe_pattern": "(16|128)",
       "level": "high",
       "description": "Key length negotiation should not be downgraded.",
+      "remediation": "Ensure patch level addresses CVE-2019-9506 (KNOB). Update device firmware to enforce 128-bit key length.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§4.4",
@@ -484,6 +508,7 @@
       "safe_pattern": "^$",
       "level": "medium",
       "description": "Disabling unused profiles reduces attack surface.",
+      "remediation": "Disable HFP/HSP if not needed. Remove profile via Bluetooth app settings or disable in developer options.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.3",
@@ -505,6 +530,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Disabling unused profiles reduces attack surface.",
+      "remediation": "Disable HID profile if no BT input devices are used. Revoke HID service permissions if possible.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.3",
@@ -526,6 +552,7 @@
       "safe_pattern": "^$",
       "level": "high",
       "description": "Disabling unused profiles reduces attack surface.",
+      "remediation": "Disable MAP profile if not needed: revoke message access for BT devices in Settings > Connected devices.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.3",
@@ -547,6 +574,7 @@
       "safe_pattern": "^$",
       "level": "high",
       "description": "Disabling unused profiles reduces attack surface.",
+      "remediation": "Disable OPP profile if not needed. Block OBEX push in Bluetooth settings or firewall rules.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.3",
@@ -568,6 +596,7 @@
       "safe_pattern": "^$",
       "level": "high",
       "description": "Disabling unused profiles reduces attack surface.",
+      "remediation": "Disable PAN profile if not needed. Turn off BT tethering in Settings > Network > Tethering.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.3",
@@ -589,6 +618,7 @@
       "safe_pattern": "^$",
       "level": "high",
       "description": "Disabling unused profiles reduces attack surface.",
+      "remediation": "Disable PBAP if not needed. Revoke phonebook access for BT devices in Settings > Connected devices.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.3",
@@ -610,6 +640,7 @@
       "safe_pattern": "profile|service",
       "level": "low",
       "description": "A profile inventory helps validate whether only required services are exposed.",
+      "remediation": "Review listed profiles. Disable any unnecessary services via Bluetooth app settings or developer options.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§3.3",
@@ -631,6 +662,7 @@
       "safe_pattern": "(DISABLED|disabled|false)",
       "level": "medium",
       "description": "Some builds include runtime snoop mode info in dumpsys.",
+      "remediation": "Disable snoop logging: settings put secure bluetooth_hci_log 0. Delete existing snoop files.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§4.5",
@@ -651,6 +683,7 @@
       "safe_pattern": "^$",
       "level": "medium",
       "description": "OEMs sometimes control logging via properties.",
+      "remediation": "Remove snoop-related properties: setprop persist.bluetooth.btsnoopenable false (requires root).",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§4.5",
@@ -672,6 +705,7 @@
       "safe_pattern": "^(0|null)$",
       "level": "high",
       "description": "HCI snoop logging is a debug feature and should be disabled outside troubleshooting.",
+      "remediation": "Disable HCI snoop logging: settings put secure bluetooth_hci_log 0.",
       "empty_is_safe": true,
       "nist_sp_800_121_rev2": "§4.5",
       "why": "HCI snoop logging is a debug feature and should be disabled outside troubleshooting.",
@@ -691,6 +725,7 @@
       "safe_pattern": "^$",
       "level": "high",
       "description": "Just Works provides no MITM protection.",
+      "remediation": "Avoid Just Works pairing. Use Numeric Comparison or Passkey Entry for MITM-resistant association.",
       "empty_is_safe": true,
       "nist_sp_800_121_rev2": "§4.3",
       "why": "Just Works provides no MITM protection.",
@@ -711,6 +746,7 @@
       "safe_pattern": "(Secure Connections|secure connections|SC)",
       "level": "critical",
       "description": "Secure Connections strengthens pairing/key agreement.",
+      "remediation": "Enable Secure Connections on the device. Update firmware if SC is not supported by the current stack.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§4.2",
@@ -732,6 +768,7 @@
       "safe_pattern": "(Enabled|enabled|true)",
       "level": "critical",
       "description": "SSP provides stronger association than legacy PIN pairing.",
+      "remediation": "Ensure SSP is enabled. Update firmware or ROM if SSP is disabled or unavailable on the device.",
       "empty_is_safe": true,
       "requires_manual_review": true,
       "nist_sp_800_121_rev2": "§4.3",
@@ -753,6 +790,7 @@
       "safe_pattern": "RESTRICTIVE",
       "level": "high",
       "description": "The Bluetooth binary should be labeled 'bluetooth:s0' (restrictive domain); otherwise SELinux policy may be weakened.",
+      "remediation": "Verify BT binary SELinux label: ls -Z /system/bin/bluetooth*. Re-label or restore from factory if wrong.",
       "nist_800_53": "AC-3, SC-3",
       "nist_800_121": "§3.2"
     },
@@ -764,6 +802,7 @@
       "safe_pattern": "HARDENED",
       "level": "medium",
       "description": "The Bluetooth daemon should run with the '-n' flag (no‑privilege mode) to prevent loading unnecessary plugins.",
+      "remediation": "Configure bluetoothd to run with -n flag. Edit init scripts or verify daemon configuration.",
       "nist_800_53": "CM-6, SC-3",
       "nist_800_121": "§3.2"
     },
@@ -775,6 +814,7 @@
       "safe_pattern": "^AirplaneMode=0|^AirplaneMode=1 BT=0$",
       "level": "medium",
       "description": "When airplane mode is on, Bluetooth must also be off to prevent RF emissions in restricted environments.",
+      "remediation": "Ensure airplane mode disables BT: settings put global bluetooth_on 0 when airplane_mode_on is 1.",
       "nist_800_53": "AC-18(3), CM-7",
       "nist_800_121": "§3.1"
     },
@@ -786,6 +826,7 @@
       "safe_pattern": "Enabled",
       "level": "high",
       "description": "BLE MAC randomization must be enabled to prevent persistent device tracking.",
+      "remediation": "Enable BLE MAC randomization: settings put global bluetooth_address_rotation_enabled 1.",
       "nist_800_53": "SC-8(1), SI-12",
       "nist_800_121": "§6.2"
     },
@@ -797,6 +838,7 @@
       "safe_pattern": "SAFE",
       "level": "high",
       "description": "The Bluetooth stack should not be Bluedroid (vulnerable to BlueBorne). Fluoride is the modern, hardened replacement.",
+      "remediation": "Upgrade to a ROM or firmware using the Fluoride stack instead of Bluedroid.",
       "nist_800_53": "SI-2, CM-6",
       "nist_800_121": "§3.2"
     },
@@ -807,7 +849,8 @@
       "command": "active=$(dumpsys bluetooth_manager 2>/dev/null | grep -A 5 'Active Devices:' | grep 'Encrypted' | awk '{print $2}'); if [ -z \"$active\" ] || echo \"$active\" | grep -q 'true'; then echo PASS; else echo FAIL; fi",
       "safe_pattern": "PASS",
       "level": "high",
-      "description": "All active Bluetooth connections must be encrypted (NIST SC-13)."
+      "description": "All active Bluetooth connections must be encrypted (NIST SC-13).",
+      "remediation": "Ensure all active connections are encrypted. Unpair and re-pair any device showing unencrypted links."
     },
     {
       "id": "BT-056",
@@ -817,6 +860,7 @@
       "safe_pattern": "Enabled",
       "level": "critical",
       "description": "SSP must be enabled; otherwise legacy pairing is vulnerable to PIN brute‑force and KNOB downgrade attacks.",
+      "remediation": "Enable SSP via firmware update or ROM upgrade. Verify: dumpsys bluetooth_manager | grep -i 'Secure Simple Pairing'.",
       "nist_800_53": "IA-2, SC-13",
       "nist_800_121": "§4.3"
     },
@@ -827,7 +871,8 @@
       "command": "dumpsys bluetooth_manager | grep 'Bonded devices:' -A 10 | grep 'Device:' | wc -l",
       "safe_pattern": "^0$",
       "level": "warning",
-      "description": "Review all paired devices (AC-3)"
+      "description": "Review all paired devices (AC-3)",
+      "remediation": "Remove all unnecessary paired devices via Settings > Bluetooth > Forget device."
     },
     {
       "id": "BT-059",
@@ -836,7 +881,8 @@
       "command": "dumpsys bluetooth_manager | grep 'Encryption:'",
       "safe_pattern": "Encryption:.*Enabled",
       "level": "warning",
-      "description": "Bluetooth encryption must be enabled (SC-13)"
+      "description": "Bluetooth encryption must be enabled (SC-13)",
+      "remediation": "Ensure encryption is enabled for all BT connections. Re-pair devices if encryption is reported as disabled."
     },
     {
       "id": "BT-061",
@@ -845,7 +891,8 @@
       "command": "dumpsys bluetooth_manager | grep 'Pairing mode:'",
       "safe_pattern": "Pairing mode:.*Secure",
       "level": "warning",
-      "description": "Only secure pairing modes should be allowed (NIST IA-2)"
+      "description": "Only secure pairing modes should be allowed (NIST IA-2)",
+      "remediation": "Set pairing mode to Secure only. Avoid legacy PIN pairing via firmware/ROM configuration."
     },
     {
       "id": "BT-062",
@@ -855,6 +902,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Disable unused profiles (CM-7)",
+      "remediation": "Disable unnecessary profiles via Settings > Connected devices or pm disable relevant BT service components.",
       "empty_is_safe": true
     },
     {
@@ -865,6 +913,7 @@
       "safe_pattern": "^0$",
       "level": "medium",
       "description": "The number of paired devices should be zero; each pair is a persistent trust and potential attack vector.",
+      "remediation": "Unpair all unnecessary devices: Settings > Bluetooth > Forget device for each unused entry.",
       "nist_800_53": "AC-3, CM-8",
       "nist_800_121": "§5.2"
     },
@@ -876,6 +925,7 @@
       "safe_pattern": ".",
       "level": "info",
       "description": "Manually review bonded devices. Any unknown MAC indicates unauthorized pairing or a silent backdoor.",
+      "remediation": "Review all bonded MACs. Remove any unknown device via Settings > Bluetooth > Forget device.",
       "nist_800_53": "AC-3, AC-17, CM-8",
       "nist_800_121": "§5.2"
     },
@@ -886,7 +936,8 @@
       "command": "dumpsys bluetooth_manager | grep -E 'OBEX|PAN|SAP'",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Legacy profiles can expose device to known CVEs—disable if not needed.",
+      "description": "Legacy profiles can expose device to known CVEs - disable if not needed.",
+      "remediation": "Disable legacy profiles (OBEX, PAN, SAP) via BT settings or: setprop bluetooth.opp false (requires root).",
       "empty_is_safe": true
     },
     {
@@ -897,6 +948,7 @@
       "safe_pattern": "Authentication:.*Required",
       "level": "high",
       "description": "Authentication must be required for pairing to prevent BIAS attacks (CVE-2020-10135).",
+      "remediation": "Ensure authentication is required. Update firmware to enforce mandatory authentication on pairing.",
       "nist_800_53": "IA-2, IA-3",
       "nist_800_121": "§4.3"
     },
@@ -908,6 +960,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Bluetooth debugging interfaces must be disabled in production (CM-6)",
+      "remediation": "Disable BT debugging: setprop persist.bluetooth.debug false. Verify no debug flags remain.",
       "empty_is_safe": true
     },
     {
@@ -918,6 +971,7 @@
       "safe_pattern": ".*128.*|.*16 octets.*",
       "level": "high",
       "description": "Link encryption keys must be at least 128 bits; shorter keys are vulnerable to the KNOB attack.",
+      "remediation": "Ensure 128-bit link keys. Apply security patches addressing CVE-2019-9506 (KNOB attack).",
       "nist_800_53": "SC-13, IA-5",
       "nist_800_121": "§4.4"
     },
@@ -929,6 +983,7 @@
       "safe_pattern": ".*LE Security Mode: [2-4].*",
       "level": "high",
       "description": "LE Security Mode must be 2, 3, or 4; Mode 1 or absence enables the BLESA attack (CVE-2020-9770).",
+      "remediation": "Set LE Security Mode to 2 or higher. Update firmware if only Mode 1 is available.",
       "nist_800_53": "SC-8, SC-13",
       "nist_800_121": "§6.3"
     },
@@ -940,6 +995,7 @@
       "safe_pattern": "^$|.*null.*|.*Disconnected.*",
       "level": "critical",
       "description": "HID should not be connected; otherwise keystroke injection and BlueBorne RCE (CVE-2017-0785) are possible.",
+      "remediation": "Disable HID profile when no BT input devices are in use. Disconnect active HID sessions immediately.",
       "nist_800_53": "CM-7, SI-3, AC-3",
       "nist_800_121": "§3.3"
     },
@@ -951,6 +1007,7 @@
       "safe_pattern": ".",
       "level": "info",
       "description": "I/O capability should allow MITM protection (e.g., DisplayYesNo). NoInputNoOutput forces JustWorks and is insecure.",
+      "remediation": "Set I/O capability to DisplayYesNo. Avoid NoInputNoOutput to prevent Just Works fallback.",
       "nist_800_53": "IA-2",
       "nist_800_121": "§4.3"
     },
@@ -962,6 +1019,7 @@
       "safe_pattern": "^$|.*mState: 0.*",
       "level": "high",
       "description": "MAP should be disconnected (mState: 0); otherwise SMS and 2FA codes are remotely readable.",
+      "remediation": "Disable MAP profile: revoke message access for BT devices in Settings > Connected devices.",
       "nist_800_53": "CM-7, AC-3, SI-12",
       "nist_800_121": "§3.3"
     },
@@ -973,6 +1031,7 @@
       "safe_pattern": "^$|.*Disconnected.*",
       "level": "high",
       "description": "OPP should be disconnected or not present; otherwise unsolicited file pushes (CVE-2018-9426) are possible.",
+      "remediation": "Disable OPP profile. Block object push via BT settings or: setprop bluetooth.opp false.",
       "nist_800_53": "CM-7, AC-3",
       "nist_800_121": "§3.3"
     },
@@ -984,6 +1043,7 @@
       "safe_pattern": "^$|.*Disconnected.*",
       "level": "high",
       "description": "PBAP should be disconnected; otherwise the full contacts database can be exfiltrated silently.",
+      "remediation": "Disable PBAP: revoke phonebook access for BT devices in Settings > Connected devices.",
       "nist_800_53": "CM-7, AC-3, MP-5",
       "nist_800_121": "§3.3"
     },
@@ -995,6 +1055,7 @@
       "safe_pattern": "^$|.*Disconnected.*",
       "level": "critical",
       "description": "SAP should be disconnected; otherwise a remote device can fully control the SIM card.",
+      "remediation": "Disable SAP profile immediately: setprop bluetooth.sap false. Remove SIM access for all BT devices.",
       "nist_800_53": "CM-7, AC-3, SC-8",
       "nist_800_121": "§3.3"
     },
@@ -1006,6 +1067,7 @@
       "safe_pattern": "^$",
       "level": "medium",
       "description": "No active BLE advertisements should be present; they leak device fingerprints even with MAC randomization.",
+      "remediation": "Stop BLE advertisements when not needed. Review and disable advertising apps via BT developer options.",
       "nist_800_53": "SC-8(1), CM-7",
       "nist_800_121": "§6.2"
     },
@@ -1017,6 +1079,7 @@
       "safe_pattern": ".*isEncrypted=true.*|^$",
       "level": "critical",
       "description": "All active Bluetooth connections must be encrypted; otherwise raw HCI payload can be captured by passive radio sniffing.",
+      "remediation": "Ensure all connections are encrypted. Disconnect and re-pair any device with unencrypted links.",
       "nist_800_53": "SC-8, SC-13",
       "nist_800_121": "§4.4"
     },
@@ -1028,6 +1091,7 @@
       "safe_pattern": ".*mTetherOn: false.*",
       "level": "high",
       "description": "PAN tethering (mTetherOn) must be false to prevent unauthorized network access and traffic interception.",
+      "remediation": "Disable PAN tethering: Settings > Network > Tethering > Bluetooth tethering off.",
       "nist_800_53": "CM-7, SC-7, AC-3",
       "nist_800_121": "§3.3"
     },
@@ -1039,6 +1103,7 @@
       "safe_pattern": "",
       "level": "info",
       "description": "Check the Bluetooth stack version against the latest for your Android version; outdated versions may contain known CVEs.",
+      "remediation": "Update the Bluetooth stack to the latest version via system update or security patch.",
       "nist_800_53": "SI-2, CM-8",
       "nist_800_121": "§3.2"
     },
@@ -1050,6 +1115,7 @@
       "safe_pattern": "^[0-5]$",
       "level": "medium",
       "description": "Fewer than six apps should hold BLUETOOTH_CONNECT; over‑permissioned apps can expose MACs and connection states.",
+      "remediation": "Revoke BLUETOOTH_CONNECT from unnecessary apps: pm revoke <package> android.permission.BLUETOOTH_CONNECT.",
       "nist_800_53": "AC-3, AC-6, CM-7",
       "nist_800_121": "§3.2"
     },
@@ -1061,6 +1127,7 @@
       "safe_pattern": "Enforcing",
       "level": "critical",
       "description": "SELinux must be Enforcing; Permissive or Disabled allows unrestricted Bluetooth daemon activity and privilege escalation.",
+      "remediation": "Set SELinux to enforcing: setenforce 1. Investigate why it was changed if found permissive.",
       "nist_800_53": "AC-3, SC-3, SI-7",
       "nist_800_121": "§3.2"
     },
@@ -1071,7 +1138,8 @@
       "command": "getprop bluetooth.opp",
       "safe_pattern": "^(false|)$",
       "level": "warning",
-      "description": "OPP (Object Push Profile) should be disabled if not needed."
+      "description": "OPP (Object Push Profile) should be disabled if not needed.",
+      "remediation": "Disable OPP profile: setprop bluetooth.opp false."
     },
     {
       "id": "BT-084",
@@ -1080,7 +1148,8 @@
       "command": "getprop bluetooth.pan",
       "safe_pattern": "^(false|)$",
       "level": "warning",
-      "description": "PAN (Personal Area Networking) profile should be disabled if not needed."
+      "description": "PAN (Personal Area Networking) profile should be disabled if not needed.",
+      "remediation": "Disable PAN profile: setprop bluetooth.pan false."
     },
     {
       "id": "BT-085",
@@ -1089,7 +1158,8 @@
       "command": "getprop bluetooth.pbap",
       "safe_pattern": "^(false|)$",
       "level": "warning",
-      "description": "PBAP (Phone Book Access Profile) should be disabled if not needed."
+      "description": "PBAP (Phone Book Access Profile) should be disabled if not needed.",
+      "remediation": "Disable PBAP profile: setprop bluetooth.pbap false."
     },
     {
       "id": "BT-086",
@@ -1098,7 +1168,8 @@
       "command": "getprop bluetooth.sap",
       "safe_pattern": "^(false|)$",
       "level": "warning",
-      "description": "SAP (SIM Access Profile) should be disabled if not needed."
+      "description": "SAP (SIM Access Profile) should be disabled if not needed.",
+      "remediation": "Disable SAP profile: setprop bluetooth.sap false."
     },
     {
       "id": "BT-087",
@@ -1107,7 +1178,8 @@
       "command": "getprop bluetooth.secure",
       "safe_pattern": "^true$",
       "level": "warning",
-      "description": "Bluetooth secure mode should be enabled (property)."
+      "description": "Bluetooth secure mode should be enabled (property).",
+      "remediation": "Enable Bluetooth secure mode: setprop bluetooth.secure true."
     },
     {
       "id": "BT-088",
@@ -1117,6 +1189,7 @@
       "safe_pattern": "^(5|6|7|8|9|[1-9][0-9])\\.",
       "level": "medium",
       "description": "Bluetooth version should be 5.0 or newer to support LE Secure Connections and mitigate SweynTooth/BLESA.",
+      "remediation": "Upgrade device firmware to support Bluetooth 5.0+ for LE Secure Connections.",
       "nist_800_53": "CM-6, SI-2",
       "nist_800_121": "§2.1"
     },
@@ -1128,6 +1201,7 @@
       "safe_pattern": "^$",
       "level": "high",
       "description": "No debug-related Bluetooth properties should be set; they disable security checks and expose test interfaces.",
+      "remediation": "Remove all debug BT properties: setprop <debug_property> \"\" for each found property (requires root).",
       "nist_800_53": "CM-6, CM-7",
       "nist_800_121": "§3.2"
     },
@@ -1139,6 +1213,7 @@
       "safe_pattern": "^$",
       "level": "medium",
       "description": "No recent Bluetooth crashes in the log; crashes may indicate exploitation attempts like BlueFrag (CVE-2020-0022).",
+      "remediation": "Investigate crash logs for exploitation indicators. Apply latest security patches to address known BT CVEs.",
       "nist_800_53": "SI-3, IR-5, AU-12",
       "nist_800_121": "§3.2"
     },
@@ -1150,6 +1225,7 @@
       "safe_pattern": "^0$",
       "level": "high",
       "description": "Presence of /dev/hci* or /dev/radio* nodes allows direct HCI command injection, bypassing Android's security layer.",
+      "remediation": "Remove exposed HCI device nodes: rm /dev/hci* /dev/radio* (requires root). Verify kernel config.",
       "nist_800_53": "CM-7, AC-3",
       "nist_800_121": "§3.2"
     },
@@ -1161,6 +1237,7 @@
       "safe_pattern": "^[1-9][0-9]*$",
       "level": "medium",
       "description": "At least one Bluetooth firmware file should exist; absence may indicate tampering or custom radio firmware.",
+      "remediation": "Verify firmware files are intact. Restore from factory image if missing or tampered.",
       "nist_800_53": "SI-7, CM-8",
       "nist_800_121": "§3.2"
     },
@@ -1172,6 +1249,7 @@
       "safe_pattern": "^[1-9][0-9]*$",
       "level": "medium",
       "description": "At least one vendor Bluetooth HAL library should exist; absence or unexpected files may indicate tampering or supply chain risk.",
+      "remediation": "Verify vendor BT HAL libraries are intact. Restore from factory image if missing or unexpected.",
       "nist_800_53": "SR-3, SI-7, CM-8",
       "nist_800_121": "§3.2"
     },
@@ -1183,6 +1261,7 @@
       "safe_pattern": "^[0-9]$",
       "level": "warning",
       "description": "Too many apps (10+) with BLUETOOTH permission increases risk. Zero is safe.",
+      "remediation": "Revoke BLUETOOTH permission from unnecessary apps: pm revoke <package> android.permission.BLUETOOTH.",
       "empty_is_safe": true
     },
     {
@@ -1193,6 +1272,7 @@
       "safe_pattern": "^[0-2]$",
       "level": "high",
       "description": "Fewer than three apps should hold BLUETOOTH_ADMIN; excess apps can toggle Bluetooth, clear bonds, and change scan mode.",
+      "remediation": "Revoke BLUETOOTH_ADMIN from unnecessary apps: pm revoke <package> android.permission.BLUETOOTH_ADMIN.",
       "nist_800_53": "AC-3, AC-6, CM-7",
       "nist_800_121": "§3.2"
     },
@@ -1203,7 +1283,8 @@
       "command": "settings get global bluetooth_auto_on",
       "safe_pattern": "^0$",
       "level": "warning",
-      "description": "Bluetooth should not automatically turn on (NIST AC‑18)"
+      "description": "Bluetooth should not automatically turn on (NIST AC‑18)",
+      "remediation": "Disable Bluetooth auto-enable: settings put global bluetooth_auto_on 0."
     },
     {
       "id": "BT-098",
@@ -1213,6 +1294,7 @@
       "safe_pattern": "^Enforced$",
       "level": "critical",
       "description": "BR/EDR Secure Connections must be enforced to prevent the KNOB attack (CVE-2019-9506).",
+      "remediation": "Enforce BR/EDR Secure Connections: settings put global bluetooth_br_edr_secure_connections 1.",
       "nist_800_53": "SC-8, SC-13, IA-2",
       "nist_800_121": "§4.2"
     },
@@ -1223,7 +1305,8 @@
       "command": "settings get global bluetooth_discoverability",
       "safe_pattern": "^(null|0|)$",
       "level": "warning",
-      "description": "Device should not be discoverable (AC-18)"
+      "description": "Device should not be discoverable (AC-18)",
+      "remediation": "Disable discoverable mode: settings put global bluetooth_discoverability 0."
     },
     {
       "id": "BT-101",
@@ -1233,6 +1316,7 @@
       "safe_pattern": "^(null|)$",
       "level": "low",
       "description": "Bluetooth device name should be null or generic; names revealing model, owner, or organization aid OSINT and targeted attacks.",
+      "remediation": "Set a generic BT name: settings put secure bluetooth_name \"Device\". Avoid personal or org-identifying names.",
       "nist_800_53": "CM-6, AC-18",
       "nist_800_121": "§3.4"
     }
