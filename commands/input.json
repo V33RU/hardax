@@ -6,7 +6,8 @@
       "command": "settings get secure enabled_accessibility_services",
       "safe_pattern": "^$|null",
       "level": "warning",
-      "description": "Accessibility services can monitor all input and screen content"
+      "description": "Accessibility services can monitor all input and screen content",
+      "remediation": "Disable unused accessibility services in Settings > Accessibility. Only keep services you actively need."
     },
     {
       "category": "INPUT",
@@ -14,7 +15,8 @@
       "command": "settings get secure touch_exploration_enabled",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Touch exploration for accessibility"
+      "description": "Touch exploration for accessibility",
+      "remediation": "Disable touch exploration in Settings > Accessibility if not needed for assistive use."
     },
     {
       "category": "INPUT",
@@ -22,7 +24,8 @@
       "command": "settings get secure high_text_contrast_enabled",
       "safe_pattern": ".",
       "level": "info",
-      "description": "High contrast text setting"
+      "description": "High contrast text setting",
+      "remediation": "Review high contrast setting in Settings > Accessibility > Display. No security risk - informational only."
     },
     {
       "category": "INPUT",
@@ -30,7 +33,8 @@
       "command": "settings get secure accessibility_display_magnification_enabled",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Screen magnification status"
+      "description": "Screen magnification status",
+      "remediation": "Review magnification in Settings > Accessibility. No security risk - informational only."
     },
     {
       "category": "INPUT",
@@ -38,7 +42,8 @@
       "command": "settings get secure default_input_method",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Default keyboard/input method"
+      "description": "Default keyboard/input method",
+      "remediation": "Verify the default input method is the stock keyboard. Change in Settings > System > Languages and input."
     },
     {
       "category": "INPUT",
@@ -46,7 +51,8 @@
       "command": "settings get secure enabled_input_methods",
       "safe_pattern": ".",
       "level": "info",
-      "description": "All enabled input methods - third party keyboards can log keystrokes"
+      "description": "All enabled input methods - third party keyboards can log keystrokes",
+      "remediation": "Remove untrusted input methods in Settings > System > Languages and input > On-screen keyboard."
     },
     {
       "category": "INPUT",
@@ -54,7 +60,8 @@
       "command": "settings get secure spell_checker_enabled",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Spell checker may send typed text to cloud"
+      "description": "Spell checker may send typed text to cloud",
+      "remediation": "Disable spell checker in Settings > System > Languages and input if cloud-based text processing is a concern."
     },
     {
       "category": "INPUT",
@@ -62,7 +69,8 @@
       "command": "settings get secure voice_interaction_service",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Voice input service configuration"
+      "description": "Voice input service configuration",
+      "remediation": "Review voice input service in Settings > Apps. Disable or revoke permissions for unused voice input services."
     },
     {
       "category": "INPUT",
@@ -71,6 +79,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Third-party keyboards can log keystrokes",
+      "remediation": "Uninstall third-party keyboard apps via Settings > Apps or use adb uninstall <package-name>.",
       "empty_is_safe": true
     }
   ]
