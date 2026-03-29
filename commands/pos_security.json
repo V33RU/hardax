@@ -6,7 +6,8 @@
       "command": "(gk=$(getprop ro.hardware.gatekeeper 2>/dev/null); ks=$(getprop ro.hardware.keystore 2>/dev/null); wv=$(getprop ro.hardware.weaver 2>/dev/null); sb=$(pm list features 2>/dev/null | grep -i strongbox); km=$(service list 2>/dev/null | grep -iE 'keymint|keymaster' | head -1); out=''; [ -n \"$wv\" ] && out=\"weaver=$wv \"; [ -n \"$sb\" ] && out=\"${out}strongbox=present \"; [ -n \"$km\" ] && out=\"${out}keymint_or_keymaster=present \"; [ -n \"$gk\" ] && [ \"$gk\" != 'default' ] && [ \"$gk\" != 'software' ] && out=\"${out}gatekeeper=$gk \"; [ -n \"$ks\" ] && [ \"$ks\" != 'default' ] && [ \"$ks\" != 'software' ] && out=\"${out}keystore=$ks \"; echo ${out:-NOT_FOUND})",
       "safe_pattern": "^(?!NOT_FOUND).+",
       "level": "critical",
-      "description": "PCI-DSS: TEE/hardware-backed key storage required for payment operations. Checks gatekeeper, keystore, weaver props + StrongBox feature + KeyMint/Keymaster service. Outputs detected signals or NOT_FOUND. Skips 'default'/'software' (pure SW fallback)."
+      "description": "PCI-DSS: TEE/hardware-backed key storage required for payment operations. Checks gatekeeper, keystore, weaver props + StrongBox feature + KeyMint/Keymaster service. Outputs detected signals or NOT_FOUND. Skips 'default'/'software' (pure SW fallback).",
+      "remediation": "Replace device with one that has a hardware-backed TEE or enable StrongBox/KeyMint in the vendor firmware."
     },
     {
       "category": "POS_SECURITY",
@@ -14,7 +15,8 @@
       "command": "ls /vendor/lib64/hw/android.hardware.secure_element*.so /vendor/lib/hw/android.hardware.secure_element*.so 2>/dev/null | wc -l",
       "safe_pattern": ".*",
       "level": "info",
-      "description": "Secure Element HAL libraries for hardware security module access"
+      "description": "Secure Element HAL libraries for hardware security module access",
+      "remediation": "Install the vendor-provided Secure Element HAL or verify the device supports hardware SE."
     },
     {
       "category": "POS_SECURITY",
@@ -22,7 +24,8 @@
       "command": "ls /vendor/lib64/hw/android.hardware.keymaster*.so /vendor/lib/hw/android.hardware.keymaster*.so 2>/dev/null | head -1 | grep -oE 'keymaster[@-]?[0-9.]+' || echo 'not_found'",
       "safe_pattern": ".*",
       "level": "info",
-      "description": "Keymaster HAL version - higher versions have better security features"
+      "description": "Keymaster HAL version - higher versions have better security features",
+      "remediation": "Update vendor firmware to the latest Keymaster/KeyMint HAL version available for this device."
     },
     {
       "category": "POS_SECURITY",
@@ -30,7 +33,8 @@
       "command": "result=$(dumpsys activity 2>/dev/null | grep -iE 'mLockTaskModeState|mLockTaskMode[^S]' | grep -oE '[0-9]+' | head -1); echo \"${result:-0}\"",
       "safe_pattern": "^[1-2]$",
       "level": "warning",
-      "description": "POS should run in kiosk/lock task mode (1=locked, 2=pinned). Supports both old (mLockTaskModeState) and new (mLockTaskMode) Android property names. Returns 0 if not in kiosk mode."
+      "description": "POS should run in kiosk/lock task mode (1=locked, 2=pinned). Supports both old (mLockTaskModeState) and new (mLockTaskMode) Android property names. Returns 0 if not in kiosk mode.",
+      "remediation": "Configure the POS app as a device owner and enable lock task mode via DevicePolicyManager.setLockTaskPackages()."
     },
     {
       "category": "POS_SECURITY",
@@ -38,7 +42,8 @@
       "command": "settings get secure lock_to_app_enabled 2>/dev/null",
       "safe_pattern": "^1$",
       "level": "warning",
-      "description": "App pinning should be enabled for single-app POS kiosk mode"
+      "description": "App pinning should be enabled for single-app POS kiosk mode",
+      "remediation": "Enable app pinning via Settings > Security > App pinning, or set lock_to_app_enabled to 1 using device policy."
     },
     {
       "category": "POS_SECURITY",
@@ -46,7 +51,8 @@
       "command": "pm list packages 2>/dev/null | grep -iE 'pay|wallet|pos|terminal|merchant|square|clover|toast|stripe|verifone|ingenico|pax' | wc -l",
       "safe_pattern": ".*",
       "level": "info",
-      "description": "Count of payment-related applications installed"
+      "description": "Count of payment-related applications installed",
+      "remediation": "Audit installed payment apps and remove any unauthorized or unused ones to reduce attack surface."
     },
     {
       "category": "POS_SECURITY",
@@ -54,7 +60,8 @@
       "command": "for pkg in $(pm list packages 2>/dev/null | grep -iE 'pay|wallet|pos|terminal' | cut -d: -f2 | head -3); do dumpsys package $pkg 2>/dev/null | grep -E 'permission.*INTERNET|permission.*NFC|permission.*CAMERA' | head -5; done",
       "safe_pattern": ".*",
       "level": "info",
-      "description": "Review critical permissions granted to payment apps - INTERNET+NFC+CAMERA combo needs manual review"
+      "description": "Review critical permissions granted to payment apps - INTERNET+NFC+CAMERA combo needs manual review",
+      "remediation": "Revoke unnecessary permissions from payment apps, especially CAMERA if not required for barcode scanning."
     },
     {
       "category": "POS_SECURITY",
@@ -63,6 +70,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Non-camera apps with CAMERA permission - potential card skimming risk",
+      "remediation": "Revoke CAMERA permission from flagged apps via adb shell pm revoke <package> android.permission.CAMERA.",
       "empty_is_safe": true
     },
     {
@@ -71,7 +79,8 @@
       "command": "netstat -tlnp 2>/dev/null | grep -E 'LISTEN' | awk '{print $4}' | grep -oE '[0-9]+$' | sort -u | tr '\\n' ',' | sed 's/,$//'",
       "safe_pattern": ".*",
       "level": "info",
-      "description": "PCI-DSS 1.1.6: Review all listening ports on POS terminal"
+      "description": "PCI-DSS 1.1.6: Review all listening ports on POS terminal",
+      "remediation": "Close unnecessary listening ports and disable services not required for POS operation."
     },
     {
       "category": "POS_SECURITY",
@@ -80,6 +89,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "PCI-DSS 2.2.7: RDP(:3389)/VNC(:5900-5901,:5800)/SSH(:22)/ADB-net(:5555) must be closed. :4444 included as Metasploit/reverse-shell indicator - verify manually if flagged.",
+      "remediation": "Disable remote access services (RDP, VNC, SSH, ADB over network) and block these ports via firewall rules.",
       "empty_is_safe": true
     },
     {
@@ -89,6 +99,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Memory dumping tools detected - potential RAM scraping malware indicator",
+      "remediation": "Kill the flagged process immediately, investigate its origin, and remove the binary from the device.",
       "empty_is_safe": true
     },
     {
@@ -98,6 +109,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Known POS malware process names detected",
+      "remediation": "Isolate the device from the network immediately, perform forensic analysis, and reimage with verified firmware.",
       "empty_is_safe": true
     },
     {
@@ -106,7 +118,8 @@
       "command": "settings get global wifi_ap_enabled 2>/dev/null",
       "safe_pattern": "^(0|null)$",
       "level": "critical",
-      "description": "PCI-DSS: WiFi hotspot must be disabled on POS terminals"
+      "description": "PCI-DSS: WiFi hotspot must be disabled on POS terminals",
+      "remediation": "Disable WiFi hotspot via settings put global wifi_ap_enabled 0 and enforce it through device policy."
     },
     {
       "category": "POS_SECURITY",
@@ -115,6 +128,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Third-party clipboard apps may capture card data",
+      "remediation": "Uninstall third-party clipboard manager apps and restrict app installs via device policy.",
       "empty_is_safe": true
     },
     {
@@ -123,7 +137,8 @@
       "command": "settings get secure screencapture_disabled 2>/dev/null",
       "safe_pattern": "^1$",
       "level": "warning",
-      "description": "Screen capture should be disabled to protect card data display"
+      "description": "Screen capture should be disabled to protect card data display",
+      "remediation": "Set screencapture_disabled to 1 via DevicePolicyManager or settings put secure screencapture_disabled 1."
     },
     {
       "category": "POS_SECURITY",
@@ -131,7 +146,8 @@
       "command": "getprop 2>/dev/null | grep -iE 'pax|verifone|ingenico|newland|sunmi|elo|clover|square|toast' | head -10",
       "safe_pattern": ".*",
       "level": "info",
-      "description": "POS vendor-specific system properties detected"
+      "description": "POS vendor-specific system properties detected",
+      "remediation": "Verify vendor properties match the expected POS hardware and firmware version for this deployment."
     },
     {
       "category": "POS_SECURITY",
@@ -140,6 +156,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "PCI-DSS 3.4: Files potentially containing standalone PANs (Visa/MC/Amex/Discover). Uses digit-boundary matching to reduce false positives from serial numbers and IDs.",
+      "remediation": "Delete or securely wipe files containing PAN data. Ensure the application encrypts or tokenizes card numbers.",
       "empty_is_safe": true
     },
     {
@@ -149,6 +166,7 @@
       "safe_pattern": "^$",
       "level": "info",
       "description": "Verbose logging may expose sensitive payment data in logs",
+      "remediation": "Clear the debug log tag via setprop persist.log.tag \"\" and restart logging to use default log levels.",
       "empty_is_safe": true
     },
     {
@@ -157,7 +175,8 @@
       "command": "getprop persist.logd.size 2>/dev/null | grep -E '^[0-9]+[KMG]?$' || echo 'default'",
       "safe_pattern": ".*",
       "level": "info",
-      "description": "Large log buffers may retain sensitive transaction data longer"
+      "description": "Large log buffers may retain sensitive transaction data longer",
+      "remediation": "Reset log buffer to default size via setprop persist.logd.size \"\" to limit retention of sensitive data."
     },
     {
       "category": "POS_SECURITY",
@@ -166,6 +185,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "PCI-DSS 3.4: SQLite databases containing unencrypted PAN card data. Uses sqlite3 .dump (text output) instead of raw strings to avoid binary false positives.",
+      "remediation": "Purge unencrypted PAN data from flagged databases. Use tokenization or encryption for stored card numbers.",
       "empty_is_safe": true
     },
     {
@@ -175,6 +195,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Screen recording tool detected - may capture card data or PIN entry on POS terminal",
+      "remediation": "Kill the screen recording process and uninstall the app. Enable FLAG_SECURE on payment activity windows.",
       "empty_is_safe": true
     },
     {
@@ -184,6 +205,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "NFC relay attack tool detected - intercepts and relays contactless payment data in real-time",
+      "remediation": "Kill the NFC relay process, uninstall the app, and verify NFC service integrity with the vendor firmware.",
       "empty_is_safe": true
     },
     {
@@ -193,6 +215,7 @@
       "safe_pattern": "",
       "level": "info",
       "description": "PAX terminal-specific processes detected - verify all services are legitimate PAX firmware",
+      "remediation": "Cross-check running PAX processes against the official PAX firmware manifest for this device model.",
       "empty_is_safe": false
     },
     {
@@ -202,6 +225,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "PAX unsigned partition block device accessible - CVE-2023-42134 allows local code execution via unsigned partition flashing",
+      "remediation": "Apply the PAX firmware update that patches CVE-2023-42134 and restricts access to partition block devices.",
       "empty_is_safe": true
     }
   ]
