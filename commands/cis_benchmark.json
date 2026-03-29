@@ -7,6 +7,7 @@
       "safe_pattern": "^0$|^null$",
       "level": "warning",
       "description": "CIS 1.3: Ensure 'Make pattern visible' is set to 'Disabled' to prevent shoulder surfing attacks",
+      "remediation": "Go to Settings > Security > Screen lock and disable 'Make pattern visible', or run: settings put secure lock_pattern_visible 0",
       "cis_id": "1.3",
       "cis_level": "L1"
     },
@@ -17,6 +18,7 @@
       "safe_pattern": "^0$",
       "level": "warning",
       "description": "CIS 1.5: Ensure 'Power button instantly locks' is set to 'Enabled' for immediate device locking",
+      "remediation": "Go to Settings > Security > Screen lock > Power button instantly locks and enable it, or run: settings put secure lock_screen_lock_after_timeout 0",
       "cis_id": "1.5",
       "cis_level": "L1"
     },
@@ -27,6 +29,7 @@
       "safe_pattern": "^1$",
       "level": "info",
       "description": "CIS 1.6: Ensure 'Lock Screen Message' is configured for device identification and emergency contact",
+      "remediation": "Go to Settings > Security > Lock screen message and enable it, or run: settings put secure lock_screen_owner_info_enabled 1",
       "cis_id": "1.6",
       "cis_level": "L1"
     },
@@ -37,6 +40,7 @@
       "safe_pattern": ".+",
       "level": "info",
       "description": "CIS 1.6: Lock screen message should contain emergency contact or corporate info",
+      "remediation": "Set a lock screen message with contact info via Settings > Security > Lock screen message, or run: settings put secure lock_screen_owner_info 'Contact info here'",
       "cis_id": "1.6",
       "cis_level": "L1",
       "empty_is_safe": false
@@ -48,6 +52,7 @@
       "safe_pattern": "^1$",
       "level": "warning",
       "description": "CIS 1.13: Ensure 'Find My Device' is set to 'Enabled' for remote locate, lock, and erase capabilities",
+      "remediation": "Go to Settings > Security > Find My Device and enable it, or run: settings put secure find_my_device 1",
       "cis_id": "1.13",
       "cis_level": "L2"
     },
@@ -58,6 +63,7 @@
       "safe_pattern": "^[1-9]",
       "level": "info",
       "description": "CIS 1.16: Ensure 'Allow remote lock and erase' is enabled via device admin apps",
+      "remediation": "Go to Settings > Security > Device admin apps and ensure at least one admin app (e.g., Find My Device) is activated.",
       "cis_id": "1.16",
       "cis_level": "L1"
     },
@@ -68,6 +74,7 @@
       "safe_pattern": "^1$",
       "level": "warning",
       "description": "CIS 1.18: Ensure 'Improve harmful app detection' is enabled for enhanced malware scanning",
+      "remediation": "Go to Settings > Security > Google Play Protect and enable 'Improve harmful app detection', or run: settings put global package_verifier_enable 1",
       "cis_id": "1.18",
       "cis_level": "L1"
     },
@@ -78,6 +85,7 @@
       "safe_pattern": "^1$",
       "level": "info",
       "description": "CIS 1.18: Unknown APKs sent to Google for analysis to improve harmful app detection",
+      "remediation": "Enable sending unknown apps for scanning via Play Protect settings, or run: settings put global upload_apk_enable 1",
       "cis_id": "1.18",
       "cis_level": "L1"
     },
@@ -88,6 +96,7 @@
       "safe_pattern": "^1$",
       "level": "warning",
       "description": "CIS 1.19: Ensure 'Ask for PIN/password before unpinning' is enabled when using screen pinning",
+      "remediation": "Go to Settings > Security > Screen pinning and enable 'Ask for PIN before unpinning', or run: settings put secure lock_to_app_exit_locked 1",
       "cis_id": "1.19",
       "cis_level": "L1"
     },
@@ -98,6 +107,7 @@
       "safe_pattern": "^0$|^null$",
       "level": "warning",
       "description": "CIS 1.21: Ensure 'Wi-Fi assistant/wakeup' is disabled to prevent auto-connecting to untrusted networks",
+      "remediation": "Go to Settings > Network > Wi-Fi > Wi-Fi preferences and disable 'Turn on Wi-Fi automatically', or run: settings put global wifi_wakeup_enabled 0",
       "cis_id": "1.21",
       "cis_level": "L1"
     },
@@ -108,6 +118,7 @@
       "safe_pattern": "^0$|^null$",
       "level": "info",
       "description": "CIS 1.21: Network scoring for Wi-Fi assistant should be disabled",
+      "remediation": "Disable network scoring by running: settings put global network_scoring_provisioned 0",
       "cis_id": "1.21",
       "cis_level": "L1"
     },
@@ -118,6 +129,7 @@
       "safe_pattern": "^1$|^2$",
       "level": "info",
       "description": "CIS 1.22: App auto-update policy (1=WiFi only, 2=always) should be enabled to keep apps updated",
+      "remediation": "Open Google Play Store > Settings > Auto-update apps and select 'Over Wi-Fi only' or 'Over any network'.",
       "cis_id": "1.22",
       "cis_level": "L1"
     },
@@ -128,6 +140,7 @@
       "safe_pattern": "^0$|^null$",
       "level": "warning",
       "description": "CIS 1.23: Ensure 'Add users from lock screen' is disabled to prevent unauthorized user creation",
+      "remediation": "Go to Settings > System > Multiple users and disable 'Add users from lock screen', or run: settings put global add_users_when_locked 0",
       "cis_id": "1.23",
       "cis_level": "L1"
     },
@@ -138,6 +151,7 @@
       "safe_pattern": "^1$",
       "level": "info",
       "description": "CIS 1.28: Review existing user profiles - ideally only 1 primary user should exist",
+      "remediation": "Go to Settings > System > Multiple users and remove any unnecessary user profiles.",
       "cis_id": "1.28",
       "cis_level": "L1"
     },
@@ -148,6 +162,7 @@
       "safe_pattern": "^0$|^null$",
       "level": "info",
       "description": "CIS 2.3: Web and App Activity tracking should be disabled for privacy",
+      "remediation": "Disable Web and App Activity in Google Account settings, or run: settings put secure web_action_enabled 0",
       "cis_id": "2.3",
       "cis_level": "L1"
     },
@@ -158,6 +173,7 @@
       "safe_pattern": "^0$|^null$",
       "level": "info",
       "description": "CIS 2.3: Assistant structure capture should be disabled for privacy",
+      "remediation": "Disable assistant screen context in Settings > Apps > Default apps > Assist app, or run: settings put secure assist_structure_enabled 0",
       "cis_id": "2.3",
       "cis_level": "L1"
     },
@@ -168,6 +184,7 @@
       "safe_pattern": "^0$|^null$",
       "level": "info",
       "description": "CIS 2.4: Device information/error reporting should be disabled for privacy",
+      "remediation": "Disable usage and diagnostics reporting in Settings > Privacy, or run: settings put secure send_action_app_error 0",
       "cis_id": "2.4",
       "cis_level": "L1"
     },
@@ -178,6 +195,7 @@
       "safe_pattern": "^0$|^null$",
       "level": "warning",
       "description": "CIS 2.11: Ensure 'Bluetooth scanning' is disabled to prevent location tracking via BLE beacons",
+      "remediation": "Go to Settings > Location > Scanning and disable 'Bluetooth scanning', or run: settings put global ble_scan_always_enabled 0",
       "cis_id": "2.11",
       "cis_level": "L1"
     },
@@ -188,6 +206,7 @@
       "safe_pattern": "^ask$|^deny$|^ignore$",
       "level": "info",
       "description": "CIS 3.1: Chrome microphone permission should require user confirmation (ask) not auto-allow",
+      "remediation": "Go to Settings > Apps > Chrome > Permissions > Microphone and set to 'Ask every time' or 'Deny'.",
       "cis_id": "3.1",
       "cis_level": "L1"
     },
@@ -198,6 +217,7 @@
       "safe_pattern": "^ask$|^deny$|^ignore$",
       "level": "info",
       "description": "CIS 3.2: Chrome location permission should require user confirmation (ask) not auto-allow",
+      "remediation": "Go to Settings > Apps > Chrome > Permissions > Location and set to 'Ask every time' or 'Deny'.",
       "cis_id": "3.2",
       "cis_level": "L1"
     }
