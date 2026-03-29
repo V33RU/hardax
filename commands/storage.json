@@ -6,7 +6,8 @@
       "command": "settings get secure backup_enabled",
       "safe_pattern": "^(0|null)$",
       "level": "warning",
-      "description": "ADB backup can extract sensitive data"
+      "description": "ADB backup can extract sensitive data",
+      "remediation": "Disable ADB backup via 'settings put secure backup_enabled 0' or enforce a device policy blocking ADB backup."
     },
     {
       "category": "STORAGE",
@@ -14,7 +15,8 @@
       "command": "settings get secure backup_auto_restore",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Auto backup/restore status"
+      "description": "Auto backup/restore status",
+      "remediation": "Review auto-restore settings and disable if not required by your backup policy."
     },
     {
       "category": "STORAGE",
@@ -22,7 +24,8 @@
       "command": "settings get secure backup_transport",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Backup transport service"
+      "description": "Backup transport service",
+      "remediation": "Verify the backup transport is a trusted service. Replace with a known-good transport if unexpected."
     },
     {
       "category": "STORAGE",
@@ -30,7 +33,8 @@
       "command": "settings get secure backup_manager_constants",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Backup manager configuration"
+      "description": "Backup manager configuration",
+      "remediation": "Audit backup manager config and ensure only authorized accounts are used for cloud backup."
     },
     {
       "category": "STORAGE",
@@ -38,7 +42,8 @@
       "command": "mount | grep -E ' rw| ro'",
       "safe_pattern": "",
       "level": "info",
-      "description": "Review mounted partitions and access permissions (evidence collector)"
+      "description": "Review mounted partitions and access permissions (evidence collector)",
+      "remediation": "Remount sensitive partitions as read-only using 'mount -o remount,ro <partition>'."
     },
     {
       "category": "STORAGE",
@@ -46,7 +51,8 @@
       "command": "mount | grep tmpfs",
       "safe_pattern": ".*",
       "level": "info",
-      "description": "Shows use of temporary memory file system"
+      "description": "Shows use of temporary memory file system",
+      "remediation": "Review tmpfs mounts for unexpected entries. Remove unneeded tmpfs mounts to reduce attack surface."
     },
     {
       "category": "STORAGE",
@@ -55,6 +61,7 @@
       "safe_pattern": "^[0-9]$|^[1-4][0-9]$",
       "level": "info",
       "description": "World-readable files in /data (top 4 levels). Some are normal; large counts may indicate misconfigured permissions.",
+      "remediation": "Run 'chmod o-r' on files that should not be world-readable. Audit listed files for sensitive content.",
       "empty_is_safe": true
     },
     {
@@ -63,7 +70,8 @@
       "command": "find /data -maxdepth 4 -type f -perm -o+r 2>/dev/null | head -20",
       "safe_pattern": "^$",
       "level": "info",
-      "description": "World-readable files in /data (evidence collector — review for sensitive files).",
+      "description": "World-readable files in /data (evidence collector - review for sensitive files).",
+      "remediation": "Remove world-readable permission from sensitive files using 'chmod o-r <file>'.",
       "empty_is_safe": true
     },
     {
@@ -73,6 +81,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "SQLite databases should not be world-readable/writable",
+      "remediation": "Set database permissions to 600 using 'chmod 600 <db_file>' to restrict access to the owning app.",
       "empty_is_safe": true
     },
     {
@@ -81,7 +90,8 @@
       "command": "cat /proc/partitions 2>/dev/null | awk 'NR>2 {print $4}'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Device partitions - review for sensitive data partitions"
+      "description": "Device partitions - review for sensitive data partitions",
+      "remediation": "Verify all partitions are expected. Investigate unknown partitions for unauthorized data storage."
     },
     {
       "category": "STORAGE",
@@ -89,7 +99,8 @@
       "command": "mount 2>/dev/null | grep -vE 'tmpfs|proc|sysfs|devpts' | head -15",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Mounted filesystems and permissions"
+      "description": "Mounted filesystems and permissions",
+      "remediation": "Review mounted filesystems for unexpected entries. Unmount unauthorized mounts and remount as read-only."
     },
     {
       "category": "STORAGE",
@@ -98,6 +109,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "System partition writable - firmware can be modified!",
+      "remediation": "Remount /system as read-only immediately: 'mount -o remount,ro /system'. Investigate for tampering.",
       "empty_is_safe": true
     },
     {
@@ -107,6 +119,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Vendor partition writable - can be modified!",
+      "remediation": "Remount /vendor as read-only: 'mount -o remount,ro /vendor'. Check for unauthorized modifications.",
       "empty_is_safe": true
     },
     {
@@ -116,6 +129,7 @@
       "safe_pattern": "^0$",
       "level": "warning",
       "description": "Unprotected sensitive files (scans top 4 levels of /data)",
+      "remediation": "Remove world-writable permission using 'chmod o-w' on affected files to prevent unauthorized writes.",
       "empty_is_safe": true
     },
     {
@@ -124,7 +138,8 @@
       "command": "which busybox 2>/dev/null || ls /system/bin/busybox /system/xbin/busybox 2>/dev/null",
       "safe_pattern": ".",
       "level": "info",
-      "description": "BusyBox utilities available"
+      "description": "BusyBox utilities available",
+      "remediation": "Remove BusyBox if not required. Its rich toolset can aid attackers on compromised devices."
     },
     {
       "category": "STORAGE",
@@ -132,7 +147,8 @@
       "command": "ls /system/etc/init/ /vendor/etc/init/ /data/adb/service.d/ 2>/dev/null",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Custom init scripts - review for backdoors"
+      "description": "Custom init scripts - review for backdoors",
+      "remediation": "Audit each init script for unauthorized commands. Remove or disable any unrecognized scripts."
     },
     {
       "category": "STORAGE",
@@ -140,7 +156,8 @@
       "command": "ls /dev/block/by-name/recovery /dev/block/bootdevice/by-name/recovery 2>/dev/null",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Recovery partition accessible"
+      "description": "Recovery partition accessible",
+      "remediation": "Restrict access to recovery partition block devices. Ensure only privileged processes can read them."
     },
     {
       "category": "STORAGE",
@@ -148,7 +165,8 @@
       "command": "getprop ro.build.display.id; getprop ro.build.version.incremental; getprop ro.vendor.build.fingerprint 2>/dev/null | head -3",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Firmware version information"
+      "description": "Firmware version information",
+      "remediation": "Ensure firmware is up to date. Apply the latest OTA or vendor security patch if outdated."
     },
     {
       "category": "STORAGE",
@@ -156,7 +174,8 @@
       "command": "find /data/ota /data/data/com.google.android.gms /cache /data/cache -maxdepth 3 -name '*.zip' 2>/dev/null | head -5; find /cache /data/ota -maxdepth 2 \\( -name '*update*' -o -name '*ota*' \\) 2>/dev/null | head -5",
       "safe_pattern": ".",
       "level": "info",
-      "description": "OTA update packages found"
+      "description": "OTA update packages found",
+      "remediation": "Verify OTA packages are signed by the vendor. Delete stale or unverified update files."
     },
     {
       "category": "STORAGE",
@@ -165,6 +184,7 @@
       "safe_pattern": "^$",
       "level": "info",
       "description": "Detects non-standard or extra partitions",
+      "remediation": "Investigate unexpected partitions for hidden data or unauthorized storage areas.",
       "empty_is_safe": true
     },
     {
@@ -174,6 +194,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "SDCard should not be mounted read-write in restricted environments",
+      "remediation": "Remount SDCard as read-only or remove it. Enforce a policy blocking external writable storage.",
       "empty_is_safe": true
     },
     {
@@ -182,7 +203,8 @@
       "command": "find /data -maxdepth 3 -type f -uid 0 ! -user system 2>/dev/null | wc -l",
       "safe_pattern": "^0$",
       "level": "info",
-      "description": "Looks for files owned by root but not by 'system' user (top 3 levels)"
+      "description": "Looks for files owned by root but not by 'system' user (top 3 levels)",
+      "remediation": "Reassign orphaned files to the correct owner or remove them if they are not needed."
     },
     {
       "category": "STORAGE",
@@ -190,7 +212,8 @@
       "command": "getprop ro.crypto.volume.filenames_mode",
       "safe_pattern": "^aes-256-cts$",
       "level": "warning",
-      "description": "External storage filenames should be encrypted"
+      "description": "External storage filenames should be encrypted",
+      "remediation": "Enable file-based encryption for external storage. Set ro.crypto.volume.filenames_mode to aes-256-cts."
     },
     {
       "category": "STORAGE",
@@ -199,7 +222,8 @@
       "safe_pattern": "^$",
       "empty_is_safe": true,
       "level": "warning",
-      "description": "Active swap partitions can expose sensitive data (encryption keys, passwords, session tokens) to persistent storage and forensic recovery."
+      "description": "Active swap partitions can expose sensitive data (encryption keys, passwords, session tokens) to persistent storage and forensic recovery.",
+      "remediation": "Disable swap using 'swapoff -a'. If swap is required, ensure the swap partition is encrypted."
     }
   ]
 }
