@@ -6,7 +6,8 @@
       "command": "dumpsys appops | grep -E 'READ_EXTERNAL_STORAGE|ACCESS_FINE_LOCATION'",
       "safe_pattern": "mode=ignore",
       "level": "info",
-      "description": "Monitor unexpected accesses to sensitive data"
+      "description": "Monitor unexpected accesses to sensitive data",
+      "remediation": "Revoke permissions for flagged apps: appops set <package> <op> ignore"
     },
     {
       "category": "APPS",
@@ -15,6 +16,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Pentest frameworks or hacking tools found",
+      "remediation": "Uninstall detected pentest tools: pm uninstall <package>",
       "empty_is_safe": true
     },
     {
@@ -24,6 +26,7 @@
       "safe_pattern": "^$",
       "level": "info",
       "description": "Third-party apps installed in last 7 days - review for legitimacy",
+      "remediation": "Review each recently installed app and uninstall any unauthorized ones: pm uninstall <package>",
       "empty_is_safe": true
     },
     {
@@ -33,6 +36,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Apps installed from non-Play Store sources - higher malware risk",
+      "remediation": "Uninstall sideloaded apps: pm uninstall <package>. Disable unknown sources to prevent future installs.",
       "empty_is_safe": true
     },
     {
@@ -41,7 +45,8 @@
       "command": "pm list packages -f | grep .apk | head -n 1",
       "safe_pattern": "package:",
       "level": "info",
-      "description": "Checks for valid APK path info"
+      "description": "Checks for valid APK path info",
+      "remediation": "If no valid APK path is returned, verify package integrity with: pm verify <package>"
     },
     {
       "category": "APPS",
@@ -50,6 +55,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Packages with suspicious names",
+      "remediation": "Uninstall suspicious packages immediately: pm uninstall <package>",
       "empty_is_safe": true
     },
     {
@@ -59,6 +65,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Third-party apps with debuggable flag enabled",
+      "remediation": "Uninstall debuggable apps: pm uninstall <package>. Replace with release (non-debug) builds.",
       "empty_is_safe": true
     },
     {
@@ -67,7 +74,8 @@
       "command": "dumpsys package verification | grep 'verified=true'",
       "safe_pattern": "verified=true",
       "level": "warning",
-      "description": "APK signatures must be verified"
+      "description": "APK signatures must be verified",
+      "remediation": "Enable package verification: settings put global package_verifier_enable 1"
     },
     {
       "category": "APPS",
@@ -76,6 +84,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Apps should not use dynamic code loading (security risk)",
+      "remediation": "Uninstall apps using dynamic code loading: pm uninstall <package>",
       "empty_is_safe": true
     },
     {
@@ -84,7 +93,8 @@
       "command": "pm list packages 2>/dev/null | grep -iE 'maps|waze|here|tomtom|sygic|navigation' | head -5",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Navigation applications tracking location"
+      "description": "Navigation applications tracking location",
+      "remediation": "Revoke location access for unneeded nav apps: pm revoke <package> android.permission.ACCESS_FINE_LOCATION"
     },
     {
       "category": "APPS",
@@ -92,7 +102,8 @@
       "command": "getprop ro.product.device 2>/dev/null; getprop ro.product.model 2>/dev/null; getprop ro.product.manufacturer 2>/dev/null",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Device identification - document for regulatory purposes"
+      "description": "Device identification - document for regulatory purposes",
+      "remediation": "Record device model and manufacturer for asset inventory and compliance documentation."
     },
     {
       "category": "APPS",
@@ -101,6 +112,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Check for actual root shell access (excludes Samsung system su)",
+      "remediation": "Remove root access by uninstalling su binary or root manager (e.g., pm uninstall com.topjohnwu.magisk).",
       "empty_is_safe": true
     },
     {
@@ -109,7 +121,8 @@
       "command": "dumpsys activity services | grep -E 'package|process' | wc -l",
       "safe_pattern": ".*",
       "level": "info",
-      "description": "Running services on device"
+      "description": "Running services on device",
+      "remediation": "Review running services and stop unnecessary ones: am stopservice <component>"
     },
     {
       "category": "APPS",
@@ -118,6 +131,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Xposed framework enables deep system tweaks",
+      "remediation": "Uninstall Xposed framework and modules: pm uninstall de.robv.android.xposed.installer",
       "empty_is_safe": true
     },
     {
@@ -127,6 +141,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Unauthorized sideloading or testing APKs",
+      "remediation": "Delete unapproved APKs: rm /data/local/tmp/*.apk",
       "empty_is_safe": true
     },
     {
@@ -135,7 +150,8 @@
       "command": "ps -A 2>/dev/null | grep -vE 'ps|grep' | awk '{print $NF}' | sort | uniq | head -30",
       "safe_pattern": ".",
       "level": "info",
-      "description": "All running processes - review for unnecessary services"
+      "description": "All running processes - review for unnecessary services",
+      "remediation": "Kill unnecessary processes: kill <pid>. Disable unwanted services from auto-starting."
     },
     {
       "category": "APPS",
@@ -144,6 +160,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Web server running - potential attack surface",
+      "remediation": "Stop and disable the web server if not required: kill <pid>. Remove the binary if unnecessary.",
       "empty_is_safe": true
     },
     {
@@ -153,6 +170,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Telnet daemon running - INSECURE!",
+      "remediation": "Kill telnet daemon immediately: kill <pid>. Replace with SSH for remote access.",
       "empty_is_safe": true
     },
     {
@@ -162,6 +180,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "FTP daemon running - credentials in plaintext!",
+      "remediation": "Kill FTP daemon immediately: kill <pid>. Replace with SFTP or SCP for secure file transfer.",
       "empty_is_safe": true
     },
     {
@@ -170,7 +189,8 @@
       "command": "ps -A 2>/dev/null | grep -iE 'sshd|dropbear'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "SSH daemon running"
+      "description": "SSH daemon running",
+      "remediation": "Ensure SSH uses key-based auth and disable password login. Restrict access with AllowUsers directive."
     },
     {
       "category": "APPS",
@@ -178,7 +198,8 @@
       "command": "ps -A 2>/dev/null | grep -iE 'mosquitto|mqtt|paho'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "MQTT service running"
+      "description": "MQTT service running",
+      "remediation": "Ensure MQTT uses TLS and authentication. Disable anonymous access in broker config."
     },
     {
       "category": "APPS",
@@ -186,7 +207,8 @@
       "command": "ps -A 2>/dev/null | grep -iE 'node|python|python3'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Script-based services running"
+      "description": "Script-based services running",
+      "remediation": "Audit script-based services for known vulnerabilities. Update runtimes to latest patched versions."
     },
     {
       "category": "APPS",
@@ -194,7 +216,8 @@
       "command": "ps -A 2>/dev/null | grep -iE 'mysql|mariadb|postgres|sqlite|mongodb|redis'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Database services running"
+      "description": "Database services running",
+      "remediation": "Ensure databases require authentication and are not exposed on public interfaces. Bind to localhost only."
     },
     {
       "category": "APPS",
@@ -202,7 +225,8 @@
       "command": "ps -A 2>/dev/null | grep -iE 'docker|containerd|runc'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Container runtime detected"
+      "description": "Container runtime detected",
+      "remediation": "Audit running containers for outdated images. Restrict Docker socket access to authorized users only."
     },
     {
       "category": "APPS",
@@ -210,7 +234,8 @@
       "command": "cat /proc/1/comm 2>/dev/null",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Init system (systemd/init/busybox)"
+      "description": "Init system (systemd/init/busybox)",
+      "remediation": "Document the init system type. Review startup services for unnecessary or insecure daemons."
     },
     {
       "category": "APPS",
@@ -218,7 +243,8 @@
       "command": "ps -A 2>/dev/null | grep -vE 'system_server|surfaceflinger|zygote|android|google|samsung|com\\.' | grep -E 'd$|daemon|service' | head -10",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Non-Android services/daemons running"
+      "description": "Non-Android services/daemons running",
+      "remediation": "Audit each custom daemon for necessity and security. Disable unneeded ones via init scripts."
     },
     {
       "category": "APPS",
@@ -226,7 +252,8 @@
       "command": "pm list packages -p android.permission.CAMERA 2>/dev/null | head -20",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Apps with camera permission"
+      "description": "Apps with camera permission",
+      "remediation": "Revoke camera from untrusted apps: pm revoke <package> android.permission.CAMERA"
     },
     {
       "category": "APPS",
@@ -234,7 +261,8 @@
       "command": "pm list packages -p android.permission.RECORD_AUDIO 2>/dev/null | head -20",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Apps with microphone permission"
+      "description": "Apps with microphone permission",
+      "remediation": "Revoke microphone from untrusted apps: pm revoke <package> android.permission.RECORD_AUDIO"
     },
     {
       "category": "APPS",
@@ -242,7 +270,8 @@
       "command": "pm list packages -p android.permission.ACCESS_FINE_LOCATION 2>/dev/null | head -20",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Apps with fine location permission"
+      "description": "Apps with fine location permission",
+      "remediation": "Revoke location from untrusted apps: pm revoke <package> android.permission.ACCESS_FINE_LOCATION"
     },
     {
       "category": "APPS",
@@ -250,7 +279,8 @@
       "command": "pm list packages -p android.permission.SEND_SMS 2>/dev/null | head -20",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Apps with SMS sending permission"
+      "description": "Apps with SMS sending permission",
+      "remediation": "Revoke SMS permission from non-essential apps: pm revoke <package> android.permission.SEND_SMS"
     },
     {
       "category": "APPS",
@@ -258,7 +288,8 @@
       "command": "pm list packages -p android.permission.READ_CONTACTS 2>/dev/null | head -20",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Apps with contacts read permission"
+      "description": "Apps with contacts read permission",
+      "remediation": "Revoke contacts access from untrusted apps: pm revoke <package> android.permission.READ_CONTACTS"
     },
     {
       "category": "APPS",
@@ -266,7 +297,8 @@
       "command": "settings get secure install_non_market_apps",
       "safe_pattern": "^(0|null)$",
       "level": "critical",
-      "description": "Installing from unknown sources should be disabled"
+      "description": "Installing from unknown sources should be disabled",
+      "remediation": "Disable unknown sources: settings put secure install_non_market_apps 0"
     },
     {
       "category": "APPS",
@@ -274,7 +306,8 @@
       "command": "settings get global package_verifier_enable",
       "safe_pattern": "^1$",
       "level": "warning",
-      "description": "Package verification should be enabled"
+      "description": "Package verification should be enabled",
+      "remediation": "Enable package verification: settings put global package_verifier_enable 1"
     },
     {
       "category": "APPS",
@@ -282,7 +315,8 @@
       "command": "settings get global verifier_verify_adb_installs",
       "safe_pattern": "^1$",
       "level": "warning",
-      "description": "Verify apps installed via ADB"
+      "description": "Verify apps installed via ADB",
+      "remediation": "Enable ADB install verification: settings put global verifier_verify_adb_installs 1"
     },
     {
       "category": "APPS",
@@ -290,7 +324,8 @@
       "command": "settings get global package_verifier_user_consent",
       "safe_pattern": "^1$",
       "level": "warning",
-      "description": "Google Play Protect consent status"
+      "description": "Google Play Protect consent status",
+      "remediation": "Enable Play Protect: settings put global package_verifier_user_consent 1"
     },
     {
       "category": "APPS",
@@ -298,7 +333,8 @@
       "command": "settings get global install_allow_adb",
       "safe_pattern": "^(0|null)$",
       "level": "warning",
-      "description": "Block app installation via ADB"
+      "description": "Block app installation via ADB",
+      "remediation": "Block ADB installs: settings put global install_allow_adb 0"
     },
     {
       "category": "APPS",
@@ -306,7 +342,8 @@
       "command": "dumpsys package com.google.android.permissioncontroller 2>/dev/null | grep versionName | head -1",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Permission controller app version"
+      "description": "Permission controller app version",
+      "remediation": "Update the permission controller via Play Store to ensure latest security patches are applied."
     },
     {
       "category": "APPS",
@@ -314,7 +351,8 @@
       "command": "settings get global auto_revoke_permissions_mode",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Auto-revoke permissions for unused apps"
+      "description": "Auto-revoke permissions for unused apps",
+      "remediation": "Enable auto-revoke: settings put global auto_revoke_permissions_mode 2"
     },
     {
       "category": "APPS",
@@ -322,7 +360,8 @@
       "command": "appops query-op --uid android.permission.ACCESS_BACKGROUND_LOCATION 2>/dev/null | head -10",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Apps with background location access"
+      "description": "Apps with background location access",
+      "remediation": "Revoke background location: appops set <package> android:coarse_location deny"
     },
     {
       "category": "APPS",
@@ -330,7 +369,8 @@
       "command": "dumpsys camera 2>/dev/null | grep -i 'client' | head -5",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Apps currently using camera"
+      "description": "Apps currently using camera",
+      "remediation": "Force-stop apps using the camera unexpectedly: am force-stop <package>"
     },
     {
       "category": "APPS",
@@ -339,6 +379,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Third-party apps with draw-over-other-apps permission - enables phishing overlay attacks on POS/banking screens",
+      "remediation": "Revoke overlay permission: appops set <package> SYSTEM_ALERT_WINDOW deny",
       "empty_is_safe": true
     },
     {
@@ -347,7 +388,8 @@
       "command": "dumpsys window windows 2>/dev/null | grep -E 'mCurrentFocus|mFocusedApp' | head -5",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Currently focused window and app - useful for detecting active overlay attacks in real-time"
+      "description": "Currently focused window and app - useful for detecting active overlay attacks in real-time",
+      "remediation": "If an unexpected app is in the foreground, force-stop it: am force-stop <package>"
     },
     {
       "category": "APPS",
@@ -356,6 +398,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Third-party apps with allowBackup=true - ADB backup can extract app data including credentials and tokens",
+      "remediation": "Disable ADB backup globally: settings put secure backup_enabled 0. Contact app developers to set allowBackup=false.",
       "empty_is_safe": true
     },
     {
@@ -365,6 +408,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Frida binary indicates runtime manipulation",
+      "remediation": "Uninstall Frida: pm uninstall <frida-package>. Remove frida-server binary from /data/local/tmp.",
       "empty_is_safe": true
     },
     {
@@ -374,6 +418,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Magisk can hide root access",
+      "remediation": "Uninstall Magisk: pm uninstall com.topjohnwu.magisk. Reflash stock boot image to fully remove root.",
       "empty_is_safe": true
     },
     {
@@ -383,7 +428,8 @@
       "safe_pattern": "^$",
       "empty_is_safe": true,
       "level": "warning",
-      "description": "Non-system apps sharing UIDs may indicate privilege escalation risk. Apps sharing a UID run in the same process sandbox and can access each other's data."
+      "description": "Non-system apps sharing UIDs may indicate privilege escalation risk. Apps sharing a UID run in the same process sandbox and can access each other's data.",
+      "remediation": "Uninstall apps sharing UIDs unless they are from the same trusted vendor: pm uninstall <package>"
     }
   ]
 }
