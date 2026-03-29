@@ -225,7 +225,7 @@ class HUDDashboard:
     LW = 34        # left-panel visual width (between │…│)
     RW = 36        # right-panel visual width (between │…│)
     # Total inner = LW + 1(sep│) + RW = 71   + 2 outer │ = 73 visual
-    # With 2-space indent: 75 chars per line — fits 80-col terminals.
+    # With 2-space indent: 75 chars per line - fits 80-col terminals.
 
     def __init__(self, checks: List[Dict[str, Any]], deviceInfo: str = ""):
         seen: Dict[str, int] = {}
@@ -1502,10 +1502,14 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                     f"{Colors.DIM}→ {Colors.RESET}{sc}{rPreview or '(empty)'}{Colors.RESET}"
                 )
 
-                # For critical/warning show the command
+                # For critical/warning show the command and remediation
                 if status in ("CRITICAL", "WARNING") and command:
                     cmdShort = command[:60] + "…" if len(command) > 60 else command
                     print(f"  {Colors.DIM}{'':>10} └─ $ {cmdShort}{Colors.RESET}")
+                    remText = chk.get("remediation", "")
+                    if remText:
+                        remShort = remText[:70] + "…" if len(remText) > 70 else remText
+                        print(f"  {Colors.CYAN}{'':>10} └─ Fix: {remShort}{Colors.RESET}")
 
             elif dashboard:
                 # HUD Tactical Dashboard mode
@@ -1557,6 +1561,7 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
             "result": displayResult,
             "description": displayDesc,
             "needs_verification": needsVerification,
+            "remediation": chk.get("remediation", ""),
         })
 
     print()
@@ -1821,6 +1826,8 @@ def writeTxtReport(path: str, deviceInfo: Dict[str, str],
             f.write(f"Description: {r['description']}\n")
             f.write(f"Result: {r['result'][:500]}{'...' if len(r['result']) > 500 else ''}\n")
             f.write(f"Status: {r['status']}\n")
+            if r.get("remediation") and r["status"] not in ("SAFE", "INFO"):
+                f.write(f"Remediation: {r['remediation']}\n")
             f.write("-" * 40 + "\n")
 
         f.write("\n" + "=" * 40 + "\n")
@@ -1840,7 +1847,7 @@ def writeTxtReport(path: str, deviceInfo: Dict[str, str],
 
 def writeCsvReport(path: str, rows: List[Dict[str, Any]]) -> None:
     fieldnames = ["timestamp", "category", "label", "level", "bucket", "status",
-                  "matched", "command", "result", "description"]
+                  "matched", "command", "result", "description", "remediation"]
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
@@ -1953,6 +1960,16 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
             cssClass = {"SAFE": "safe", "WARNING": "warning", "CRITICAL": "critical",
                         "VERIFY": "verify", "SKIPPED": "skipped"}.get(st, "info")
 
+            remediationHtml = ""
+            remText = r.get("remediation", "")
+            if remText and st not in ("SAFE", "INFO"):
+                remediationHtml = (
+                    f'\n            <div class="detail-group remediation-group">'
+                    f'\n              <span class="detail-tag remediation-tag">Remediation</span>'
+                    f'\n              <p class="remediation-text">{htmlEscape(remText)}</p>'
+                    f'\n            </div>'
+                )
+
             itemsHtml.append(f'''
         <div class="check-item {cssClass}" data-status="{st}" data-search="{htmlEscape(r['label'].lower())} {htmlEscape(r['description'].lower())}">
           <div class="check-head">
@@ -1968,7 +1985,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
             <div class="detail-group">
               <span class="detail-tag">Output</span>
               <pre><code>{resEsc if resEsc else "(empty)"}</code></pre>
-            </div>
+            </div>{remediationHtml}
           </div>
         </div>''')
 
