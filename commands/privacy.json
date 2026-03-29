@@ -6,7 +6,8 @@
       "command": "settings get global microphone_mute",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Hardware microphone mute status"
+      "description": "Hardware microphone mute status",
+      "remediation": "Toggle microphone mute via quick settings or Settings > Sound > Microphone."
     },
     {
       "category": "PRIVACY",
@@ -14,7 +15,8 @@
       "command": "settings get global camera_mute",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Hardware camera mute status"
+      "description": "Hardware camera mute status",
+      "remediation": "Toggle camera mute via quick settings or Settings > Privacy > Camera access."
     },
     {
       "category": "PRIVACY",
@@ -22,7 +24,8 @@
       "command": "dumpsys media.audio_policy 2>/dev/null | grep -i 'recording' | head -5",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Apps using audio recording"
+      "description": "Apps using audio recording",
+      "remediation": "Revoke microphone permission for untrusted apps in Settings > Apps > Permissions."
     },
     {
       "category": "PRIVACY",
@@ -30,7 +33,8 @@
       "command": "settings get secure fingerprint_enrolled_fingers",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Check if fingerprint authentication is enrolled"
+      "description": "Check if fingerprint authentication is enrolled",
+      "remediation": "Enroll a fingerprint in Settings > Security > Fingerprint for stronger auth."
     },
     {
       "category": "PRIVACY",
@@ -38,7 +42,8 @@
       "command": "settings get secure face_unlock_method",
       "safe_pattern": "^(0|null)$",
       "level": "warning",
-      "description": "Face unlock may be less secure than fingerprint"
+      "description": "Face unlock may be less secure than fingerprint",
+      "remediation": "Disable face unlock in Settings > Security and use fingerprint or PIN instead."
     },
     {
       "category": "PRIVACY",
@@ -46,7 +51,8 @@
       "command": "settings get secure lock_screen_lock_after_timeout",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Auto-lock timeout after biometric failure"
+      "description": "Auto-lock timeout after biometric failure",
+      "remediation": "Set a short auto-lock timeout in Settings > Security > Screen lock timeout."
     },
     {
       "category": "PRIVACY",
@@ -54,7 +60,8 @@
       "command": "settings get secure biometric_keyguard_enabled",
       "safe_pattern": "^1$",
       "level": "warning",
-      "description": "Biometric keyguard should be enabled for secure unlock"
+      "description": "Biometric keyguard should be enabled for secure unlock",
+      "remediation": "Enable biometric keyguard in Settings > Security > Biometrics."
     },
     {
       "category": "PRIVACY",
@@ -62,7 +69,8 @@
       "command": "settings get secure show_clipboard_access_notification",
       "safe_pattern": "^1$",
       "level": "warning",
-      "description": "Should notify when apps access clipboard"
+      "description": "Should notify when apps access clipboard",
+      "remediation": "Enable clipboard access alerts in Settings > Privacy > Show clipboard access."
     },
     {
       "category": "PRIVACY",
@@ -70,7 +78,8 @@
       "command": "dumpsys clipboard 2>/dev/null | head -10",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Clipboard service status"
+      "description": "Clipboard service status",
+      "remediation": "Clear clipboard regularly and avoid copying sensitive data like passwords."
     },
     {
       "category": "PRIVACY",
@@ -78,7 +87,8 @@
       "command": "settings get system screen_brightness_mode",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Auto-brightness status"
+      "description": "Auto-brightness status",
+      "remediation": "Review brightness settings in Settings > Display > Brightness level."
     },
     {
       "category": "PRIVACY",
@@ -86,7 +96,8 @@
       "command": "settings get system screen_auto_brightness_adj",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Adaptive brightness setting"
+      "description": "Adaptive brightness setting",
+      "remediation": "Adjust adaptive brightness in Settings > Display > Adaptive brightness."
     },
     {
       "category": "PRIVACY",
@@ -94,7 +105,8 @@
       "command": "settings get secure doze_always_on",
       "safe_pattern": "0|null",
       "level": "info",
-      "description": "Always on display may show sensitive info"
+      "description": "Always on display may show sensitive info",
+      "remediation": "Disable always-on display in Settings > Display > Lock screen > Always on display."
     },
     {
       "category": "PRIVACY",
@@ -102,7 +114,8 @@
       "command": "settings get secure screensaver_enabled",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Screensaver/daydream configuration"
+      "description": "Screensaver/daydream configuration",
+      "remediation": "Disable screensaver in Settings > Display > Screen saver to prevent info leaks."
     },
     {
       "category": "PRIVACY",
@@ -110,7 +123,8 @@
       "command": "settings get secure location_mode",
       "safe_pattern": "0",
       "level": "info",
-      "description": "Location services mode (0=off, 3=high accuracy)"
+      "description": "Location services mode (0=off, 3=high accuracy)",
+      "remediation": "Disable location or reduce accuracy in Settings > Location > Location services."
     },
     {
       "category": "PRIVACY",
@@ -118,7 +132,8 @@
       "command": "settings get secure location_providers_allowed",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Allowed location providers"
+      "description": "Allowed location providers",
+      "remediation": "Remove unnecessary location providers in Settings > Location."
     },
     {
       "category": "PRIVACY",
@@ -126,7 +141,8 @@
       "command": "settings get secure location_history_enabled",
       "safe_pattern": "^(0|null)$",
       "level": "warning",
-      "description": "Location history can be privacy concern"
+      "description": "Location history can be privacy concern",
+      "remediation": "Disable location history in Settings > Location > Location services > Google Location History."
     },
     {
       "category": "PRIVACY",
@@ -134,7 +150,8 @@
       "command": "settings get secure network_location_opt_in",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Network-based location opt-in status"
+      "description": "Network-based location opt-in status",
+      "remediation": "Opt out of network location in Settings > Location > Location services."
     },
     {
       "category": "PRIVACY",
@@ -142,7 +159,8 @@
       "command": "settings get secure enabled_notification_listeners",
       "safe_pattern": "^(|null)$",
       "level": "warning",
-      "description": "Notification listeners can read all notifications including OTPs"
+      "description": "Notification listeners can read all notifications including OTPs",
+      "remediation": "Remove untrusted notification listeners in Settings > Apps > Special access > Notification access."
     },
     {
       "category": "PRIVACY",
@@ -150,7 +168,8 @@
       "command": "settings get secure enabled_notification_policy_access_packages",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Apps with notification policy access"
+      "description": "Apps with notification policy access",
+      "remediation": "Review apps with notification policy access in Settings > Apps > Special access."
     },
     {
       "category": "PRIVACY",
@@ -158,7 +177,8 @@
       "command": "settings get secure lock_screen_allow_private_notifications",
       "safe_pattern": "^0$",
       "level": "warning",
-      "description": "Private notifications on lock screen"
+      "description": "Private notifications on lock screen",
+      "remediation": "Hide sensitive notifications on lock screen in Settings > Notifications > Lock screen."
     },
     {
       "category": "PRIVACY",
@@ -166,7 +186,8 @@
       "command": "settings get global heads_up_notifications_enabled",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Heads up notification display"
+      "description": "Heads up notification display",
+      "remediation": "Disable heads-up notifications in Settings > Notifications if they reveal sensitive content."
     },
     {
       "category": "PRIVACY",
@@ -174,7 +195,8 @@
       "command": "settings get secure lockscreen.password_type",
       "safe_pattern": "^(65536|131072|196608|262144|327680|393216)$",
       "level": "critical",
-      "description": "Device should have PIN/Password/Pattern lock enabled"
+      "description": "Device should have PIN/Password/Pattern lock enabled",
+      "remediation": "Set a PIN, password, or pattern in Settings > Security > Screen lock immediately."
     },
     {
       "category": "PRIVACY",
@@ -182,7 +204,8 @@
       "command": "settings get system screen_off_timeout",
       "safe_pattern": "^(1[0-9]{4}|[1-9][0-9]{0,3})$",
       "level": "warning",
-      "description": "Screen timeout should be 30 seconds or less for security"
+      "description": "Screen timeout should be 30 seconds or less for security",
+      "remediation": "Reduce screen timeout to 30 seconds or less in Settings > Display > Screen timeout."
     },
     {
       "category": "PRIVACY",
@@ -190,7 +213,8 @@
       "command": "settings get system show_password",
       "safe_pattern": "^(0|null)$",
       "level": "warning",
-      "description": "Passwords should not be shown when typing"
+      "description": "Passwords should not be shown when typing",
+      "remediation": "Disable show passwords in Settings > Privacy > Show passwords."
     },
     {
       "category": "PRIVACY",
@@ -198,7 +222,8 @@
       "command": "settings get secure lock_screen_show_notifications",
       "safe_pattern": "^0$",
       "level": "warning",
-      "description": "Sensitive notifications should be hidden on lock screen"
+      "description": "Sensitive notifications should be hidden on lock screen",
+      "remediation": "Set lock screen notifications to \"Hide sensitive content\" in Settings > Notifications."
     },
     {
       "category": "PRIVACY",
@@ -206,7 +231,8 @@
       "command": "settings get secure trust_agents_initialized",
       "safe_pattern": "^(0|null)$",
       "level": "warning",
-      "description": "Smart Lock may reduce security by keeping device unlocked"
+      "description": "Smart Lock may reduce security by keeping device unlocked",
+      "remediation": "Disable Smart Lock in Settings > Security > Smart Lock to prevent bypass."
     },
     {
       "category": "PRIVACY",
@@ -214,7 +240,8 @@
       "command": "settings get secure sensors_off",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Sensor privacy mode status"
+      "description": "Sensor privacy mode status",
+      "remediation": "Enable sensor privacy mode via quick settings tile to block sensor access."
     },
     {
       "category": "PRIVACY",
@@ -222,7 +249,8 @@
       "command": "dumpsys sensorservice 2>/dev/null | grep -i 'step' | head -3",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Step counter sensor status"
+      "description": "Step counter sensor status",
+      "remediation": "Revoke body sensor permissions from apps that do not need step data."
     },
     {
       "category": "PRIVACY",
@@ -230,7 +258,8 @@
       "command": "dumpsys sensorservice 2>/dev/null | grep -i 'active' | head -10",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Currently active sensors"
+      "description": "Currently active sensors",
+      "remediation": "Review and close apps using sensors unnecessarily, or enable sensors-off toggle."
     },
     {
       "category": "PRIVACY",
@@ -238,7 +267,8 @@
       "command": "dumpsys window policy 2>/dev/null | grep -i 'showing.*lock\\|isShowing' || dumpsys trust 2>/dev/null | grep -i 'enabled' || settings get secure lockscreen.password_type 2>/dev/null",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Screen lock status (multiple detection methods)"
+      "description": "Screen lock status (multiple detection methods)",
+      "remediation": "Ensure a screen lock is active in Settings > Security > Screen lock."
     },
     {
       "category": "PRIVACY",
@@ -247,6 +277,7 @@
       "safe_pattern": "^$",
       "level": "info",
       "description": "Check if clipboard has sensitive data",
+      "remediation": "Clear the clipboard after copying sensitive data to prevent leaks.",
       "empty_is_safe": true
     },
     {
@@ -256,6 +287,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Clipboard history should be disabled to prevent data leaks",
+      "remediation": "Disable clipboard history in your keyboard settings or use a clipboard manager with auto-clear.",
       "empty_is_safe": true
     },
     {
@@ -265,6 +297,7 @@
       "safe_pattern": "=STRONG",
       "level": "warning",
       "description": "Biometric auth should be 'STRONG' (not 'WEAK'). Empty if no biometric hardware.",
+      "remediation": "Use a device with STRONG biometric hardware or fall back to PIN/password.",
       "empty_is_safe": true
     },
     {
@@ -273,7 +306,8 @@
       "command": "settings get global backup_enabled",
       "safe_pattern": "^0$",
       "level": "warning",
-      "description": "Auto-backup should be disabled for sensitive apps"
+      "description": "Auto-backup should be disabled for sensitive apps",
+      "remediation": "Disable auto-backup in Settings > System > Backup, or exclude sensitive apps."
     },
     {
       "category": "PRIVACY",
@@ -281,7 +315,8 @@
       "command": "settings get secure user_setup_complete",
       "safe_pattern": "^1$",
       "level": "info",
-      "description": "Check if device setup is complete"
+      "description": "Check if device setup is complete",
+      "remediation": "Complete device setup wizard to ensure all security features are configured."
     },
     {
       "category": "PRIVACY",
@@ -290,6 +325,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "May allow unlock bypass via smart lock",
+      "remediation": "Disable trust agents in Settings > Security > Smart Lock to prevent unlock bypass.",
       "empty_is_safe": true
     },
     {
@@ -299,6 +335,7 @@
       "safe_pattern": "^$",
       "level": "info",
       "description": "Detects open microphones",
+      "remediation": "Close apps actively using the microphone, or revoke mic permissions for untrusted apps.",
       "empty_is_safe": true
     },
     {
@@ -308,6 +345,7 @@
       "safe_pattern": "^$",
       "level": "info",
       "description": "Detects active camera clients",
+      "remediation": "Close apps actively using the camera, or revoke camera permissions for untrusted apps.",
       "empty_is_safe": true
     },
     {
@@ -317,6 +355,7 @@
       "safe_pattern": "^$",
       "level": "info",
       "description": "Shows currently used sensors",
+      "remediation": "Close unnecessary apps using sensors, or enable the sensors-off quick settings tile.",
       "empty_is_safe": true
     },
     {
@@ -325,7 +364,8 @@
       "command": "settings get global usage_reporting_enabled",
       "safe_pattern": "^0$",
       "level": "info",
-      "description": "Should be disabled unless required"
+      "description": "Should be disabled unless required",
+      "remediation": "Disable usage reporting in Settings > Privacy > Usage and diagnostics."
     },
     {
       "category": "PRIVACY",
@@ -334,6 +374,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Sensitive data found in system logs",
+      "remediation": "Clear logs with 'logcat -c' and fix apps that log sensitive data in plaintext.",
       "empty_is_safe": true
     },
     {
@@ -343,6 +384,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Backup files may contain sensitive data",
+      "remediation": "Delete unnecessary backup files or move them to encrypted storage.",
       "empty_is_safe": true
     },
     {
@@ -351,7 +393,8 @@
       "command": "find /data /sdcard -name '*.log' -type f 2>/dev/null | head -5",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Log files may contain sensitive information"
+      "description": "Log files may contain sensitive information",
+      "remediation": "Remove unnecessary log files and restrict log directory permissions."
     },
     {
       "category": "PRIVACY",
@@ -359,7 +402,8 @@
       "command": "find /data -name 'shared_prefs' -type d 2>/dev/null | head -3",
       "safe_pattern": ".",
       "level": "info",
-      "description": "SharedPreferences directories - may store data in cleartext"
+      "description": "SharedPreferences directories - may store data in cleartext",
+      "remediation": "Use EncryptedSharedPreferences or Android Keystore for sensitive data."
     },
     {
       "category": "PRIVACY",
@@ -368,6 +412,7 @@
       "safe_pattern": "^$",
       "level": "info",
       "description": "Location tracking databases",
+      "remediation": "Delete location databases from unused apps and disable location history.",
       "empty_is_safe": true
     },
     {
@@ -376,7 +421,8 @@
       "command": "find /data -name '*.db' -o -name '*.sqlite' 2>/dev/null | wc -l",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Database files count - may contain PHI, verify encryption"
+      "description": "Database files count - may contain PHI, verify encryption",
+      "remediation": "Ensure databases are encrypted with SQLCipher or equivalent. Audit for PHI."
     },
     {
       "category": "PRIVACY",
@@ -385,6 +431,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Backup files may contain unencrypted PHI",
+      "remediation": "Delete unencrypted backup and export files, or encrypt them before storing.",
       "empty_is_safe": true
     }
   ]
