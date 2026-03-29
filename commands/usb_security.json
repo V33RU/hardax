@@ -6,7 +6,8 @@
       "command": "settings get global adb_enabled",
       "safe_pattern": "^(0|null)$",
       "level": "critical",
-      "description": "USB debugging should be disabled in production"
+      "description": "USB debugging should be disabled in production",
+      "remediation": "Disable USB debugging via 'settings put global adb_enabled 0' or in Developer Options."
     },
     {
       "category": "USB_SECURITY",
@@ -14,7 +15,8 @@
       "command": "settings get global usb_mass_storage_enabled 2>/dev/null",
       "safe_pattern": "^(0|null)$",
       "level": "warning",
-      "description": "Should be disabled to block unauthorized USB file access. Null means not configured (safe default)."
+      "description": "Should be disabled to block unauthorized USB file access. Null means not configured (safe default).",
+      "remediation": "Disable USB file transfer via 'settings put global usb_mass_storage_enabled 0'."
     },
     {
       "category": "USB_SECURITY",
@@ -22,7 +24,8 @@
       "command": "getprop sys.usb.config",
       "safe_pattern": "^(none|mtp|ptp|charging|adb|mtp,adb|ptp,adb|charging,adb)$",
       "level": "warning",
-      "description": "Check USB configuration mode. ADB mode is expected during audit."
+      "description": "Check USB configuration mode. ADB mode is expected during audit.",
+      "remediation": "Set USB mode to charging-only via 'setprop sys.usb.config charging' when not auditing."
     },
     {
       "category": "USB_SECURITY",
@@ -30,7 +33,8 @@
       "command": "ls /dev/bus/usb/*/ 2>/dev/null | wc -l || echo 0",
       "safe_pattern": "^[0-3]$",
       "level": "warning",
-      "description": "USB device count - unexpected devices may indicate BadUSB or hardware keylogger"
+      "description": "USB device count - unexpected devices may indicate BadUSB or hardware keylogger",
+      "remediation": "Physically inspect and disconnect any unknown USB devices. Audit connected peripherals."
     },
     {
       "category": "USB_SECURITY",
@@ -38,7 +42,8 @@
       "command": "getprop sys.usb.state",
       "safe_pattern": "^(none|mtp|ptp|charging|adb|mtp,adb|ptp,adb|charging,adb)$",
       "level": "info",
-      "description": "Current USB state. ADB mode is expected during audit."
+      "description": "Current USB state. ADB mode is expected during audit.",
+      "remediation": "Switch USB state to charging-only after audit via 'setprop sys.usb.config charging'."
     },
     {
       "category": "USB_SECURITY",
@@ -46,7 +51,8 @@
       "command": "settings get global mtp_enabled",
       "safe_pattern": ".",
       "level": "info",
-      "description": "MTP file transfer status"
+      "description": "MTP file transfer status",
+      "remediation": "Disable MTP via 'settings put global mtp_enabled 0' to prevent file transfer over USB."
     },
     {
       "category": "USB_SECURITY",
@@ -55,6 +61,7 @@
       "safe_pattern": "^$",
       "level": "info",
       "description": "Serial interfaces exposed to userspace - may allow debug console access if physical UART connected",
+      "remediation": "Restrict serial device permissions or disable unused UART interfaces in the kernel config.",
       "empty_is_safe": true
     },
     {
@@ -64,6 +71,7 @@
       "safe_pattern": "^$",
       "level": "info",
       "description": "GPIO pins exported to userspace - apps can control hardware pins",
+      "remediation": "Unexport unused GPIO pins via 'echo <pin> > /sys/class/gpio/unexport' and restrict sysfs permissions.",
       "empty_is_safe": true
     },
     {
@@ -73,6 +81,7 @@
       "safe_pattern": "^$",
       "level": "info",
       "description": "I2C bus accessible from userspace - can communicate with sensors/peripherals",
+      "remediation": "Restrict /dev/i2c-* permissions to root or remove kernel I2C chardev support if unused.",
       "empty_is_safe": true
     },
     {
@@ -82,6 +91,7 @@
       "safe_pattern": "^$",
       "level": "info",
       "description": "SPI bus accessible from userspace",
+      "remediation": "Restrict /dev/spidev* permissions to root or disable SPI chardev support in the kernel.",
       "empty_is_safe": true
     },
     {
@@ -90,7 +100,8 @@
       "command": "ls /sys/class/udc/ 2>/dev/null",
       "safe_pattern": ".",
       "level": "info",
-      "description": "USB device controller present - device can act as USB peripheral"
+      "description": "USB device controller present - device can act as USB peripheral",
+      "remediation": "Disable USB gadget mode in kernel config if the device should not act as a USB peripheral."
     },
     {
       "category": "USB_SECURITY",
@@ -99,6 +110,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Kernel boot console configured - debug output on serial port",
+      "remediation": "Remove 'console=' parameters from kernel cmdline in the bootloader config for production builds.",
       "empty_is_safe": true
     },
     {
@@ -107,7 +119,8 @@
       "command": "ls /dev/video* 2>/dev/null",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Camera/video devices available"
+      "description": "Camera/video devices available",
+      "remediation": "Restrict /dev/video* permissions and disable unused camera drivers in the kernel config."
     },
     {
       "category": "USB_SECURITY",
@@ -115,7 +128,8 @@
       "command": "ls /dev/snd/pcm*c* 2>/dev/null",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Audio capture devices (microphones) available"
+      "description": "Audio capture devices (microphones) available",
+      "remediation": "Restrict /dev/snd/ permissions and disable unused audio capture drivers if not needed."
     },
     {
       "category": "USB_SECURITY",
@@ -124,6 +138,7 @@
       "safe_pattern": "^$|No such file",
       "level": "critical",
       "description": "/dev/mem or /dev/kmem exposed - allows raw memory read/write!",
+      "remediation": "Remove /dev/mem and /dev/kmem by disabling CONFIG_DEVMEM and CONFIG_DEVKMEM in the kernel.",
       "empty_is_safe": true
     },
     {
@@ -132,7 +147,8 @@
       "command": "ls -la /dev/block/mmcblk* /dev/block/sd* 2>/dev/null | head -5",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Raw block devices - check permissions"
+      "description": "Raw block devices - check permissions",
+      "remediation": "Set block device permissions to root-only (chmod 600) to prevent unauthorized disk access."
     }
   ]
 }
