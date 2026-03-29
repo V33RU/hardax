@@ -7,6 +7,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Guest account may bypass security",
+      "remediation": "Remove the guest account via Settings - System - Multiple Users or run 'pm remove-user <guest-id>'.",
       "empty_is_safe": true
     },
     {
@@ -15,7 +16,8 @@
       "command": "pm list users 2>/dev/null | grep -i work",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Work profile status"
+      "description": "Work profile status",
+      "remediation": "Set up a work profile via your EMM/MDM console to isolate corporate data from personal apps."
     },
     {
       "category": "DEVICE_MANAGEMENT",
@@ -23,7 +25,8 @@
       "command": "dumpsys account 2>/dev/null | grep -i 'Account {' | wc -l",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Number of synced accounts"
+      "description": "Number of synced accounts",
+      "remediation": "Review synced accounts in Settings - Accounts and remove any that are unauthorized or unnecessary."
     },
     {
       "category": "DEVICE_MANAGEMENT",
@@ -31,7 +34,8 @@
       "command": "settings get global development_settings_enabled",
       "safe_pattern": "^(0|null)$",
       "level": "warning",
-      "description": "Developer options should be disabled in production"
+      "description": "Developer options should be disabled in production",
+      "remediation": "Disable developer options via Settings - Developer Options toggle or run 'settings put global development_settings_enabled 0'."
     },
     {
       "category": "DEVICE_MANAGEMENT",
@@ -39,7 +43,8 @@
       "command": "settings get global stay_on_while_plugged_in",
       "safe_pattern": "^(0|null)$",
       "level": "info",
-      "description": "Stay awake while charging can be a security risk"
+      "description": "Stay awake while charging can be a security risk",
+      "remediation": "Disable stay awake via Settings - Developer Options or run 'settings put global stay_on_while_plugged_in 0'."
     },
     {
       "category": "DEVICE_MANAGEMENT",
@@ -47,7 +52,8 @@
       "command": "settings get secure mock_location",
       "safe_pattern": "^(0|null)$",
       "level": "warning",
-      "description": "Mock locations should be disabled"
+      "description": "Mock locations should be disabled",
+      "remediation": "Disable mock locations in Settings - Developer Options or run 'settings put secure mock_location 0'."
     },
     {
       "category": "DEVICE_MANAGEMENT",
@@ -55,7 +61,8 @@
       "command": "settings get global oem_unlock_enabled",
       "safe_pattern": "^(0|null)$",
       "level": "critical",
-      "description": "OEM unlocking allows bootloader unlock - should be disabled"
+      "description": "OEM unlocking allows bootloader unlock - should be disabled",
+      "remediation": "Disable OEM unlocking in Settings - Developer Options or run 'settings put global oem_unlock_enabled 0'."
     },
     {
       "category": "DEVICE_MANAGEMENT",
@@ -63,7 +70,8 @@
       "command": "dumpsys device_policy 2>/dev/null | grep -i admin | head -10",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Device administrator applications"
+      "description": "Device administrator applications",
+      "remediation": "Review admin apps in Settings - Security - Device Admin Apps and revoke any unrecognized administrators."
     },
     {
       "category": "DEVICE_MANAGEMENT",
@@ -71,7 +79,8 @@
       "command": "dumpsys device_policy 2>/dev/null | grep -i 'device owner'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Enterprise device owner status"
+      "description": "Enterprise device owner status",
+      "remediation": "Enroll the device with your MDM/EMM solution to set a device owner for full enterprise management."
     },
     {
       "category": "DEVICE_MANAGEMENT",
@@ -79,7 +88,8 @@
       "command": "dumpsys device_policy 2>/dev/null | grep -i 'profile owner'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Work profile owner status"
+      "description": "Work profile owner status",
+      "remediation": "Configure a profile owner through your MDM/EMM to enforce work profile policies and app separation."
     },
     {
       "category": "DEVICE_MANAGEMENT",
@@ -87,7 +97,8 @@
       "command": "dumpsys device_policy 2>/dev/null | grep -i 'encryption'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Enterprise encryption policy"
+      "description": "Enterprise encryption policy",
+      "remediation": "Enforce full-disk or file-based encryption via your MDM policy or Settings - Security - Encryption."
     },
     {
       "category": "DEVICE_MANAGEMENT",
@@ -95,7 +106,8 @@
       "command": "dumpsys device_policy 2>/dev/null | grep -i 'password'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Password quality requirements"
+      "description": "Password quality requirements",
+      "remediation": "Set a strong password policy via your MDM/EMM console requiring alphanumeric or complex credentials."
     },
     {
       "category": "DEVICE_MANAGEMENT",
@@ -103,7 +115,8 @@
       "command": "settings get secure accessibility_enabled 2>/dev/null",
       "safe_pattern": "^0$",
       "level": "warning",
-      "description": "Accessibility services enabled on kiosk or POS devices can be abused to bypass lock task mode, simulate user input, or exfiltrate screen content."
+      "description": "Accessibility services enabled on kiosk or POS devices can be abused to bypass lock task mode, simulate user input, or exfiltrate screen content.",
+      "remediation": "Disable accessibility services via 'settings put secure accessibility_enabled 0' or block them via MDM policy."
     },
     {
       "category": "DEVICE_MANAGEMENT",
@@ -111,7 +124,8 @@
       "command": "settings get secure enabled_accessibility_services 2>/dev/null",
       "safe_pattern": "^(null|)$",
       "level": "high",
-      "description": "Lists active accessibility service components. Any enabled service on a hardened device is a potential kiosk bypass or input injection vector."
+      "description": "Lists active accessibility service components. Any enabled service on a hardened device is a potential kiosk bypass or input injection vector.",
+      "remediation": "Clear active services with 'settings put secure enabled_accessibility_services null' and audit installed apps."
     }
   ]
 }
