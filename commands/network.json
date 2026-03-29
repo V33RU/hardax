@@ -6,7 +6,8 @@
       "command": "settings get global airplane_mode_on",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Airplane mode status"
+      "description": "Airplane mode status",
+      "remediation": "Toggle airplane mode via: settings put global airplane_mode_on 1 (enable) or 0 (disable)."
     },
     {
       "category": "NETWORK",
@@ -14,7 +15,8 @@
       "command": "settings get global mobile_data",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Mobile data status"
+      "description": "Mobile data status",
+      "remediation": "Disable mobile data if not needed: svc data disable"
     },
     {
       "category": "NETWORK",
@@ -23,6 +25,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Listening on high ports (3000+) - may indicate backdoor, C2 server, or dev tools",
+      "remediation": "Identify and stop the process using each port: fuser -k <port>/tcp. Remove or disable the responsible app.",
       "empty_is_safe": true
     },
     {
@@ -31,7 +34,8 @@
       "command": "settings get global data_roaming",
       "safe_pattern": "^(0|null)$",
       "level": "warning",
-      "description": "Data roaming can incur costs and security risks"
+      "description": "Data roaming can incur costs and security risks",
+      "remediation": "Disable data roaming: settings put global data_roaming 0"
     },
     {
       "category": "NETWORK",
@@ -39,7 +43,8 @@
       "command": "settings get global preferred_network_mode",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Preferred cellular network mode"
+      "description": "Preferred cellular network mode",
+      "remediation": "Set preferred network mode to LTE/5G only to avoid downgrade attacks: settings put global preferred_network_mode 11"
     },
     {
       "category": "NETWORK",
@@ -47,7 +52,8 @@
       "command": "settings get global volte_feature_disabled",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Voice over LTE status"
+      "description": "Voice over LTE status",
+      "remediation": "Review VoLTE setting in device Settings > Network > Mobile Network > VoLTE calls."
     },
     {
       "category": "NETWORK",
@@ -55,7 +61,8 @@
       "command": "getprop net.dns1",
       "safe_pattern": ".*",
       "level": "info",
-      "description": "Check DNS configs"
+      "description": "Check DNS configs",
+      "remediation": "Set a trusted DNS server: setprop net.dns1 1.1.1.1 or use Private DNS in settings."
     },
     {
       "category": "NETWORK",
@@ -63,7 +70,8 @@
       "command": "dumpsys wifi | grep 'WPA3-'",
       "safe_pattern": "WPA3",
       "level": "warning",
-      "description": "WPA3 should be preferred over WPA2 for stronger Wi-Fi security"
+      "description": "WPA3 should be preferred over WPA2 for stronger Wi-Fi security",
+      "remediation": "Connect only to WPA3-enabled networks. Upgrade your router firmware to support WPA3 if possible."
     },
     {
       "category": "NETWORK",
@@ -71,7 +79,8 @@
       "command": "settings get global private_dns_mode",
       "safe_pattern": "^hostname$",
       "level": "warning",
-      "description": "DNS-over-TLS (DoT) should be enabled for encrypted DNS"
+      "description": "DNS-over-TLS (DoT) should be enabled for encrypted DNS",
+      "remediation": "Enable Private DNS: settings put global private_dns_mode hostname && settings put global private_dns_specifier dns.google"
     },
     {
       "category": "NETWORK",
@@ -79,7 +88,8 @@
       "command": "cat /proc/net/arp",
       "safe_pattern": ".*",
       "level": "info",
-      "description": "Lists resolved ARP IP-MAC mappings"
+      "description": "Lists resolved ARP IP-MAC mappings",
+      "remediation": "Review ARP entries for unexpected devices. Flush stale entries: ip neigh flush all"
     },
     {
       "category": "NETWORK",
@@ -88,6 +98,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Proxy set may indicate MITM or forced redirection",
+      "remediation": "Remove the proxy: settings put global http_proxy :0 or settings delete global http_proxy",
       "empty_is_safe": true
     },
     {
@@ -96,7 +107,8 @@
       "command": "settings get global captive_portal_mode",
       "safe_pattern": "^1$",
       "level": "warning",
-      "description": "Should be 1 (default); 0 disables captive portal checks"
+      "description": "Should be 1 (default); 0 disables captive portal checks",
+      "remediation": "Re-enable captive portal detection: settings put global captive_portal_mode 1"
     },
     {
       "category": "NETWORK",
@@ -104,7 +116,8 @@
       "command": "ls /data/data/*/google-services.json /data/data/*/files/google-services.json 2>/dev/null || find /data -maxdepth 6 -name 'google-services.json' 2>/dev/null | head -3",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Firebase configuration - check security rules"
+      "description": "Firebase configuration - check security rules",
+      "remediation": "Audit Firebase security rules in the Firebase Console. Ensure Realtime DB and Firestore rules deny public read/write."
     },
     {
       "category": "NETWORK",
@@ -113,6 +126,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "AWS credentials or config found",
+      "remediation": "Remove hardcoded AWS credentials from device. Use IAM roles or AWS IoT certificates instead of static keys.",
       "empty_is_safe": true
     },
     {
@@ -122,6 +136,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Azure IoT Hub configuration found",
+      "remediation": "Remove plaintext Azure connection strings. Use x509 certificates or TPM-based device provisioning instead.",
       "empty_is_safe": true
     },
     {
@@ -130,7 +145,8 @@
       "command": "find /data/data /data/misc /system/etc /vendor/etc /vendor/firmware -maxdepth 5 -type f \\( -name '*.conf' -o -name '*.json' -o -name '*.xml' -o -name '*.yaml' -o -name '*.yml' -o -name '*.cfg' \\) -print0 2>/dev/null | xargs -0 grep -l -iE 'mqtt://|mqtts://|broker.*1883|mosquitto' 2>/dev/null | head -5",
       "safe_pattern": ".",
       "level": "info",
-      "description": "MQTT broker configuration files"
+      "description": "MQTT broker configuration files",
+      "remediation": "Ensure MQTT uses TLS (mqtts:// on port 8883) with username/password or client certificates. Disable anonymous access."
     },
     {
       "category": "NETWORK",
@@ -138,7 +154,8 @@
       "command": "find /system/etc /vendor/etc /system/app /vendor/app -maxdepth 4 -type f \\( -name '*.json' -o -name '*.xml' -o -name '*.yaml' -o -name '*.conf' \\) -print0 2>/dev/null | xargs -0 grep -l -iE 'telemetry|analytics|tracking|metrics' 2>/dev/null | head -5",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Telemetry/analytics endpoints configured"
+      "description": "Telemetry/analytics endpoints configured",
+      "remediation": "Review and disable unnecessary telemetry. Block telemetry domains via Private DNS or firewall rules."
     },
     {
       "category": "NETWORK",
@@ -146,7 +163,8 @@
       "command": "find /system/etc /vendor/etc /system/app /vendor/app /vendor/firmware -maxdepth 4 -type f \\( -name '*.json' -o -name '*.xml' -o -name '*.conf' -o -name '*.prop' -o -name '*.yaml' \\) -print0 2>/dev/null | xargs -0 grep -l -iE 'ota.*update|firmware.*url|update.*server' 2>/dev/null | head -5",
       "safe_pattern": ".",
       "level": "info",
-      "description": "OTA update configuration - verify HTTPS and signing"
+      "description": "OTA update configuration - verify HTTPS and signing",
+      "remediation": "Verify OTA URLs use HTTPS. Confirm firmware images require signature verification before installation."
     },
     {
       "category": "NETWORK",
@@ -155,6 +173,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Management/API ports exposed",
+      "remediation": "Stop unnecessary management services. Bind them to 127.0.0.1 only or use iptables to restrict access.",
       "empty_is_safe": true
     },
     {
@@ -164,6 +183,7 @@
       "safe_pattern": "^$",
       "level": "info",
       "description": "All listening TCP ports - review for unnecessary services",
+      "remediation": "Close unnecessary listening ports. Stop or uninstall the service, or bind to 127.0.0.1 if local-only access is needed.",
       "empty_is_safe": true
     },
     {
@@ -173,6 +193,7 @@
       "safe_pattern": "^$",
       "level": "info",
       "description": "INFO: All external UDP ports. 🟢 SAFE=empty. 🔴 UNSAFE=any output exposes UDP services. Why: UDP services often lack authentication.",
+      "remediation": "Disable unneeded UDP services. Use iptables -A INPUT -p udp --dport <port> -j DROP to block specific ports.",
       "empty_is_safe": true
     },
     {
@@ -182,6 +203,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Web server exposed - potential attack surface",
+      "remediation": "Stop the web server process if not needed. If required, bind to 127.0.0.1 and enforce HTTPS with valid certificates.",
       "empty_is_safe": true
     },
     {
@@ -191,6 +213,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Telnet transmits credentials in plaintext - CRITICAL RISK",
+      "remediation": "Disable telnet immediately: stop the telnetd service and remove the binary. Replace with SSH.",
       "empty_is_safe": true
     },
     {
@@ -200,6 +223,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "FTP transmits credentials in plaintext - CRITICAL RISK",
+      "remediation": "Disable FTP immediately: stop the ftpd service and remove the binary. Replace with SFTP or SCP.",
       "empty_is_safe": true
     },
     {
@@ -209,6 +233,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "SSH exposed - ensure strong authentication",
+      "remediation": "Disable SSH if not needed. If required, use key-based auth only and disable root login in sshd_config.",
       "empty_is_safe": true
     },
     {
@@ -218,6 +243,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "ADB over network - allows remote shell access!",
+      "remediation": "Disable ADB over network immediately: adb tcpip -1 or setprop service.adb.tcp.port -1 && stop adbd && start adbd",
       "empty_is_safe": true
     },
     {
@@ -227,6 +253,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "MQTT broker exposed - check authentication",
+      "remediation": "Enable MQTT authentication and use TLS on port 8883. Disable anonymous access in the broker config.",
       "empty_is_safe": true
     },
     {
@@ -236,6 +263,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "CoAP service exposed - IoT protocol",
+      "remediation": "Use CoAPS (DTLS) on port 5684 instead of plaintext CoAP. Restrict access with firewall rules.",
       "empty_is_safe": true
     },
     {
@@ -245,6 +273,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "UPnP can expose device to network attacks",
+      "remediation": "Disable UPnP/SSDP service. Stop the process listening on port 1900 and prevent it from restarting.",
       "empty_is_safe": true
     },
     {
@@ -253,7 +282,8 @@
       "command": "ip addr show 2>/dev/null | grep -E 'inet |inet6 ' | grep -v '127.0.0.1\\|::1'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Active network interfaces and IPs"
+      "description": "Active network interfaces and IPs",
+      "remediation": "Disable unused network interfaces: ip link set <interface> down. Reduce the attack surface."
     },
     {
       "category": "NETWORK",
@@ -261,7 +291,8 @@
       "command": "ip route show default 2>/dev/null",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Network gateway configuration"
+      "description": "Network gateway configuration",
+      "remediation": "Verify the default gateway is your trusted router. Unexpected gateways may indicate ARP spoofing."
     },
     {
       "category": "NETWORK",
@@ -270,6 +301,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Network services exposed - each must be documented and secured",
+      "remediation": "Stop all non-essential exposed services. Bind remaining services to 127.0.0.1 or use iptables to whitelist IPs.",
       "empty_is_safe": true
     },
     {
@@ -278,7 +310,8 @@
       "command": "dumpsys wifi 2>/dev/null | grep -iE 'security|wpa|wep|open' | head -3",
       "safe_pattern": "WPA2|WPA3",
       "level": "warning",
-      "description": "Must use WPA2/WPA3 - WEP/Open networks prohibited for PHI"
+      "description": "Must use WPA2/WPA3 - WEP/Open networks prohibited for PHI",
+      "remediation": "Disconnect from WEP/Open networks. Remove them from saved networks: cmd wifi forget-network <networkId>"
     },
     {
       "category": "NETWORK",
@@ -286,7 +319,8 @@
       "command": "su -c 'netstat -anp 2>/dev/null | head -5' || echo 'ROOT_REQUIRED_FOR_FULL_OUTPUT'",
       "safe_pattern": "tcp|udp|Proto",
       "level": "info",
-      "description": "INFO: Tests if root access works for network commands. If ROOT_REQUIRED shown, run HARDAX on rooted device for full network audit."
+      "description": "INFO: Tests if root access works for network commands. If ROOT_REQUIRED shown, run HARDAX on rooted device for full network audit.",
+      "remediation": "Root the device or use adb shell with elevated privileges for a complete network audit."
     },
     {
       "category": "NETWORK",
@@ -294,7 +328,8 @@
       "command": "su -c 'netstat -anp' 2>/dev/null || netstat -an 2>/dev/null || ss -anp 2>/dev/null || ss -an 2>/dev/null",
       "safe_pattern": "^\\s*$",
       "level": "info",
-      "description": "INFO: Complete network connections list. Shows all TCP/UDP with PID if rooted. Use to verify other checks are working."
+      "description": "INFO: Complete network connections list. Shows all TCP/UDP with PID if rooted. Use to verify other checks are working.",
+      "remediation": "Review all connections and terminate suspicious ones. Kill offending processes: kill -9 <PID>"
     },
     {
       "category": "NETWORK",
@@ -302,7 +337,8 @@
       "command": "su -c 'netstat -lnp' 2>/dev/null | grep -E '^tcp|^udp' || netstat -ln 2>/dev/null | grep -E '^tcp|^udp'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "INFO: All listening ports (TCP+UDP). 🟢 SAFE=only 127.0.0.1. 🔴 REVIEW=any 0.0.0.0 or external IP. Shows PID/program if rooted."
+      "description": "INFO: All listening ports (TCP+UDP). 🟢 SAFE=only 127.0.0.1. 🔴 REVIEW=any 0.0.0.0 or external IP. Shows PID/program if rooted.",
+      "remediation": "Rebind services on 0.0.0.0 to 127.0.0.1. Stop any service you do not recognize or need."
     },
     {
       "category": "NETWORK",
@@ -310,7 +346,8 @@
       "command": "netstat -lntp 2>/dev/null | grep '^tcp ' || ss -lntp 2>/dev/null | grep '^tcp'",
       "safe_pattern": "^\\s*$",
       "level": "info",
-      "description": "INFO: All IPv4 TCP listening ports. 🟢 SAFE if 127.0.0.1 (localhost only). 🔴 UNSAFE if 0.0.0.0 (anyone can connect). Empty may indicate command failure on non-rooted device."
+      "description": "INFO: All IPv4 TCP listening ports. 🟢 SAFE if 127.0.0.1 (localhost only). 🔴 UNSAFE if 0.0.0.0 (anyone can connect). Empty may indicate command failure on non-rooted device.",
+      "remediation": "Close ports bound to 0.0.0.0. Reconfigure services to listen on 127.0.0.1 only."
     },
     {
       "category": "NETWORK",
@@ -318,7 +355,8 @@
       "command": "netstat -lntp 2>/dev/null | grep '^tcp ' | grep -E ':(53|80|25|110|143|465|587|993|995|8080|8443|22)[^0-9]' | grep -v '127\\.' || ss -lntp 2>/dev/null | grep -E ':(53|80|25|110|143|465|587|993|995|8080|8443|22)[^0-9]' | grep -v '127\\.'",
       "safe_pattern": "^\\s*$",
       "level": "warning",
-      "description": "WARNING: 22(SSH), 53(DNS), 80(HTTP), 8080(Proxy) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: brute force, unencrypted traffic."
+      "description": "WARNING: 22(SSH), 53(DNS), 80(HTTP), 8080(Proxy) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: brute force, unencrypted traffic.",
+      "remediation": "Disable exposed common services or restrict with iptables: iptables -A INPUT -p tcp --dport <port> -j DROP"
     },
     {
       "category": "NETWORK",
@@ -326,7 +364,8 @@
       "command": "netstat -lntp 2>/dev/null | grep '^tcp ' | grep -E ':(21|23|25|445|3306|5432|5555|5900|5901|3389|4444|41795)[^0-9]' | grep -v '127\\.' || ss -lntp 2>/dev/null | grep -E ':(21|23|25|445|3306|5432|5555|5900|5901|3389|4444|41795)[^0-9]' | grep -v '127\\.'",
       "safe_pattern": "^\\s*$",
       "level": "critical",
-      "description": "CRITICAL: 21(FTP), 23(Telnet), 5555(ADB), 3306(MySQL), 3389(RDP), 5900(VNC) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. IMMEDIATE ACTION REQUIRED!"
+      "description": "CRITICAL: 21(FTP), 23(Telnet), 5555(ADB), 3306(MySQL), 3389(RDP), 5900(VNC) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. IMMEDIATE ACTION REQUIRED!",
+      "remediation": "Immediately stop FTP, Telnet, ADB, and VNC services. Block these ports: iptables -A INPUT -p tcp -m multiport --dports 21,23,5555,5900 -j DROP"
     },
     {
       "category": "NETWORK",
@@ -334,7 +373,8 @@
       "command": "netstat -lnup 2>/dev/null | grep '^udp ' | grep -v '127\\.' || ss -lnup 2>/dev/null | grep '^udp' | grep -v '127\\.'",
       "safe_pattern": "^\\s*$",
       "level": "info",
-      "description": "INFO: External UDP ports. 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: UDP services often lack authentication."
+      "description": "INFO: External UDP ports. 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: UDP services often lack authentication.",
+      "remediation": "Stop unnecessary UDP services. Block with: iptables -A INPUT -p udp --dport <port> -j DROP"
     },
     {
       "category": "NETWORK",
@@ -342,15 +382,17 @@
       "command": "netstat -lnup 2>/dev/null | grep '^udp ' | grep -E ':(123|161|162|5353)[^0-9]' | grep -v '127\\.' || ss -lnup 2>/dev/null | grep -E ':(123|161|162|5353)[^0-9]' | grep -v '127\\.'",
       "safe_pattern": "^\\s*$",
       "level": "warning",
-      "description": "WARNING: 123(NTP), 161(SNMP), 5353(mDNS) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: DDoS amplification, device info leakage."
+      "description": "WARNING: 123(NTP), 161(SNMP), 5353(mDNS) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: DDoS amplification, device info leakage.",
+      "remediation": "Disable SNMP and mDNS if not needed. Restrict NTP to client-only mode. Block ports with iptables."
     },
     {
       "category": "NETWORK",
       "label": "Potentially Vulnerable UDP Ports (IPv4)",
       "command": "netstat -lnup 2>/dev/null | grep '^udp ' | grep -E ':(69|1900|500|4500|520)[^0-9]' | grep -v '127\\.' || ss -lnup 2>/dev/null | grep -E ':(69|1900|500|4500|520)[^0-9]' | grep -v '127\\.'",
-      "safe_pattern": "^\\s*$",
+      "safe_pattern": "^$",
       "level": "critical",
-      "description": "CRITICAL: 69(TFTP), 1900(SSDP), 500(IPsec) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: No auth, DDoS amplification!"
+      "description": "CRITICAL: 69(TFTP), 1900(SSDP), 500(IPsec) exposed! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: No auth, DDoS amplification!",
+      "remediation": "Stop TFTP and SSDP services immediately. Block ports: iptables -A INPUT -p udp -m multiport --dports 69,1900,520 -j DROP"
     },
     {
       "category": "NETWORK",
@@ -358,7 +400,8 @@
       "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -E ':(21|23|25|445|3306|5432|5555|5900|5901|3389|4444|41795)[^0-9]' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -E ':(21|23|5555)[^0-9]' | grep -v '::1'",
       "safe_pattern": "^\\s*$",
       "level": "critical",
-      "description": "CRITICAL: Dangerous ports on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Full device control via IPv6!"
+      "description": "CRITICAL: Dangerous ports on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Full device control via IPv6!",
+      "remediation": "Stop dangerous services on IPv6. Apply ip6tables rules: ip6tables -A INPUT -p tcp -m multiport --dports 21,23,5555,5900 -j DROP"
     },
     {
       "category": "NETWORK",
@@ -366,7 +409,8 @@
       "command": "netstat -lnup 2>/dev/null | grep '^udp6' | grep -v '::1' || ss -lnup 2>/dev/null | grep 'udp6\\|\\[::\\]' | grep -v '::1'",
       "safe_pattern": "^\\s*$",
       "level": "info",
-      "description": "INFO: External IPv6 UDP ports. 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Bypasses IPv4 firewall rules."
+      "description": "INFO: External IPv6 UDP ports. 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Bypasses IPv4 firewall rules.",
+      "remediation": "Disable IPv6 if not needed: sysctl -w net.ipv6.conf.all.disable_ipv6=1. Otherwise apply ip6tables rules."
     },
     {
       "category": "NETWORK",
@@ -374,15 +418,17 @@
       "command": "netstat -lnup 2>/dev/null | grep '^udp6' | grep -E ':(123|161|162|5353)[^0-9]' | grep -v '::1' || ss -lnup 2>/dev/null | grep 'udp6' | grep -E ':(123|161|5353)[^0-9]' | grep -v '::1'",
       "safe_pattern": "^\\s*$",
       "level": "warning",
-      "description": "WARNING: NTP/SNMP/mDNS on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: DDoS, device discovery."
+      "description": "WARNING: NTP/SNMP/mDNS on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: DDoS, device discovery.",
+      "remediation": "Disable SNMP/mDNS on IPv6. Block with: ip6tables -A INPUT -p udp -m multiport --dports 123,161,5353 -j DROP"
     },
     {
       "category": "NETWORK",
       "label": "Potentially Vulnerable UDP Ports (IPv6)",
       "command": "netstat -lnup 2>/dev/null | grep '^udp6' | grep -E ':(69|1900|500|4500|520)[^0-9]' | grep -v '::1' || ss -lnup 2>/dev/null | grep 'udp6' | grep -E ':(69|1900)[^0-9]' | grep -v '::1'",
-      "safe_pattern": "^\\s*$",
+      "safe_pattern": "^$",
       "level": "critical",
-      "description": "CRITICAL: TFTP/SSDP on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: No-auth file transfer, DDoS!"
+      "description": "CRITICAL: TFTP/SSDP on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: No-auth file transfer, DDoS!",
+      "remediation": "Stop TFTP/SSDP on IPv6 immediately. Block: ip6tables -A INPUT -p udp -m multiport --dports 69,1900 -j DROP"
     },
     {
       "category": "NETWORK",
@@ -390,7 +436,8 @@
       "command": "settings get global vpn_legacy_mode",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Legacy VPN mode status"
+      "description": "Legacy VPN mode status",
+      "remediation": "Disable legacy VPN mode if enabled: settings put global vpn_legacy_mode 0. Use modern VPN protocols."
     },
     {
       "category": "NETWORK",
@@ -398,7 +445,8 @@
       "command": "settings get secure always_on_vpn_app",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Always-on VPN app if configured"
+      "description": "Always-on VPN app if configured",
+      "remediation": "Configure always-on VPN in Settings > Network > VPN > select your VPN > enable Always-on VPN."
     },
     {
       "category": "NETWORK",
@@ -406,7 +454,8 @@
       "command": "settings get secure always_on_vpn_lockdown",
       "safe_pattern": ".",
       "level": "info",
-      "description": "VPN lockdown mode prevents traffic without VPN"
+      "description": "VPN lockdown mode prevents traffic without VPN",
+      "remediation": "Enable VPN lockdown: settings put secure always_on_vpn_lockdown 1 to block all traffic when VPN is disconnected."
     },
     {
       "category": "NETWORK",
@@ -414,7 +463,8 @@
       "command": "dumpsys connectivity 2>/dev/null | grep -i vpn | head -5",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Current VPN connection status"
+      "description": "Current VPN connection status",
+      "remediation": "Ensure a VPN is active on untrusted networks. Configure always-on VPN for persistent protection."
     },
     {
       "category": "NETWORK",
@@ -422,7 +472,8 @@
       "command": "settings get global wifi_on",
       "safe_pattern": ".",
       "level": "info",
-      "description": "WiFi enabled status"
+      "description": "WiFi enabled status",
+      "remediation": "Disable WiFi when not in use: svc wifi disable. This reduces the wireless attack surface."
     },
     {
       "category": "NETWORK",
@@ -430,7 +481,8 @@
       "command": "cmd wifi list-networks 2>/dev/null | wc -l",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Number of saved WiFi networks"
+      "description": "Number of saved WiFi networks",
+      "remediation": "Remove old or untrusted saved networks: cmd wifi forget-network <networkId>. Fewer saved networks reduces risk."
     },
     {
       "category": "NETWORK",
@@ -438,7 +490,8 @@
       "command": "settings get global wifi_connected_mac_randomization_enabled",
       "safe_pattern": "^1$",
       "level": "warning",
-      "description": "MAC randomization protects privacy"
+      "description": "MAC randomization protects privacy",
+      "remediation": "Enable MAC randomization: settings put global wifi_connected_mac_randomization_enabled 1"
     },
     {
       "category": "NETWORK",
@@ -446,7 +499,8 @@
       "command": "settings get global wifi_scan_always_enabled",
       "safe_pattern": "^(0|null)$",
       "level": "warning",
-      "description": "WiFi scanning when WiFi off can leak location"
+      "description": "WiFi scanning when WiFi off can leak location",
+      "remediation": "Disable background WiFi scanning: settings put global wifi_scan_always_enabled 0"
     },
     {
       "category": "NETWORK",
@@ -454,7 +508,8 @@
       "command": "settings get global wifi_networks_available_notification_on",
       "safe_pattern": "0",
       "level": "info",
-      "description": "Notifications for open networks"
+      "description": "Notifications for open networks",
+      "remediation": "Disable open network notifications: settings put global wifi_networks_available_notification_on 0"
     },
     {
       "category": "NETWORK",
@@ -462,7 +517,8 @@
       "command": "settings get global wifi_watchdog_on",
       "safe_pattern": "1",
       "level": "info",
-      "description": "WiFi watchdog monitors connection quality"
+      "description": "WiFi watchdog monitors connection quality",
+      "remediation": "Enable WiFi watchdog: settings put global wifi_watchdog_on 1"
     },
     {
       "category": "NETWORK",
@@ -470,7 +526,8 @@
       "command": "settings get global captive_portal_detection_enabled",
       "safe_pattern": "1",
       "level": "info",
-      "description": "Captive portal detection for public WiFi"
+      "description": "Captive portal detection for public WiFi",
+      "remediation": "Enable captive portal detection: settings put global captive_portal_detection_enabled 1"
     },
     {
       "category": "NETWORK",
@@ -479,6 +536,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Active outbound connections to external IPs - unexpected connections may indicate C2 communication or data exfiltration",
+      "remediation": "Investigate unknown external connections. Kill suspicious processes: kill -9 <PID>. Block IPs with iptables.",
       "empty_is_safe": true
     },
     {
@@ -487,7 +545,8 @@
       "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -v '::1'",
       "safe_pattern": "^\\s*$",
       "level": "info",
-      "description": "INFO: IPv6 TCP listening ports. 🟢 SAFE=empty or ::1 only. 🔴 UNSAFE if ::: (all interfaces). IPv6 often overlooked!"
+      "description": "INFO: IPv6 TCP listening ports. 🟢 SAFE=empty or ::1 only. 🔴 UNSAFE if ::: (all interfaces). IPv6 often overlooked!",
+      "remediation": "Close unnecessary IPv6 listeners. Apply ip6tables rules or disable IPv6: sysctl -w net.ipv6.conf.all.disable_ipv6=1"
     },
     {
       "category": "NETWORK",
@@ -495,7 +554,8 @@
       "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -E ':(53|80|25|110|143|465|587|993|995|8080|8443|22)[^0-9]' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -E ':(53|80|22)[^0-9]' | grep -v '::1'",
       "safe_pattern": "^\\s*$",
       "level": "warning",
-      "description": "WARNING: Common TCP on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Often missed in firewall rules!"
+      "description": "WARNING: Common TCP on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Often missed in firewall rules!",
+      "remediation": "Apply ip6tables rules matching your iptables rules. Block exposed ports: ip6tables -A INPUT -p tcp --dport <port> -j DROP"
     }
   ]
 }
