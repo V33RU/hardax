@@ -23,7 +23,8 @@
       "fail_pattern": "^(Permissive|Disabled|UNKNOWN)$",
       "level": "critical",
       "requires_root": false,
-      "description": "Fail if SELinux is not enforcing. getenforce explicitly reports enforcing/permissive/disabled."
+      "description": "Fail if SELinux is not enforcing. getenforce explicitly reports enforcing/permissive/disabled.",
+      "remediation": "Run 'setenforce 1' to switch to enforcing mode. Set SELINUX=enforcing in /etc/selinux/config for persistence."
     },
     {
       "id": "SELINUX_002",
@@ -39,7 +40,8 @@
       "fail_pattern": "^BAD$",
       "level": "critical",
       "requires_root": false,
-      "description": "Fails only if explicit disable/permissive flags are present in /proc/cmdline."
+      "description": "Fails only if explicit disable/permissive flags are present in /proc/cmdline.",
+      "remediation": "Remove selinux=0, enforcing=0, or androidboot.selinux=permissive from the kernel command line or bootloader config."
     },
     {
       "id": "SELINUX_003",
@@ -55,7 +57,8 @@
       "fail_pattern": "^(0|NO_FILE)$",
       "level": "critical",
       "requires_root": false,
-      "description": "Checks /sys/fs/selinux/enforce (1=enforcing, 0=permissive). Missing file suggests SELinux not mounted/enabled."
+      "description": "Checks /sys/fs/selinux/enforce (1=enforcing, 0=permissive). Missing file suggests SELinux not mounted/enabled.",
+      "remediation": "Run 'echo 1 > /sys/fs/selinux/enforce' as root. If the file is missing, ensure SELinux is installed and selinuxfs is mounted."
     },
     {
       "id": "SELINUX_004",
@@ -71,7 +74,8 @@
       "fail_pattern": "^MISSING$",
       "level": "critical",
       "requires_root": false,
-      "description": "Verifies that a policy blob is loaded (non-empty policy file)."
+      "description": "Verifies that a policy blob is loaded (non-empty policy file).",
+      "remediation": "Install the SELinux policy package (e.g., selinux-policy-targeted) and reboot to load the policy."
     },
     {
       "id": "SELINUX_005",
@@ -87,7 +91,8 @@
       "fail_pattern": "^DISABLED$",
       "level": "critical",
       "requires_root": false,
-      "description": "If selinuxenabled exists, it exits 0 when enabled. If missing, it does not fail."
+      "description": "If selinuxenabled exists, it exits 0 when enabled. If missing, it does not fail.",
+      "remediation": "Install SELinux utilities (policycoreutils) and enable SELinux in /etc/selinux/config, then reboot."
     },
     {
       "id": "SELINUX_006",
@@ -102,7 +107,8 @@
       "fail_pattern": "^NOT_ENFORCING$",
       "level": "critical",
       "requires_root": false,
-      "description": "Uses sestatus when present to confirm enabled+enforcing. If sestatus is missing, it does not fail."
+      "description": "Uses sestatus when present to confirm enabled+enforcing. If sestatus is missing, it does not fail.",
+      "remediation": "Set SELINUX=enforcing in /etc/selinux/config and run 'setenforce 1'. Reboot if SELinux was fully disabled."
     },
     {
       "id": "SELINUX_007",
@@ -117,7 +123,8 @@
       "fail_pattern": "SELINUX=(permissive|disabled)",
       "level": "warning",
       "requires_root": false,
-      "description": "If /etc/selinux/config exists, flags permissive/disabled. Missing file does not fail."
+      "description": "If /etc/selinux/config exists, flags permissive/disabled. Missing file does not fail.",
+      "remediation": "Edit /etc/selinux/config and change SELINUX=permissive or SELINUX=disabled to SELINUX=enforcing."
     },
     {
       "id": "SELINUX_008",
@@ -133,7 +140,8 @@
       "fail_pattern": "^NOT_MOUNTED$",
       "level": "warning",
       "requires_root": false,
-      "description": "If SELinux is active, selinuxfs is typically mounted."
+      "description": "If SELinux is active, selinuxfs is typically mounted.",
+      "remediation": "Mount selinuxfs with 'mount -t selinuxfs selinuxfs /sys/fs/selinux'. Ensure SELinux is enabled in the kernel config."
     },
     {
       "id": "SELINUX_101",
@@ -148,7 +156,8 @@
       "safe_pattern": ".*",
       "level": "info",
       "requires_root": false,
-      "description": "Evidence: prints SELinux context for current identity."
+      "description": "Evidence: prints SELinux context for current identity.",
+      "remediation": "If no context is shown, ensure SELinux is enabled and the 'id' command supports the -Z flag."
     },
     {
       "id": "SELINUX_102",
@@ -163,7 +172,8 @@
       "safe_pattern": ".*",
       "level": "info",
       "requires_root": false,
-      "description": "Evidence: lists processes with contexts (first 15 lines)."
+      "description": "Evidence: lists processes with contexts (first 15 lines).",
+      "remediation": "If contexts are missing, verify SELinux is enforcing and procps supports -Z. Relabel the filesystem if needed."
     },
     {
       "id": "SELINUX_103",
@@ -178,7 +188,8 @@
       "safe_pattern": ".*",
       "level": "info",
       "requires_root": false,
-      "description": "Evidence: confirms getenforce tool availability."
+      "description": "Evidence: confirms getenforce tool availability.",
+      "remediation": "Install the policycoreutils package to get getenforce and other SELinux management tools."
     },
     {
       "id": "SELINUX_104",
@@ -193,7 +204,8 @@
       "safe_pattern": ".*",
       "level": "info",
       "requires_root": false,
-      "description": "Evidence: confirms setenforce tool availability (does not change mode)."
+      "description": "Evidence: confirms setenforce tool availability (does not change mode).",
+      "remediation": "Install the policycoreutils package to get setenforce and other SELinux management tools."
     },
     {
       "id": "SELINUX_105",
@@ -207,7 +219,8 @@
       "safe_pattern": ".*",
       "level": "info",
       "requires_root": false,
-      "description": "Evidence: booleans exist and are readable (first 20 lines)."
+      "description": "Evidence: booleans exist and are readable (first 20 lines).",
+      "remediation": "Install policycoreutils and selinux-policy-targeted to get getsebool and SELinux boolean support."
     },
     {
       "id": "SELINUX_106",
@@ -221,7 +234,8 @@
       "safe_pattern": ".*",
       "level": "info",
       "requires_root": false,
-      "description": "Evidence: shows loaded SELinux modules (first 30 lines)."
+      "description": "Evidence: shows loaded SELinux modules (first 30 lines).",
+      "remediation": "Install policycoreutils-python-utils for semodule. Run 'semodule -l' as root to list policy modules."
     },
     {
       "id": "SELINUX_201",
@@ -235,7 +249,8 @@
       "safe_pattern": ".*",
       "level": "info",
       "requires_root": false,
-      "description": "Evidence: counts 'avc:' denials in logcat."
+      "description": "Evidence: counts 'avc:' denials in logcat.",
+      "remediation": "Review AVC denials with 'logcat -b all | grep avc' and update SELinux policy to resolve legitimate access needs."
     },
     {
       "id": "SELINUX_202",
@@ -249,7 +264,8 @@
       "safe_pattern": ".*",
       "level": "info",
       "requires_root": false,
-      "description": "Evidence: counts 'avc:' denials in dmesg."
+      "description": "Evidence: counts 'avc:' denials in dmesg.",
+      "remediation": "Review AVC denials with 'dmesg | grep avc' and update SELinux policy or fix mislabeled files as needed."
     },
     {
       "id": "SELINUX_203",
@@ -263,7 +279,8 @@
       "safe_pattern": ".*",
       "level": "info",
       "requires_root": true,
-      "description": "Evidence: counts 'avc:' denials from previous boot if pstore is enabled."
+      "description": "Evidence: counts 'avc:' denials from previous boot if pstore is enabled.",
+      "remediation": "Investigate prior-boot AVC denials in /sys/fs/pstore/console-ramoops and update policy to prevent recurring issues."
     },
     {
       "id": "SELINUX_204",
@@ -277,7 +294,8 @@
       "safe_pattern": ".*",
       "level": "info",
       "requires_root": true,
-      "description": "Evidence: samples kernel messages for 'avc:' (may require root; timeout avoids blocking)."
+      "description": "Evidence: samples kernel messages for 'avc:' (may require root; timeout avoids blocking).",
+      "remediation": "Use audit2allow to analyze /proc/kmsg AVC denials and generate policy modules for legitimate access."
     },
     {
       "id": "SELINUX_301",
@@ -291,7 +309,8 @@
       "safe_pattern": ".*",
       "level": "info",
       "requires_root": false,
-      "description": "Evidence: counts AVC denials in kernel journal (availability depends on system logging)."
+      "description": "Evidence: counts AVC denials in kernel journal (availability depends on system logging).",
+      "remediation": "Run 'journalctl -k | grep avc' to review denials. Use audit2allow to create policy fixes for valid access."
     },
     {
       "id": "SELINUX_302",
@@ -305,7 +324,8 @@
       "safe_pattern": ".*",
       "level": "info",
       "requires_root": true,
-      "description": "Evidence: counts AVC denials in auditd log if present."
+      "description": "Evidence: counts AVC denials in auditd log if present.",
+      "remediation": "Review /var/log/audit/audit.log for AVC entries. Use audit2allow to generate targeted policy modules."
     },
     {
       "id": "SELINUX_303",
@@ -319,7 +339,8 @@
       "safe_pattern": ".*",
       "level": "info",
       "requires_root": true,
-      "description": "Evidence: shows recent AVC events via audit tooling (requires audit subsystem/logs)."
+      "description": "Evidence: shows recent AVC events via audit tooling (requires audit subsystem/logs).",
+      "remediation": "Install audit and policycoreutils-python-utils. Use 'ausearch -m avc | audit2allow' to diagnose and fix denials."
     },
     {
       "id": "SELINUX_304",
@@ -333,7 +354,8 @@
       "safe_pattern": ".*",
       "level": "info",
       "requires_root": false,
-      "description": "Evidence: checks auditd status where systemd is used."
+      "description": "Evidence: checks auditd status where systemd is used.",
+      "remediation": "Enable auditd with 'systemctl enable --now auditd'. Install the audit package if not present."
     },
     {
       "id": "SELINUX_009",
@@ -347,7 +369,8 @@
       "safe_pattern": "^OK$",
       "level": "critical",
       "requires_root": false,
-      "description": "ro.boot.selinux is set by the bootloader and can override runtime enforcing. If set to 'permissive', device is globally permissive regardless of getenforce output. Empty or 'enforcing' = safe."
+      "description": "ro.boot.selinux is set by the bootloader and can override runtime enforcing. If set to 'permissive', device is globally permissive regardless of getenforce output. Empty or 'enforcing' = safe.",
+      "remediation": "Reflash the bootloader or update boot config to remove the permissive SELinux override. Lock the bootloader."
     },
     {
       "id": "SELINUX_010",
@@ -362,7 +385,8 @@
       "safe_pattern": "^(OK|NO_FILE)$",
       "level": "critical",
       "requires_root": false,
-      "description": "If /sys/fs/selinux/enforce is world-writable, any process can disable SELinux without root. Should be read-only for non-root. WRITABLE = critical misconfiguration."
+      "description": "If /sys/fs/selinux/enforce is world-writable, any process can disable SELinux without root. Should be read-only for non-root. WRITABLE = critical misconfiguration.",
+      "remediation": "Run 'chmod 644 /sys/fs/selinux/enforce' to restrict write access. Investigate how permissions were changed."
     },
     {
       "id": "SELINUX_011",
@@ -377,7 +401,8 @@
       "safe_pattern": "^(CLEAN|NO_TOOL)$",
       "level": "warning",
       "requires_root": false,
-      "description": "A device can report global Enforcing mode while individual critical domains (e.g. untrusted_app, shell) are set permissive. semanage permissive -l lists them on Linux; getprop permissive hint on Android. NO_TOOL = tool not available, not a failure."
+      "description": "A device can report global Enforcing mode while individual critical domains (e.g. untrusted_app, shell) are set permissive. semanage permissive -l lists them on Linux; getprop permissive hint on Android. NO_TOOL = tool not available, not a failure.",
+      "remediation": "Remove permissive domains with 'semanage permissive -d <domain>'. Ensure no domain is individually set to permissive."
     }
   ]
 }
