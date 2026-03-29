@@ -1,0 +1,369 @@
+{
+  "checks": [
+    {
+      "id": "BIN-001",
+      "category": "BINARY_HARDENING",
+      "label": "Kernel ASLR (randomize_va_space)",
+      "command": "cat /proc/sys/kernel/randomize_va_space 2>/dev/null",
+      "safe_pattern": "^2$",
+      "level": "critical",
+      "description": "ASLR must be set to 2 (full randomization) to prevent memory-based attacks. Value 0=off, 1=partial, 2=full.",
+      "remediation": "Set full ASLR: echo 2 > /proc/sys/kernel/randomize_va_space. Ensure kernel config has CONFIG_COMPAT_BRK=n."
+    },
+    {
+      "id": "BIN-002",
+      "category": "BINARY_HARDENING",
+      "label": "Kernel ASLR Boot Config",
+      "command": "cat /proc/cmdline 2>/dev/null | grep -o 'norandmaps\\|nokaslr' | head -1",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Kernel boot parameters must not contain norandmaps or nokaslr flags which disable ASLR/KASLR.",
+      "remediation": "Remove norandmaps and nokaslr from kernel boot cmdline in bootloader config.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "BIN-003",
+      "category": "BINARY_HARDENING",
+      "label": "KASLR (Kernel ASLR)",
+      "command": "cat /proc/cmdline 2>/dev/null | grep -oE 'kaslr' || cat /proc/version 2>/dev/null | head -1",
+      "safe_pattern": "kaslr",
+      "level": "warning",
+      "description": "Kernel Address Space Layout Randomization randomizes kernel memory layout to prevent kernel exploits.",
+      "remediation": "Rebuild kernel with CONFIG_RANDOMIZE_BASE=y and ensure nokaslr is not in boot cmdline."
+    },
+    {
+      "id": "BIN-004",
+      "category": "BINARY_HARDENING",
+      "label": "PIE - /system/bin/app_process",
+      "command": "readelf -h /system/bin/app_process64 2>/dev/null || readelf -h /system/bin/app_process 2>/dev/null | grep 'Type:' | head -1",
+      "safe_pattern": "DYN",
+      "level": "critical",
+      "description": "The main Zygote process (app_process) must be compiled as Position Independent Executable (PIE/DYN) for ASLR effectiveness.",
+      "remediation": "Rebuild app_process with -fPIE -pie compiler/linker flags. All Android 5.0+ binaries should be PIE."
+    },
+    {
+      "id": "BIN-005",
+      "category": "BINARY_HARDENING",
+      "label": "PIE - /system/bin/linker",
+      "command": "readelf -h /system/bin/linker64 2>/dev/null || readelf -h /system/bin/linker 2>/dev/null | grep 'Type:' | head -1",
+      "safe_pattern": "DYN",
+      "level": "critical",
+      "description": "The dynamic linker must be compiled as PIE. A non-PIE linker undermines ASLR for all dynamically linked binaries.",
+      "remediation": "Rebuild the system linker with PIE support. This is standard on Android 5.0+."
+    },
+    {
+      "id": "BIN-006",
+      "category": "BINARY_HARDENING",
+      "label": "PIE - /system/bin/surfaceflinger",
+      "command": "readelf -h /system/bin/surfaceflinger 2>/dev/null | grep 'Type:' | head -1",
+      "safe_pattern": "DYN",
+      "level": "high",
+      "description": "SurfaceFlinger is a privileged system service. Must be PIE-compiled to benefit from ASLR.",
+      "remediation": "Rebuild surfaceflinger with -fPIE -pie flags."
+    },
+    {
+      "id": "BIN-007",
+      "category": "BINARY_HARDENING",
+      "label": "PIE - /system/bin/vold",
+      "command": "readelf -h /system/bin/vold 2>/dev/null | grep 'Type:' | head -1",
+      "safe_pattern": "DYN",
+      "level": "high",
+      "description": "Volume daemon (vold) manages storage and runs as root. Must be PIE-compiled.",
+      "remediation": "Rebuild vold with -fPIE -pie flags."
+    },
+    {
+      "id": "BIN-008",
+      "category": "BINARY_HARDENING",
+      "label": "PIE - /system/bin/servicemanager",
+      "command": "readelf -h /system/bin/servicemanager 2>/dev/null | grep 'Type:' | head -1",
+      "safe_pattern": "DYN",
+      "level": "high",
+      "description": "Binder service manager is a critical IPC process. Must be PIE-compiled.",
+      "remediation": "Rebuild servicemanager with -fPIE -pie flags."
+    },
+    {
+      "id": "BIN-009",
+      "category": "BINARY_HARDENING",
+      "label": "Non-PIE Binaries in /system/bin",
+      "command": "for f in $(ls /system/bin/ 2>/dev/null | head -30); do readelf -h /system/bin/$f 2>/dev/null | grep -q 'EXEC' && echo \"NON-PIE: $f\"; done 2>/dev/null | head -10",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Scans critical system binaries for non-PIE (EXEC type) executables which cannot benefit from ASLR.",
+      "remediation": "Recompile listed non-PIE binaries with -fPIE -pie. All user-space binaries should be PIE on modern Android.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "BIN-010",
+      "category": "BINARY_HARDENING",
+      "label": "Non-PIE Binaries in /vendor/bin",
+      "command": "for f in $(ls /vendor/bin/ 2>/dev/null | head -30); do readelf -h /vendor/bin/$f 2>/dev/null | grep -q 'EXEC' && echo \"NON-PIE: $f\"; done 2>/dev/null | head -10",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Scans vendor binaries for non-PIE executables. Vendor HAL binaries often run with elevated privileges.",
+      "remediation": "Work with vendor to recompile non-PIE binaries with -fPIE -pie flags.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "BIN-011",
+      "category": "BINARY_HARDENING",
+      "label": "Stack Canary - app_process",
+      "command": "readelf -s /system/bin/app_process64 2>/dev/null || readelf -s /system/bin/app_process 2>/dev/null | grep -c '__stack_chk'",
+      "safe_pattern": "[1-9]",
+      "level": "critical",
+      "description": "Stack canaries (__stack_chk_fail) detect buffer overflow attacks. The Zygote process must have stack protection.",
+      "remediation": "Rebuild app_process with -fstack-protector-strong or -fstack-protector-all compiler flags."
+    },
+    {
+      "id": "BIN-012",
+      "category": "BINARY_HARDENING",
+      "label": "Stack Canary - linker",
+      "command": "readelf -s /system/bin/linker64 2>/dev/null || readelf -s /system/bin/linker 2>/dev/null | grep -c '__stack_chk'",
+      "safe_pattern": "[1-9]",
+      "level": "critical",
+      "description": "The dynamic linker must have stack canary protection to prevent exploitation of linker vulnerabilities.",
+      "remediation": "Rebuild linker with -fstack-protector-strong flag."
+    },
+    {
+      "id": "BIN-013",
+      "category": "BINARY_HARDENING",
+      "label": "Stack Canary - surfaceflinger",
+      "command": "readelf -s /system/bin/surfaceflinger 2>/dev/null | grep -c '__stack_chk'",
+      "safe_pattern": "[1-9]",
+      "level": "high",
+      "description": "SurfaceFlinger must have stack canary protection as it handles untrusted display buffers.",
+      "remediation": "Rebuild surfaceflinger with -fstack-protector-strong flag."
+    },
+    {
+      "id": "BIN-014",
+      "category": "BINARY_HARDENING",
+      "label": "RELRO - app_process (Full)",
+      "command": "readelf -l /system/bin/app_process64 2>/dev/null || readelf -l /system/bin/app_process 2>/dev/null | grep -c 'GNU_RELRO'",
+      "safe_pattern": "[1-9]",
+      "level": "critical",
+      "description": "Full RELRO makes the GOT read-only after relocation, preventing GOT overwrite attacks on the Zygote.",
+      "remediation": "Rebuild app_process with -Wl,-z,relro,-z,now linker flags for full RELRO protection."
+    },
+    {
+      "id": "BIN-015",
+      "category": "BINARY_HARDENING",
+      "label": "RELRO - linker (Full)",
+      "command": "readelf -l /system/bin/linker64 2>/dev/null || readelf -l /system/bin/linker 2>/dev/null | grep -c 'GNU_RELRO'",
+      "safe_pattern": "[1-9]",
+      "level": "critical",
+      "description": "The dynamic linker must have RELRO to protect its own GOT from overwrite attacks.",
+      "remediation": "Rebuild linker with -Wl,-z,relro,-z,now linker flags."
+    },
+    {
+      "id": "BIN-016",
+      "category": "BINARY_HARDENING",
+      "label": "NX (No-Execute) Stack - app_process",
+      "command": "readelf -l /system/bin/app_process64 2>/dev/null || readelf -l /system/bin/app_process 2>/dev/null | grep 'GNU_STACK' | grep -v 'RWE'",
+      "safe_pattern": "RW ",
+      "level": "critical",
+      "description": "NX stack prevents code execution from the stack. GNU_STACK must be RW (not RWE) to enforce NX bit.",
+      "remediation": "Rebuild app_process with -Wl,-z,noexecstack. Ensure no assembly files use .note.GNU-stack with exec flag."
+    },
+    {
+      "id": "BIN-017",
+      "category": "BINARY_HARDENING",
+      "label": "NX Stack - linker",
+      "command": "readelf -l /system/bin/linker64 2>/dev/null || readelf -l /system/bin/linker 2>/dev/null | grep 'GNU_STACK' | grep -v 'RWE'",
+      "safe_pattern": "RW ",
+      "level": "critical",
+      "description": "Dynamic linker must have NX stack to prevent stack-based code execution.",
+      "remediation": "Rebuild linker with -Wl,-z,noexecstack flag."
+    },
+    {
+      "id": "BIN-018",
+      "category": "BINARY_HARDENING",
+      "label": "Executable Stack Binaries in /system/bin",
+      "command": "for f in $(ls /system/bin/ 2>/dev/null | head -30); do readelf -l /system/bin/$f 2>/dev/null | grep -q 'RWE' && echo \"EXEC-STACK: $f\"; done 2>/dev/null | head -10",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Binaries with executable stack (RWE) are vulnerable to stack-based code injection attacks.",
+      "remediation": "Recompile listed binaries with -Wl,-z,noexecstack to remove executable stack permission.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "BIN-019",
+      "category": "BINARY_HARDENING",
+      "label": "FORTIFY_SOURCE - app_process",
+      "command": "readelf -s /system/bin/app_process64 2>/dev/null || readelf -s /system/bin/app_process 2>/dev/null | grep -c '__.*_chk'",
+      "safe_pattern": "[1-9]",
+      "level": "high",
+      "description": "FORTIFY_SOURCE replaces unsafe C functions (memcpy, strcpy) with bounds-checked versions at compile time.",
+      "remediation": "Rebuild app_process with -D_FORTIFY_SOURCE=2 compiler flag."
+    },
+    {
+      "id": "BIN-020",
+      "category": "BINARY_HARDENING",
+      "label": "FORTIFY_SOURCE - surfaceflinger",
+      "command": "readelf -s /system/bin/surfaceflinger 2>/dev/null | grep -c '__.*_chk'",
+      "safe_pattern": "[1-9]",
+      "level": "high",
+      "description": "SurfaceFlinger must use fortified C library functions to prevent buffer overflow exploitation.",
+      "remediation": "Rebuild surfaceflinger with -D_FORTIFY_SOURCE=2 flag."
+    },
+    {
+      "id": "BIN-021",
+      "category": "BINARY_HARDENING",
+      "label": "Kernel NX Support",
+      "command": "cat /proc/cpuinfo 2>/dev/null | grep -iE 'nx|xd|xn' | head -1 || dmesg 2>/dev/null | grep -i 'NX.*active' | head -1",
+      "safe_pattern": "(nx|xd|xn|NX.*active|NX.*protect)",
+      "level": "critical",
+      "description": "Hardware NX (No-Execute) bit support is required for effective DEP (Data Execution Prevention).",
+      "remediation": "Ensure CPU supports NX/XD/XN bit and it is enabled in BIOS/UEFI. ARM64 has XN by default."
+    },
+    {
+      "id": "BIN-022",
+      "category": "BINARY_HARDENING",
+      "label": "Kernel Stack Protector",
+      "command": "zcat /proc/config.gz 2>/dev/null | grep -E 'STACKPROTECTOR|CC_STACKPROTECTOR' | head -3 || cat /boot/config-* 2>/dev/null | grep -E 'STACKPROTECTOR|CC_STACKPROTECTOR' | head -3",
+      "safe_pattern": "=y",
+      "level": "high",
+      "description": "Kernel stack protector (CONFIG_STACKPROTECTOR_STRONG) adds canaries to kernel functions to detect stack smashing.",
+      "remediation": "Rebuild kernel with CONFIG_STACKPROTECTOR=y and CONFIG_STACKPROTECTOR_STRONG=y."
+    },
+    {
+      "id": "BIN-023",
+      "category": "BINARY_HARDENING",
+      "label": "Kernel Heap Hardening (SLAB_FREELIST_RANDOM)",
+      "command": "zcat /proc/config.gz 2>/dev/null | grep 'SLAB_FREELIST_RANDOM' | head -1 || cat /boot/config-* 2>/dev/null | grep 'SLAB_FREELIST_RANDOM' | head -1",
+      "safe_pattern": "=y",
+      "level": "high",
+      "description": "Randomized slab freelist makes heap exploitation significantly harder by randomizing allocation order.",
+      "remediation": "Rebuild kernel with CONFIG_SLAB_FREELIST_RANDOM=y."
+    },
+    {
+      "id": "BIN-024",
+      "category": "BINARY_HARDENING",
+      "label": "Kernel Heap Hardening (SLAB_FREELIST_HARDENED)",
+      "command": "zcat /proc/config.gz 2>/dev/null | grep 'SLAB_FREELIST_HARDENED' | head -1 || cat /boot/config-* 2>/dev/null | grep 'SLAB_FREELIST_HARDENED' | head -1",
+      "safe_pattern": "=y",
+      "level": "high",
+      "description": "Hardened freelist adds integrity checks to slab metadata, detecting heap corruption and use-after-free.",
+      "remediation": "Rebuild kernel with CONFIG_SLAB_FREELIST_HARDENED=y."
+    },
+    {
+      "id": "BIN-025",
+      "category": "BINARY_HARDENING",
+      "label": "Kernel CFI (Control Flow Integrity)",
+      "command": "zcat /proc/config.gz 2>/dev/null | grep 'CONFIG_CFI_CLANG' | head -1 || cat /boot/config-* 2>/dev/null | grep 'CONFIG_CFI_CLANG' | head -1",
+      "safe_pattern": "=y",
+      "level": "high",
+      "description": "Clang CFI prevents control-flow hijacking by validating indirect function calls at runtime.",
+      "remediation": "Rebuild kernel with CONFIG_CFI_CLANG=y using Clang compiler with LTO enabled."
+    },
+    {
+      "id": "BIN-026",
+      "category": "BINARY_HARDENING",
+      "label": "Kernel Shadow Call Stack",
+      "command": "zcat /proc/config.gz 2>/dev/null | grep 'SHADOW_CALL_STACK' | head -1 || cat /boot/config-* 2>/dev/null | grep 'SHADOW_CALL_STACK' | head -1",
+      "safe_pattern": "=y",
+      "level": "high",
+      "description": "Shadow Call Stack protects return addresses in a separate stack, preventing ROP attacks on ARM64.",
+      "remediation": "Rebuild kernel with CONFIG_SHADOW_CALL_STACK=y (ARM64 only, requires Clang compiler)."
+    },
+    {
+      "id": "BIN-027",
+      "category": "BINARY_HARDENING",
+      "label": "Kernel KASAN (Address Sanitizer)",
+      "command": "zcat /proc/config.gz 2>/dev/null | grep 'CONFIG_KASAN' | head -1 || dmesg 2>/dev/null | grep -i kasan | head -1",
+      "safe_pattern": "=y|kasan",
+      "level": "info",
+      "description": "Kernel Address Sanitizer detects out-of-bounds and use-after-free bugs. Usually enabled in debug/test builds.",
+      "remediation": "Enable CONFIG_KASAN=y for testing builds. Note: significant performance overhead, not for production."
+    },
+    {
+      "id": "BIN-028",
+      "category": "BINARY_HARDENING",
+      "label": "Kernel HARDENED_USERCOPY",
+      "command": "zcat /proc/config.gz 2>/dev/null | grep 'HARDENED_USERCOPY' | head -1 || cat /boot/config-* 2>/dev/null | grep 'HARDENED_USERCOPY' | head -1",
+      "safe_pattern": "=y",
+      "level": "high",
+      "description": "Hardened usercopy validates that copy_from_user/copy_to_user operations stay within expected slab bounds.",
+      "remediation": "Rebuild kernel with CONFIG_HARDENED_USERCOPY=y."
+    },
+    {
+      "id": "BIN-029",
+      "category": "BINARY_HARDENING",
+      "label": "Kernel INIT_ON_ALLOC/FREE",
+      "command": "zcat /proc/config.gz 2>/dev/null | grep -E 'INIT_ON_ALLOC_DEFAULT_ON|INIT_ON_FREE_DEFAULT_ON' | head -2 || cat /boot/config-* 2>/dev/null | grep -E 'INIT_ON_ALLOC_DEFAULT_ON|INIT_ON_FREE_DEFAULT_ON' | head -2",
+      "safe_pattern": "=y",
+      "level": "warning",
+      "description": "Zero-initializing heap memory on allocation/free prevents info leaks from uninitialized memory and use-after-free.",
+      "remediation": "Rebuild kernel with CONFIG_INIT_ON_ALLOC_DEFAULT_ON=y and CONFIG_INIT_ON_FREE_DEFAULT_ON=y."
+    },
+    {
+      "id": "BIN-030",
+      "category": "BINARY_HARDENING",
+      "label": "mmap_min_addr Protection",
+      "command": "cat /proc/sys/vm/mmap_min_addr 2>/dev/null",
+      "safe_pattern": "^(32768|65536)$",
+      "level": "high",
+      "description": "mmap_min_addr prevents mapping memory at low addresses (NULL page), blocking NULL pointer dereference exploits.",
+      "remediation": "Set minimum mmap address: echo 65536 > /proc/sys/vm/mmap_min_addr"
+    },
+    {
+      "id": "BIN-031",
+      "category": "BINARY_HARDENING",
+      "label": "Kernel dmesg Restriction",
+      "command": "cat /proc/sys/kernel/dmesg_restrict 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "warning",
+      "description": "Restricting dmesg to root prevents unprivileged users from reading kernel log which may leak KASLR offsets.",
+      "remediation": "Restrict kernel log access: echo 1 > /proc/sys/kernel/dmesg_restrict"
+    },
+    {
+      "id": "BIN-032",
+      "category": "BINARY_HARDENING",
+      "label": "Kernel kptr_restrict",
+      "command": "cat /proc/sys/kernel/kptr_restrict 2>/dev/null",
+      "safe_pattern": "^(1|2)$",
+      "level": "high",
+      "description": "kptr_restrict hides kernel pointer addresses from /proc/kallsyms, preventing KASLR bypass via info leak.",
+      "remediation": "Restrict kernel pointers: echo 2 > /proc/sys/kernel/kptr_restrict"
+    },
+    {
+      "id": "BIN-033",
+      "category": "BINARY_HARDENING",
+      "label": "Kernel perf_event Restriction",
+      "command": "cat /proc/sys/kernel/perf_event_paranoid 2>/dev/null",
+      "safe_pattern": "^(2|3)$",
+      "level": "warning",
+      "description": "perf_event_paranoid >= 2 prevents unprivileged access to performance counters used in side-channel attacks.",
+      "remediation": "Restrict perf events: echo 3 > /proc/sys/kernel/perf_event_paranoid"
+    },
+    {
+      "id": "BIN-034",
+      "category": "BINARY_HARDENING",
+      "label": "Kernel Modules Disabled",
+      "command": "cat /proc/sys/kernel/modules_disabled 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "warning",
+      "description": "Disabling kernel module loading after boot prevents rootkits from loading malicious kernel modules.",
+      "remediation": "Lock module loading post-boot: echo 1 > /proc/sys/kernel/modules_disabled (irreversible until reboot)."
+    },
+    {
+      "id": "BIN-035",
+      "category": "BINARY_HARDENING",
+      "label": "Shared Library RELRO Check (/system/lib64)",
+      "command": "for f in $(ls /system/lib64/*.so 2>/dev/null | head -10); do readelf -l $f 2>/dev/null | grep -q 'GNU_RELRO' || echo \"NO-RELRO: $(basename $f)\"; done 2>/dev/null | head -5",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "System shared libraries without RELRO are vulnerable to GOT overwrite attacks.",
+      "remediation": "Recompile libraries without RELRO using -Wl,-z,relro,-z,now linker flags.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "BIN-036",
+      "category": "BINARY_HARDENING",
+      "label": "readelf Availability",
+      "command": "which readelf 2>/dev/null || ls /system/bin/readelf /vendor/bin/readelf /data/local/tmp/readelf 2>/dev/null | head -1",
+      "safe_pattern": "readelf",
+      "level": "info",
+      "description": "readelf is required for binary hardening analysis. If absent, PIE/RELRO/NX/canary checks will return empty.",
+      "remediation": "Push readelf to device: adb push readelf /data/local/tmp/ && chmod +x /data/local/tmp/readelf"
+    }
+  ]
+}
