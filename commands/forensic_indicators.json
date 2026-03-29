@@ -6,7 +6,8 @@
       "command": "settings list global 2>/dev/null | grep 'boot_count=' | cut -d= -f2",
       "safe_pattern": "^[0-9]{1,3}$",
       "level": "info",
-      "description": "High reboot count (>500) may indicate instability, tampering, or crash loops"
+      "description": "High reboot count (>500) may indicate instability, tampering, or crash loops",
+      "remediation": "Investigate crash logs and tombstones for root cause. Factory reset if tampering is suspected."
     },
     {
       "category": "FORENSIC_INDICATORS",
@@ -14,7 +15,8 @@
       "command": "dumpsys dropbox --print 2>/dev/null | grep -cE 'system_server_crash|system_app_crash' || echo 0",
       "safe_pattern": "^[0-5]$",
       "level": "warning",
-      "description": "Excessive system crashes may indicate exploitation attempts or instability"
+      "description": "Excessive system crashes may indicate exploitation attempts or instability",
+      "remediation": "Review dropbox crash entries for exploit patterns. Update system and remove suspicious apps."
     },
     {
       "category": "FORENSIC_INDICATORS",
@@ -22,7 +24,8 @@
       "command": "dumpsys dropbox --print 2>/dev/null | grep -cE 'data_app_anr|system_app_anr' || echo 0",
       "safe_pattern": "^[0-9]$",
       "level": "info",
-      "description": "High ANR count may indicate resource exhaustion or DoS conditions"
+      "description": "High ANR count may indicate resource exhaustion or DoS conditions",
+      "remediation": "Identify apps causing ANRs and uninstall or update them. Check for resource-hogging processes."
     },
     {
       "category": "FORENSIC_INDICATORS",
@@ -30,7 +33,8 @@
       "command": "dumpsys dropbox --print 2>/dev/null | grep -cE 'SYSTEM_TOMBSTONE|kernel_panic' || echo 0",
       "safe_pattern": "^0$",
       "level": "critical",
-      "description": "Kernel panics may indicate kernel exploitation or hardware tampering"
+      "description": "Kernel panics may indicate kernel exploitation or hardware tampering",
+      "remediation": "Flash a verified stock kernel and firmware. Investigate dmesg logs for exploit signatures."
     },
     {
       "category": "FORENSIC_INDICATORS",
@@ -38,7 +42,8 @@
       "command": "ls /data/tombstones/ 2>/dev/null | wc -l || echo 0",
       "safe_pattern": "^[0-5]$",
       "level": "warning",
-      "description": "Native crashes can indicate buffer overflow or memory corruption exploits"
+      "description": "Native crashes can indicate buffer overflow or memory corruption exploits",
+      "remediation": "Analyze tombstone files for exploit indicators. Remove suspicious native binaries."
     },
     {
       "category": "FORENSIC_INDICATORS",
@@ -46,7 +51,8 @@
       "command": "cmd clipboard get-primary-clip 2>/dev/null | grep -icE 'password|token|key|secret|bearer|auth|credit|cvv|ssn|pin' || echo 0",
       "safe_pattern": "^0$",
       "level": "warning",
-      "description": "Clipboard contains sensitive keywords (passwords, tokens, credentials)"
+      "description": "Clipboard contains sensitive keywords (passwords, tokens, credentials)",
+      "remediation": "Clear the clipboard immediately. Rotate any exposed credentials or tokens."
     },
     {
       "category": "FORENSIC_INDICATORS",
@@ -55,6 +61,7 @@
       "safe_pattern": "^0$",
       "level": "warning",
       "description": "Logcat contains suspicious exploitation-related keywords",
+      "remediation": "Isolate the device from the network. Identify and remove the source app or process.",
       "empty_is_safe": true
     },
     {
@@ -63,7 +70,8 @@
       "command": "cat /proc/uptime 2>/dev/null | awk '{days=int($1/86400); if(days>365) print \"LONG_UPTIME_\"days\"_DAYS\"; else if(days<1) print \"RECENT_REBOOT\"; else print \"NORMAL_\"days\"_DAYS\"}'",
       "safe_pattern": "NORMAL",
       "level": "info",
-      "description": "Very long uptime (>1yr) or recent reboot may indicate anomaly"
+      "description": "Very long uptime (>1yr) or recent reboot may indicate anomaly",
+      "remediation": "For long uptime, schedule a maintenance reboot. For unexpected reboots, check crash logs."
     },
     {
       "category": "FORENSIC_INDICATORS",
@@ -71,7 +79,8 @@
       "command": "dmesg 2>/dev/null | grep -c 'avc:  denied' || echo 0",
       "safe_pattern": "^[0-9]{1,2}$",
       "level": "warning",
-      "description": "High SELinux denial count (>100) may indicate privilege escalation attempts"
+      "description": "High SELinux denial count (>100) may indicate privilege escalation attempts",
+      "remediation": "Review denied operations in dmesg for escalation patterns. Ensure SELinux is set to enforcing."
     },
     {
       "category": "FORENSIC_INDICATORS",
@@ -80,6 +89,7 @@
       "safe_pattern": "^0$",
       "level": "critical",
       "description": "Suspicious files in /data/local/tmp may indicate active exploitation",
+      "remediation": "Delete all suspicious files from /data/local/tmp. Investigate which process created them.",
       "empty_is_safe": true
     },
     {
@@ -89,6 +99,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Suspicious files in /data/local/tmp may indicate active exploitation",
+      "remediation": "Remove the listed files immediately and audit installed apps for the source of the artifacts.",
       "empty_is_safe": true
     },
     {
@@ -97,7 +108,8 @@
       "command": "dumpsys account 2>/dev/null | grep -icE 'exchange|activesync|microsoft|office365|mdm|workspace|intune' || echo 0",
       "safe_pattern": ".*",
       "level": "info",
-      "description": "Enterprise accounts detected - device may be under MDM management"
+      "description": "Enterprise accounts detected - device may be under MDM management",
+      "remediation": "Verify MDM enrollment is intentional. Remove enterprise accounts if the device is personal."
     },
     {
       "category": "PRIVACY",
@@ -105,7 +117,8 @@
       "command": "dumpsys account 2>/dev/null | grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}' | wc -l",
       "safe_pattern": "^[0-5]$",
       "level": "info",
-      "description": "Number of email accounts - more accounts increase attack surface"
+      "description": "Number of email accounts - more accounts increase attack surface",
+      "remediation": "Remove unused email accounts to reduce attack surface and exposure risk."
     },
     {
       "category": "PRIVACY",
@@ -114,6 +127,7 @@
       "safe_pattern": ".",
       "level": "info",
       "description": "Email accounts detected - more accounts increase attack surface",
+      "remediation": "Review listed accounts and remove any that are unused or unrecognized.",
       "empty_is_safe": true
     },
     {
@@ -122,7 +136,8 @@
       "command": "pm list users 2>/dev/null | wc -l || echo 1",
       "safe_pattern": "^[1-2]$",
       "level": "info",
-      "description": "Multiple user profiles may have inconsistent security configurations"
+      "description": "Multiple user profiles may have inconsistent security configurations",
+      "remediation": "Remove unnecessary user profiles. Ensure all active profiles have consistent security settings."
     },
     {
       "category": "DEVICE_MANAGEMENT",
@@ -130,7 +145,8 @@
       "command": "dumpsys user 2>/dev/null | grep -ci 'work profile\\|managed profile' || echo 0",
       "safe_pattern": ".*",
       "level": "info",
-      "description": "Work profile provides data separation but grants MDM access"
+      "description": "Work profile provides data separation but grants MDM access",
+      "remediation": "Verify the work profile is authorized. Remove it if MDM control is not expected."
     },
     {
       "category": "DEVICE_MANAGEMENT",
@@ -139,6 +155,7 @@
       "safe_pattern": "^0$",
       "level": "info",
       "description": "Secondary users may bypass primary user security policies",
+      "remediation": "Delete secondary user profiles that are not actively needed.",
       "empty_is_safe": true
     },
     {
@@ -147,7 +164,8 @@
       "command": "cmd netpolicy list restrict-background-whitelist 2>/dev/null | wc -l || echo 0",
       "safe_pattern": "^[0-9]$",
       "level": "info",
-      "description": "Apps whitelisted for background data may exfiltrate data silently"
+      "description": "Apps whitelisted for background data may exfiltrate data silently",
+      "remediation": "Review whitelisted apps and revoke background data access for any that are unnecessary."
     },
     {
       "category": "NETWORK",
@@ -156,6 +174,7 @@
       "safe_pattern": "^0$",
       "level": "info",
       "description": "Active calls detected - avoid sensitive discussion during audit",
+      "remediation": "End any active calls before proceeding with the security audit.",
       "empty_is_safe": true
     },
     {
@@ -164,7 +183,8 @@
       "command": "dumpsys netstats 2>/dev/null | grep -oE 'rxBytes=[0-9]+' | head -1 | grep -oE '[0-9]+' | awk '{gb=$1/1073741824; if(gb>10) print \"HIGH_\"int(gb)\"GB\"; else print \"NORMAL\"}'",
       "safe_pattern": "NORMAL",
       "level": "info",
-      "description": "High data usage (>10GB) may indicate data exfiltration"
+      "description": "High data usage (>10GB) may indicate data exfiltration",
+      "remediation": "Identify top data-consuming apps in network stats. Restrict or remove suspicious ones."
     },
     {
       "category": "SYSTEM",
@@ -173,6 +193,7 @@
       "safe_pattern": "^0$",
       "level": "warning",
       "description": "Active window overlays may enable tapjacking or credential theft",
+      "remediation": "Revoke the 'Display over other apps' permission for non-essential apps.",
       "empty_is_safe": true
     },
     {
@@ -181,7 +202,8 @@
       "command": "dumpsys -l 2>/dev/null | wc -l || echo 0",
       "safe_pattern": "^[5-9][0-9]$|^[1-2][0-9]{2}$",
       "level": "info",
-      "description": "Unusual number of system services (<50 or >300) may indicate tampering"
+      "description": "Unusual number of system services (<50 or >300) may indicate tampering",
+      "remediation": "Compare service list against a known-good baseline. Investigate any unknown services."
     },
     {
       "category": "SYSTEM",
@@ -189,7 +211,8 @@
       "command": "dumpsys -l 2>/dev/null | grep -vicE 'android|google|samsung|qualcomm|mediatek|huawei|xiaomi|oppo|vivo|sony' | head -1",
       "safe_pattern": "^[0-9]$",
       "level": "info",
-      "description": "Non-standard services detected - review for potential threats"
+      "description": "Non-standard services detected - review for potential threats",
+      "remediation": "Identify unknown services and trace them to their source app. Remove if unauthorized."
     }
   ]
 }
