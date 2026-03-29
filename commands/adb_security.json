@@ -7,6 +7,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Presence of adb_keys may indicate previously trusted host",
+      "remediation": "Remove unauthorized keys with 'adb shell rm /data/misc/adb/adb_keys' and reboot the device.",
       "empty_is_safe": true
     },
     {
@@ -16,6 +17,7 @@
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Should be empty or disabled; non-default = risk",
+      "remediation": "Disable ADB over network by running 'adb shell setprop service.adb.tcp.port -1' and restarting ADB.",
       "empty_is_safe": true
     },
     {
@@ -25,6 +27,7 @@
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Presence of debug tools increases attack surface",
+      "remediation": "Remove debug binaries with 'adb shell rm /system/bin/gdbserver /system/bin/strace' on a remounted system.",
       "empty_is_safe": true
     },
     {
@@ -33,7 +36,8 @@
       "command": "cat /sys/kernel/debug/debug_enabled 2>/dev/null",
       "safe_pattern": "^0$",
       "level": "warning",
-      "description": "Kernel debugfs enabled exposes sensitive kernel interfaces"
+      "description": "Kernel debugfs enabled exposes sensitive kernel interfaces",
+      "remediation": "Disable debugfs by setting CONFIG_DEBUG_FS=n in the kernel config and rebuilding the boot image."
     }
   ]
 }
