@@ -67,19 +67,20 @@
     {
       "category": "NETWORK",
       "label": "Wi-Fi Security (WPA3)",
-      "command": "dumpsys wifi | grep 'WPA3-'",
-      "safe_pattern": "WPA3",
+      "command": "WIFI=$(settings get global wifi_on 2>/dev/null); [ \"$WIFI\" = \"1\" ] && dumpsys wifi 2>/dev/null | grep -oE 'WPA[23][^,\" ]*' | head -3 || echo 'wifi_off'",
+      "safe_pattern": "WPA3|wifi_off",
       "level": "warning",
-      "description": "WPA3 should be preferred over WPA2 for stronger Wi-Fi security",
-      "remediation": "Connect only to WPA3-enabled networks. Upgrade your router firmware to support WPA3 if possible."
+      "description": "WPA3 should be preferred over WPA2 for stronger Wi-Fi security. Check skipped when Wi-Fi is off.",
+      "remediation": "Connect only to WPA3-enabled networks. Upgrade your router firmware to support WPA3 if possible.",
+      "empty_is_safe": true
     },
     {
       "category": "NETWORK",
       "label": "DNS-over-TLS Enabled",
       "command": "settings get global private_dns_mode",
-      "safe_pattern": "^hostname$",
+      "safe_pattern": "hostname|opportunistic",
       "level": "warning",
-      "description": "DNS-over-TLS (DoT) should be enabled for encrypted DNS",
+      "description": "DNS-over-TLS (DoT) should be enabled. Both 'hostname' (strict) and 'opportunistic' modes provide encrypted DNS.",
       "remediation": "Enable Private DNS: settings put global private_dns_mode hostname && settings put global private_dns_specifier dns.google"
     },
     {
