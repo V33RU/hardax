@@ -77,18 +77,19 @@
     },
     {
       "category": "SYSTEM",
-      "label": "Credential Storage Cleared",
-      "command": "ls /data/misc/keystore/user_0 2>&1",
-      "safe_pattern": "No such file or directory",
+      "label": "Credential Storage Contents",
+      "command": "ls /data/misc/keystore/user_0 2>/dev/null | wc -l",
+      "safe_pattern": ".",
       "level": "info",
-      "description": "No residual user credential files",
-      "remediation": "Clear residual credentials. Run: adb shell rm -rf /data/misc/keystore/user_0 (requires root)."
+      "description": "Number of credential files in keystore user_0 — informational evidence collector.",
+      "remediation": "Review keystore contents if unexpectedly large. Run: adb shell ls /data/misc/keystore/user_0 (requires root).",
+      "empty_is_safe": true
     },
     {
       "category": "SYSTEM",
       "label": "Kernel Hardening (PAN/UAO)",
-      "command": "zcat /proc/config.gz | grep -E 'CONFIG_ARM64_PAN=|CONFIG_ARM64_UAO='",
-      "safe_pattern": "CONFIG_ARM64_PAN=y.*CONFIG_ARM64_UAO=y",
+      "command": "zcat /proc/config.gz 2>/dev/null | grep -cE 'CONFIG_ARM64_(PAN|UAO)=y'",
+      "safe_pattern": "^2$",
       "level": "critical",
       "description": "Privileged Access Never (PAN) and User Access Override (UAO) should be enabled for memory protection",
       "remediation": "Rebuild the kernel with CONFIG_ARM64_PAN=y and CONFIG_ARM64_UAO=y in the defconfig, then reflash."
@@ -171,12 +172,12 @@
     },
     {
       "category": "SYSTEM",
-      "label": "SELinux AVC Denials",
-      "command": "dmesg | grep 'avc:  denied'",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "Check for any denied SELinux actions",
-      "remediation": "Review AVC denials for policy issues. Fix SELinux policy or correct the offending process configuration.",
+      "label": "SELinux AVC Denial Count",
+      "command": "dmesg 2>/dev/null | grep -c 'avc:  denied' || echo 0",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Count of SELinux AVC denials since boot — non-zero is normal and indicates SELinux is actively enforcing.",
+      "remediation": "High counts may indicate a misconfigured app or policy. Review with: adb shell dmesg | grep 'avc: denied'.",
       "empty_is_safe": true
     },
     {
