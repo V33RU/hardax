@@ -4,10 +4,11 @@
       "category": "APPS",
       "label": "AppOps: private-data access",
       "command": "dumpsys appops | grep -E 'READ_EXTERNAL_STORAGE|ACCESS_FINE_LOCATION'",
-      "safe_pattern": "mode=ignore",
+      "safe_pattern": ".",
       "level": "info",
-      "description": "Monitor unexpected accesses to sensitive data",
-      "remediation": "Revoke permissions for flagged apps: appops set <package> <op> ignore"
+      "description": "Apps with access to external storage or fine location — evidence collector, review for suspicious entries.",
+      "remediation": "Revoke permissions for suspicious apps: appops set <package> <op> ignore",
+      "empty_is_safe": true
     },
     {
       "category": "APPS",
@@ -32,7 +33,7 @@
     {
       "category": "APPS",
       "label": "Apps Not From Play Store",
-      "command": "pm list packages -i 2>/dev/null | grep -v 'com.android.vending' | grep -v 'installer=null' | grep -v 'com.google' | cut -d: -f2 | cut -d' ' -f1 | head -10",
+      "command": "pm list packages -3 -i 2>/dev/null | grep -v 'installer=com.android.vending' | grep -v 'installer=com.google' | head -10",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Apps installed from non-Play Store sources - higher malware risk",
