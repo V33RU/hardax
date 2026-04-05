@@ -58,9 +58,12 @@ ADB_TRANSPORT_ERRORS = [
     "device still authorizing",
     "insufficient permissions",
     "more than one device",
-    "error: closed",
     "adb: error:",
 ]
+
+# Maximum output length to consider as a transport/service error
+_ADB_ERROR_MAX_LEN = 300
+_SVC_ERROR_MAX_LEN = 150
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  CLI ARGV SHIM - strip extra flags before argparse
@@ -196,6 +199,8 @@ def _vpad(s: str, width: int) -> str:
 
 def _vtrunc(s: str, maxLen: int) -> str:
     """Truncate a plain string to maxLen visual chars, adding … if needed."""
+    if maxLen <= 0:
+        return ""
     if len(s) <= maxLen:
         return s
     return s[:maxLen - 1] + "…"
@@ -457,10 +462,7 @@ _active_dashboard: Optional['HUDDashboard'] = None
 
 def _signalHandler(signum, frame):
     """Restore terminal on Ctrl+C."""
-    if _active_dashboard is not None:
-        _active_dashboard.finish()
-    else:
-        Terminal.showCursor()
+    Terminal.showCursor()
     print(f"\n\n  {Colors.YELLOW}⚠ Audit interrupted by user (Ctrl+C){Colors.RESET}\n")
     sys.exit(130)
 
@@ -519,7 +521,7 @@ def isServiceError(output: str) -> bool:
         return False
     lower = output.lower().strip()
     for indicator in SERVICE_ERRORS:
-        if indicator in lower and len(lower) < 150:
+        if indicator in lower and len(lower) < _SVC_ERROR_MAX_LEN:
             return True
     return False
 
@@ -529,7 +531,7 @@ def isAdbTransportError(output: str) -> bool:
     if not output:
         return False
     lower = output.lower().strip()
-    if len(lower) > 300:
+    if len(lower) > _ADB_ERROR_MAX_LEN:
         return False
     return any(sig in lower for sig in ADB_TRANSPORT_ERRORS)
 
@@ -608,28 +610,28 @@ class AdbDevice(Device):
     def __init__(self, serial: Optional[str]):
         self.serial = serial
 
-    def _base(self) -> List[str]:
+    def adbArgs(self) -> List[str]:
         return ["adb"] + (["-s", self.serial] if self.serial else [])
 
     def checkConnected(self) -> None:
-        code, _, _ = runLocal(self._base() + ["get-state"])
+        code, _, _ = runLocal(self.adbArgs() + ["get-state"])
         if code != 0:
             _, devs, _ = runLocal(["adb", "devices", "-l"])
             raise RuntimeError("No ADB device detected or unauthorized. Output:\n" + devs)
 
     def shell(self, command: str) -> str:
-        code, out, err = runLocal(self._base() + ["shell", command])
+        code, out, err = runLocal(self.adbArgs() + ["shell", command])
         txt = (out or "") + (("\n" + err) if err else "")
         txt = txt.replace("\r", "").strip()
 
         if isAdbTransportError(txt):
-            runLocal(self._base() + ["reconnect"])
+            runLocal(self.adbArgs() + ["reconnect"])
             time.sleep(2)
-            runLocal(self._base() + ["wait-for-device"], timeout=10)
+            runLocal(self.adbArgs() + ["wait-for-device"], timeout=10)
             time.sleep(1)
-            code2, out2, err2 = runLocal(self._base() + ["shell", command])
-            txt2 = (out2 or "") + (("\n" + err2) if err2 else "")
-            return txt2.replace("\r", "").strip()
+            code2, out2, err2 = runLocal(self.adbArgs() + ["shell", command])
+            txt2 = ((out2 or "") + (("\n" + err2) if err2 else "")).replace("\r", "").strip()
+            return txt2
         return txt
 
     def idString(self) -> str:
@@ -659,7 +661,7 @@ class SshDevice(Device):
             self.client.connect(hostname=host, port=port, username=user,
                                 password=password, look_for_keys=False,
                                 allow_agent=False, timeout=20)
-        except Exception as e:
+        except (paramiko.AuthenticationException, paramiko.SSHException, OSError) as e:
             print(f"ERROR: SSH connection failed: {e}", file=sys.stderr)
             sys.exit(1)
 
@@ -707,8 +709,6 @@ class UartDevice(Device):
 
         if baud == 0:
             self.baud = self._autoBaud()
-        else:
-            self.baud = baud
 
         try:
             self.conn = self.serial_mod.Serial(
@@ -876,7 +876,7 @@ def applyFilters(output: str, original: str) -> str:
 
     for st in stages:
         if st.startswith("grep"):
-            mflags = re.search(r"(^|\s)-([iEvFv]+)", st)
+            mflags = re.search(r"(^|\s)-([iEvF]+)", st)
             flags = set(mflags.group(2)) if mflags else set()
             pm = re.search(r"""'(.*?)'|"(.*?)"|(\S+)$""", st)
             if not pm:
@@ -931,7 +931,7 @@ def applyFilters(output: str, original: str) -> str:
 
 def executeWithFallback(device: Device, command: str,
                         showCommands: bool = False,
-                        isRooted: bool = None,
+                        isRooted: Optional[bool] = None,
                         rootMethod: str = "none") -> str:
     """
     Smart execution for netstat/ss network commands.
@@ -996,14 +996,13 @@ def executeWithFallback(device: Device, command: str,
     if not blocks:
         return device.shell(command)
 
+    _nativeSu = rootMethod not in ("uart-root", "ssh-root", "adbd-root")
+
+    def _suWrap(cmd: str) -> str:
+        return "su -c %s" % shlex.quote(cmd)
+
     for block in blocks:
         baseCmd, pipeline = splitPipeline(block)
-
-        # Already root natively (uart-root / ssh-root / adbd-root) → su wrapping is pointless
-        _nativeSu = rootMethod not in ("uart-root", "ssh-root", "adbd-root")
-
-        def _suWrap(cmd: str) -> str:
-            return "su -c %s" % shlex.quote(cmd)
 
         candidates = []
         if _nativeSu and (isRooted or isRooted is None):
@@ -1078,7 +1077,7 @@ def detectRootStatus(device: Device) -> Tuple[bool, str]:
     try:
         if isinstance(device, AdbDevice):
             runLocal(["adb", "start-server"])
-            runLocal(device._base() + ["root"])
+            runLocal(device.adbArgs() + ["root"])
             out = device.shell("id 2>/dev/null")
             if out and ("uid=0(" in out or out.strip() == "0"):
                 return True, "adbd-root"
@@ -1148,7 +1147,7 @@ def _getPropFallback(device: Device, props: List[str]) -> str:
     for p in props:
         v = device.shell(f"getprop {p}").strip()
         if v:
-            return f"{v} (from {p})"
+            return v
     return "(unknown)"
 
 
@@ -1156,11 +1155,11 @@ def _getPropWithCpuinfo(device: Device, props: List[str]) -> str:
     for p in props:
         v = device.shell(f"getprop {p}").strip()
         if v:
-            return f"{v} (from {p})"
+            return v
     cpuinfo = device.shell("cat /proc/cpuinfo")
     m = re.search(r"(?i)hardware\s*:\s*(.+)", cpuinfo)
     if m:
-        return m.group(1).strip() + " (from /proc/cpuinfo)"
+        return m.group(1).strip()
     return "(unknown)"
 
 
@@ -1179,17 +1178,13 @@ def collectDeviceInfo(device: Device) -> Dict[str, str]:
     serialno = device.shell("getprop ro.serialno").strip() or device.shell("getprop ro.boot.serialno").strip()
     timezone = device.shell("getprop persist.sys.timezone").strip()
 
-    def clean(x: str) -> str:
-        i = x.rfind(" (from ")
-        return x[:i] if i != -1 else x
-
     return {
-        "model": clean(model),
-        "brand": clean(brand),
-        "manufacturer": clean(manufacturer),
-        "name": clean(name),
-        "soc_manufacturer": clean(socManufacturer),
-        "soc_model": clean(socModel),
+        "model": model,
+        "brand": brand,
+        "manufacturer": manufacturer,
+        "name": name,
+        "soc_manufacturer": socManufacturer,
+        "soc_model": socModel,
         "android_version": androidVersion,
         "sdk_level": sdkLevel,
         "build_id": buildId,
@@ -1293,11 +1288,11 @@ def isEmptyOrError(output: str) -> bool:
     lower = output.lower().strip()
     errorIndicators = [
         "not found", "no such", "error", "exception",
-        "permission denied", "unknown", "invalid", "failed",
+        "permission denied", "invalid", "failed",
         "inaccessible", "cmd: can't find", "can't find service",
         "not supported", "service not found", "does not exist", "no output",
     ]
-    if lower in ["", "(empty)"]:
+    if lower in ["", "(empty)", "unknown"]:
         return True
     for indicator in errorIndicators:
         if indicator in lower and len(lower) < 100:
@@ -1350,11 +1345,11 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                 print(f"\n  {Colors.BRIGHT_RED}✗ Device unresponsive after {consecutiveAdbErrors} consecutive ADB errors.{Colors.RESET}")
                 print(f"  {Colors.YELLOW}  Attempting reconnect...{Colors.RESET}")
                 if isinstance(device, AdbDevice):
-                    runLocal(device._base() + ["reconnect"])
+                    runLocal(device.adbArgs() + ["reconnect"])
                     time.sleep(3)
-                    runLocal(device._base() + ["wait-for-device"], timeout=15)
+                    runLocal(device.adbArgs() + ["wait-for-device"], timeout=15)
                     time.sleep(2)
-                    testCode, testOut, _ = runLocal(device._base() + ["shell", "echo HARDAX_ALIVE"], timeout=5)
+                    testCode, testOut, _ = runLocal(device.adbArgs() + ["shell", "echo HARDAX_ALIVE"], timeout=5)
                     if "HARDAX_ALIVE" in (testOut or ""):
                         print(f"  {Colors.GREEN}  ✓ Device reconnected! Resuming...{Colors.RESET}")
                         consecutiveAdbErrors = 0
@@ -1448,16 +1443,7 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
             etaStr   = f"{remaining // 60}m{remaining % 60:02d}s" if remaining >= 60 else f"{remaining}s"
             percentage = (idx / total) * 100
 
-            # Per-status colour / symbol
-            _sfmt = {
-                "SAFE":     (Colors.GREEN,          "✓"),
-                "CRITICAL": (Colors.BRIGHT_RED,     "✗"),
-                "WARNING":  (Colors.YELLOW,         "⚠"),
-                "VERIFY":   (Colors.BRIGHT_MAGENTA, "?"),
-                "INFO":     (Colors.CYAN,           "ℹ"),
-                "SKIPPED":  (Colors.DIM,            "⊘"),
-            }
-            sc, sym = _sfmt.get(status, (Colors.CYAN, "ℹ"))
+            sc, sym = HUDDashboard._STATUS_FMT.get(status, (Colors.CYAN, "ℹ"))
 
             if showCommands:
                 # Category header when section changes
@@ -1571,23 +1557,13 @@ def _findCertFiles(device: Device) -> List[str]:
 
         # User-installed CA stores
         "/data/misc/user/0/cacerts-added",
-        "/data/misc/user/<id>/cacerts-added",
 
         # Legacy stores
         "/data/misc/keychain/cacerts-added",
         "/data/misc/keychain",
 
-        # App-bundled cert locations (APK internal paths won't be scanned with ls, but listing retained per request)
-        "res/xml/network_security_config.xml",
-        "res/raw/*.cer",
-        "assets/certs",
-
         # Keystore directories
         "/data/misc/keystore/user_0",
-        "/data/misc/keystore/user_<id>",
-
-        # APEX overrides (Android version dependent)
-        "/apex/com.android.conscrypt/cacerts",
     ]
 
     files = []
@@ -1617,11 +1593,7 @@ def _readCertBytes(device: Device, path: str):
     # Try PEM first
     txt = device.shell(f"cat {path} 2>/dev/null")
     if txt and "-----BEGIN CERTIFICATE-----" in txt:
-        try:
-            return txt.encode("utf-8"), "PEM"
-        except Exception:
-            # fall through to DER attempts
-            pass
+        return txt.encode("utf-8"), "PEM"
 
     # Try DER by base64 from device (several common variants)
     candidates = [
@@ -1663,7 +1635,6 @@ def auditCertificates(device: Device) -> List[Dict[str, Any]]:
     """Pull and analyze system + user certificates from the device (no artificial limit)."""
     certs: List[Dict[str, Any]] = []
     import warnings
-    from datetime import datetime
     from cryptography.utils import CryptographyDeprecationWarning
     warnings.filterwarnings('ignore', category=CryptographyDeprecationWarning)
     try:
@@ -1842,14 +1813,13 @@ def writeCsvReport(path: str, rows: List[Dict[str, Any]]) -> None:
             w.writerow({k: r.get(k, "") for k in fieldnames})
 
 
-
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  REPORT GENERATION - HTML (Hacker Aesthetic)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
                     rows: List[Dict[str, Any]], counts: Dict[str, int],
-                    certs: List[Dict[str, Any]] = None) -> None:
+                    certs: Optional[List[Dict[str, Any]]] = None) -> None:
     """Generate an interactive HTML report with hacker aesthetic and severity toggles."""
 
     # Certificate section
@@ -2046,7 +2016,7 @@ def printBanner(idLine: Optional[str], checkCount: int = 0, categoryCount: int =
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ┃  {Colors.BOLD}Hardening Audit eXaminer{Colors.RESET}{Colors.BRIGHT_CYAN} v{__version__}                                    ┃
 ┃  {Colors.DIM}Android OS based Connected Devices Security Configuration Auditor{Colors.BRIGHT_CYAN}┃
-┃  {Colors.YELLOW}{checksStr}{Colors.RESET} {Colors.GREEN}{catsStr}{Colors.BRIGHT_CYAN}{' ' * max(1, 53 - len(checksStr) - len(catsStr))}           ┃
+┃  {Colors.YELLOW}{checksStr}{Colors.RESET} {Colors.GREEN}{catsStr}{Colors.BRIGHT_CYAN}{' ' * max(1, 53 - _vlen(checksStr) - _vlen(catsStr))}           ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛{Colors.RESET}
 """)
     if idLine:
@@ -2181,9 +2151,9 @@ Examples:
             print(f"{Colors.BRIGHT_RED}✗ ADB pre-flight check failed!{Colors.RESET}")
             print(f"  Response: {preflight}")
             print(f"  {Colors.YELLOW}Attempting reconnect...{Colors.RESET}")
-            runLocal(device._base() + ["reconnect"])
+            runLocal(device.adbArgs() + ["reconnect"])
             time.sleep(3)
-            runLocal(device._base() + ["wait-for-device"], timeout=15)
+            runLocal(device.adbArgs() + ["wait-for-device"], timeout=15)
             time.sleep(2)
             preflight2 = device.shell("echo HARDAX_PREFLIGHT_OK")
             if "HARDAX_PREFLIGHT_OK" not in preflight2:
@@ -2208,16 +2178,15 @@ Examples:
         print(f"{Colors.GREEN}✓ SSH connection verified ({device.host}:{device.port}){Colors.RESET}")
 
         # Probe shell environment so the user knows what will work
-        _ssh_pf = lambda cmd: device.shell(cmd)
-        shellPath   = _ssh_pf("which sh 2>/dev/null || command -v sh 2>/dev/null").strip()
-        bashPath    = _ssh_pf("which bash 2>/dev/null || command -v bash 2>/dev/null").strip()
-        idOut       = _ssh_pf("id 2>/dev/null").strip()
-        unameOut    = _ssh_pf("uname -a 2>/dev/null").strip()
-        isAndroid   = bool(_ssh_pf("test -f /system/build.prop && echo YES 2>/dev/null").strip() == "YES")
-        hasGetprop  = bool(_ssh_pf("command -v getprop >/dev/null 2>&1 && echo YES").strip() == "YES")
-        hasBusybox  = bool(_ssh_pf("command -v busybox >/dev/null 2>&1 && echo YES").strip() == "YES")
-        hasToybox   = bool(_ssh_pf("command -v toybox >/dev/null 2>&1 && echo YES").strip() == "YES")
-        pathOut     = _ssh_pf("echo $PATH").strip()
+        shellPath   = device.shell("which sh 2>/dev/null || command -v sh 2>/dev/null").strip()
+        bashPath    = device.shell("which bash 2>/dev/null || command -v bash 2>/dev/null").strip()
+        idOut       = device.shell("id 2>/dev/null").strip()
+        unameOut    = device.shell("uname -a 2>/dev/null").strip()
+        isAndroid   = bool(device.shell("test -f /system/build.prop && echo YES 2>/dev/null").strip() == "YES")
+        hasGetprop  = bool(device.shell("command -v getprop >/dev/null 2>&1 && echo YES").strip() == "YES")
+        hasBusybox  = bool(device.shell("command -v busybox >/dev/null 2>&1 && echo YES").strip() == "YES")
+        hasToybox   = bool(device.shell("command -v toybox >/dev/null 2>&1 && echo YES").strip() == "YES")
+        pathOut     = device.shell("echo $PATH").strip()
 
         print(f"  Shell     : {shellPath or '(not found)'}"
               + (f"  |  bash: {bashPath}" if bashPath else ""))
@@ -2322,26 +2291,8 @@ Examples:
     total_checks = sum(counts.values())
 
     # ── Visual‑width helpers (ANSI safe) ─────────────────────────────────
-    try:
-        from wcwidth import wcswidth  # precise visual width for Unicode
-    except Exception:
-        def wcswidth(s: str) -> int:  # graceful fallback
-            return len(s)
-
-    _ANSI_VIS_RE = re.compile(r'\x1b\[[0-9;]*m')
-
-    def _strip_ansi(s: str) -> str:
-        return _ANSI_VIS_RE.sub('', s)
-
-    def _vwidth(s: str) -> int:
-        return wcswidth(_strip_ansi(s))
-
-    def _rpad_vis(s: str, width: int) -> str:
-        need = width - _vwidth(s)
-        return s if need <= 0 else s + (' ' * need)
-
     def _lpad_vis(s: str, width: int) -> str:
-        need = width - _vwidth(s)
+        need = width - _vlen(s)
         return s if need <= 0 else (' ' * need) + s
 
     # ── Box geometry + safe printers ─────────────────────────────────────
@@ -2361,7 +2312,7 @@ Examples:
     def _box_bottom():
         print(f"{C}  ╚{'═' * FRAME_WIDTH}╝{R}\n")
     def _box_line(content: str):
-        print(f"{C}  ║{R}{_rpad_vis(content, INNER_WIDTH)}{C}║{R}")
+        print(f"{C}  ║{R}{_vpad(content, INNER_WIDTH)}{C}║{R}")
 
     # ── Fixed-width progress bar (exact visual width) ────────────────────
     def _bar_fixed(n: int, tot: int, width: int = 16, col: str = Colors.GREEN) -> str:
@@ -2370,13 +2321,13 @@ Examples:
         filled_seg = f"{col}{'█' * filled}{R}" if filled else ""
         empty_seg  = f"{D}{'░' * (width - filled)}{R}" if width - filled > 0 else ""
         bar = filled_seg + empty_seg
-        return _rpad_vis(bar, width)
+        return _vpad(bar, width)
 
     # ── Header lines (left title + right checks) ─────────────────────────
     title_left  = f"  {B}{Colors.BRIGHT_WHITE}HARDAX  AUDIT COMPLETE{R}"
     title_right = f"{D}{total_checks} checks{R}"
 
-    used = _vwidth(title_left) + _vwidth(title_right)
+    used = _vlen(title_left) + _vlen(title_right)
     mid_spaces = max(0, INNER_WIDTH - used)
     _box_top()
     _box_line(title_left + (" " * mid_spaces) + title_right)
@@ -2395,14 +2346,14 @@ Examples:
         bar = _bar_fixed(cnt, tot, width=16, col=col)
 
         part1 = "  " + f"{col}{sym}{R}" + " "
-        part2 = _rpad_vis(f"{col}{lbl}{R}", 8)
+        part2 = _vpad(f"{col}{lbl}{R}", 8)
         part3 = "  " + _lpad_vis(f"{B}{col}{cnt}{R}", 4)
         part4 = "  " + _lpad_vis(pct, 6)
-        part5 = "  " + _rpad_vis(bar, 16)
+        part5 = "  " + _vpad(bar, 16)
 
         _box_line(part1 + part2 + part3 + part4 + part5)
 
-    rows = [
+    summaryRows = [
         (Colors.BRIGHT_RED,     '✗', 'CRITICAL', counts['critical']),
         (Colors.YELLOW,         '⚠', 'WARNING',  counts['warning']),
         (Colors.BRIGHT_MAGENTA, '?', 'VERIFY',   counts['verify']),
@@ -2410,9 +2361,9 @@ Examples:
         (Colors.CYAN,           'ℹ', 'INFO',     counts['info']),
     ]
     if counts.get('skipped', 0):
-        rows.append((D, '⊘', 'SKIPPED', counts['skipped']))
+        summaryRows.append((D, '⊘', 'SKIPPED', counts['skipped']))
 
-    for col, sym, lbl, cnt in rows:
+    for col, sym, lbl, cnt in summaryRows:
         _summary_row(col, sym, lbl, cnt, total_checks)
 
     _box_sep()
