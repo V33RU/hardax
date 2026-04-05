@@ -36,7 +36,7 @@ from typing import List, Dict, Any, Tuple, Optional
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 if sys.version_info < (3, 11):
-    sys.exit(f"[ERROR] HARDAX requires Python 4.01 or higher. "
+    sys.exit(f"[ERROR] HARDAX requires Python 3.11 or higher. "
              f"Detected: {sys.version_info.major}.{sys.version_info.minor}")
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -279,23 +279,6 @@ class HUDDashboard:
 
     # ── line builders (each returns a string with ANSI, exact visual width) ──
 
-    def _lineTop(self) -> str:
-        """Top border: ┌─── HARDAX v3.0 ── device ── N checks ──────┐"""
-        D = Colors.DIM; R = Colors.RESET; B = Colors.BOLD; W = Colors.BRIGHT_WHITE
-        C = Colors.BRIGHT_CYAN; Y = Colors.YELLOW
-        # Build plain segments and their visual lengths
-        seg1 = f"─── HARDAX v{__version__} "
-        seg2 = f"── {_vtrunc(self.deviceInfo, 20)} " if self.deviceInfo else ""
-        seg3 = f"── {self.totalChecks} checks "
-        used = len(seg1) + len(seg2) + len(seg3)
-        fill = max(1, self._W - used)
-        # Now build with colours
-        return (f"  {D}┌{R}"
-                f"{D}───{R} {B}{W}HARDAX v{__version__}{R} "
-                f"{D}──{R} {C}{_vtrunc(self.deviceInfo, 20)}{R} " if self.deviceInfo else f"  {D}┌{R}{D}───{R} {B}{W}HARDAX v{__version__}{R} ") + \
-               (f"{D}──{R} {Y}{self.totalChecks} checks{R} "
-                f"{D}{'─' * fill}┐{R}")
-
     def _lineTopSafe(self) -> str:
         """Top border built with guaranteed alignment."""
         D = Colors.DIM; R = Colors.RESET; B = Colors.BOLD
@@ -474,7 +457,10 @@ _active_dashboard: Optional['HUDDashboard'] = None
 
 def _signalHandler(signum, frame):
     """Restore terminal on Ctrl+C."""
-    Terminal.showCursor()
+    if _active_dashboard is not None:
+        _active_dashboard.finish()
+    else:
+        Terminal.showCursor()
     print(f"\n\n  {Colors.YELLOW}⚠ Audit interrupted by user (Ctrl+C){Colors.RESET}\n")
     sys.exit(130)
 
@@ -487,7 +473,7 @@ def which(prog: str) -> Optional[str]:
     return shutil.which(prog)
 
 
-def runLocal(cmd: List[str], timeout: int = None) -> Tuple[int, str, str]:
+def runLocal(cmd: List[str], timeout: Optional[int] = None) -> Tuple[int, str, str]:
     """Execute a local subprocess and return (returncode, stdout, stderr)."""
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -667,7 +653,8 @@ class SshDevice(Device):
         self.password = password
 
         self.client = self.paramiko.SSHClient()
-        self.client.set_missing_host_key_policy(self.paramiko.AutoAddPolicy())
+        self.client.load_system_host_keys()
+        self.client.set_missing_host_key_policy(self.paramiko.RejectPolicy())
         try:
             self.client.connect(hostname=host, port=port, username=user,
                                 password=password, look_for_keys=False,
