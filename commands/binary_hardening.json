@@ -25,8 +25,8 @@
       "id": "BIN-003",
       "category": "BINARY_HARDENING",
       "label": "KASLR (Kernel ASLR)",
-      "command": "cat /proc/cmdline 2>/dev/null | grep -oE 'kaslr' || cat /proc/version 2>/dev/null | head -1",
-      "safe_pattern": "kaslr",
+      "command": "zcat /proc/config.gz 2>/dev/null | grep 'CONFIG_RANDOMIZE_BASE'",
+      "safe_pattern": "CONFIG_RANDOMIZE_BASE=y",
       "level": "warning",
       "description": "Kernel Address Space Layout Randomization randomizes kernel memory layout to prevent kernel exploits.",
       "remediation": "Rebuild kernel with CONFIG_RANDOMIZE_BASE=y and ensure nokaslr is not in boot cmdline."
