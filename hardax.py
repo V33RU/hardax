@@ -424,9 +424,10 @@ class HUDDashboard:
         return "\n".join(lines)
 
     def _render(self, first: bool = False):
-        if not first:
-            Terminal.cursorUp(self.panelHeight)
-            sys.stdout.write("\r")
+        if first:
+            sys.stdout.write("\033[s")   # save cursor position before first draw
+        else:
+            sys.stdout.write("\033[u")   # restore to saved position before redraw
         print(self._buildFrame())
         sys.stdout.flush()
 
