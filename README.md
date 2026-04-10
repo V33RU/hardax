@@ -283,8 +283,6 @@ HARDAX/
 ├── README.md              # This file
 ├── templates/             # Report templates
 │   └── report.html        # Interactive HTML report template
-├── tests/                 # Unit tests for check definitions
-│   └── test_partition_checks.py
 └── commands/              # Security check definitions (664 checks, 23 categories)
     ├── bluetooth.json     #  84 checks - BLE/Classic, pairing, all profiles
     ├── system.json        #  83 checks - Kernel, TEE, build, emulator, memory
