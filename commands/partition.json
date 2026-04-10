@@ -1,0 +1,258 @@
+{
+  "checks": [
+    {
+      "category": "PARTITION",
+      "label": "OverlayFS Active (adb remount)",
+      "command": "mount 2>/dev/null | grep -c '^overlay'",
+      "safe_pattern": "^0$",
+      "level": "critical",
+      "description": "OverlayFS mounts indicate 'adb remount' was used, making system partitions writable. This breaks dm-verity and allows persistent firmware modification.",
+      "remediation": "Reboot the device to clear overlayfs mounts. Avoid using 'adb remount' on production devices.",
+      "empty_is_safe": true
+    },
+    {
+      "category": "PARTITION",
+      "label": "Product Partition Writable",
+      "command": "mount 2>/dev/null | grep ' /product ' | grep -v 'ro,'",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "/product partition is mounted read-write. Pre-installed product apps can be modified.",
+      "remediation": "Remount /product as read-only: 'mount -o remount,ro /product'. Reflash stock firmware to restore verity.",
+      "empty_is_safe": true
+    },
+    {
+      "category": "PARTITION",
+      "label": "ODM Partition Writable",
+      "command": "mount 2>/dev/null | grep ' /odm ' | grep -v 'ro,'",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "/odm partition is mounted read-write. Device-manufacturer overlays can be tampered with.",
+      "remediation": "Remount /odm as read-only: 'mount -o remount,ro /odm'. Verify the build has dm-verity enabled for /odm.",
+      "empty_is_safe": true
+    },
+    {
+      "category": "PARTITION",
+      "label": "System_ext Partition Writable",
+      "command": "mount 2>/dev/null | grep ' /system_ext ' | grep -v 'ro,'",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "/system_ext partition is mounted read-write. System extensions (carrier, OEM) can be modified.",
+      "remediation": "Remount /system_ext as read-only: 'mount -o remount,ro /system_ext'. Re-enable dm-verity.",
+      "empty_is_safe": true
+    },
+    {
+      "category": "PARTITION",
+      "label": "Persist Partition Writable",
+      "command": "mount 2>/dev/null | grep -E ' /persist | /mnt/vendor/persist ' | grep -v 'ro,'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "/persist holds calibration data, device IDs, and security tokens. Writable access allows tampering with hardware-bound credentials.",
+      "remediation": "Restrict write access to /persist to privileged system processes only. Remount read-only if not needed.",
+      "empty_is_safe": true
+    },
+    {
+      "category": "PARTITION",
+      "label": "Boot Partition Block Device",
+      "command": "ls -la /dev/block/by-name/boot /dev/block/bootdevice/by-name/boot 2>/dev/null | head -3",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Boot partition block device location and permissions",
+      "remediation": "Ensure boot partition block device is only accessible to root. Set permissions to 0600 or restrict via SELinux."
+    },
+    {
+      "category": "PARTITION",
+      "label": "Recovery Partition Block Permissions",
+      "command": "ls -la /dev/block/by-name/recovery /dev/block/bootdevice/by-name/recovery 2>/dev/null | awk '{print $1, $3, $4, $NF}'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Recovery partition should only be accessible to root (brw------- or 660 at most)",
+      "remediation": "Set block device permissions: 'chmod 600 /dev/block/by-name/recovery'. Enforce via udev/ueventd rules."
+    },
+    {
+      "category": "PARTITION",
+      "label": "Userdata Encryption Type",
+      "command": "getprop ro.crypto.type 2>/dev/null",
+      "safe_pattern": "^file$",
+      "level": "critical",
+      "description": "ro.crypto.type=file means File-Based Encryption (FBE) is active. 'block' means full-disk encryption (FDE, legacy). Missing means no encryption.",
+      "remediation": "Ensure the device uses FBE (ro.crypto.type=file). FDE is deprecated. Devices without encryption expose all user data."
+    },
+    {
+      "category": "PARTITION",
+      "label": "Userdata Encryption State",
+      "command": "getprop ro.crypto.state 2>/dev/null",
+      "safe_pattern": "^encrypted$",
+      "level": "critical",
+      "description": "Userdata partition must be encrypted. 'unencrypted' means all app data is readable without authentication.",
+      "remediation": "Enable encryption via device policy (MDM) or reflash a firmware build with encryption enforced in fstab."
+    },
+    {
+      "category": "PARTITION",
+      "label": "dm-verity Devices Active",
+      "command": "ls /dev/block/dm-* 2>/dev/null | wc -l",
+      "safe_pattern": "^[1-9][0-9]*$",
+      "level": "warning",
+      "description": "dm-verity device-mapper targets should be present for system/vendor/product partitions. Zero count means verity is disabled.",
+      "remediation": "Reflash stock vbmeta without --disable-verity to restore dm-verity device-mapper targets."
+    },
+    {
+      "category": "PARTITION",
+      "label": "dm-verity Disabled Flag in cmdline",
+      "command": "grep -c 'androidboot.veritymode=disabled\\|skip_initramfs\\|verity=0' /proc/cmdline 2>/dev/null",
+      "safe_pattern": "^0$",
+      "level": "critical",
+      "description": "Kernel cmdline disabling dm-verity allows unsigned modifications to system/vendor partitions.",
+      "remediation": "Remove disable-verity flags from BOARD_KERNEL_CMDLINE. Flash a signed vbmeta: 'fastboot flash vbmeta vbmeta.img'.",
+      "empty_is_safe": true
+    },
+    {
+      "category": "PARTITION",
+      "label": "noexec on /data Partition",
+      "command": "mount 2>/dev/null | grep ' /data ' | grep -c 'noexec'",
+      "safe_pattern": "^[1-9]",
+      "level": "warning",
+      "description": "/data should be mounted noexec to prevent executing attacker-dropped binaries from userdata. Missing noexec is a common hardening gap.",
+      "remediation": "Add 'noexec' to the fstab entry for /data and remount: 'mount -o remount,noexec /data'."
+    },
+    {
+      "category": "PARTITION",
+      "label": "nosuid on /data Partition",
+      "command": "mount 2>/dev/null | grep ' /data ' | grep -c 'nosuid'",
+      "safe_pattern": "^[1-9]",
+      "level": "warning",
+      "description": "/data should be mounted nosuid to prevent setuid binaries placed by apps from gaining root. Missing nosuid is a privilege escalation vector.",
+      "remediation": "Add 'nosuid' to the fstab entry for /data and remount: 'mount -o remount,nosuid /data'."
+    },
+    {
+      "category": "PARTITION",
+      "label": "nodev on /data Partition",
+      "command": "mount 2>/dev/null | grep ' /data ' | grep -c 'nodev'",
+      "safe_pattern": "^[1-9]",
+      "level": "warning",
+      "description": "/data should be mounted nodev to block device file creation (character/block devices) by unprivileged apps.",
+      "remediation": "Add 'nodev' to the fstab entry for /data and remount: 'mount -o remount,nodev /data'."
+    },
+    {
+      "category": "PARTITION",
+      "label": "A/B Active Slot",
+      "command": "getprop ro.boot.slot_suffix 2>/dev/null",
+      "safe_pattern": "^_[ab]$",
+      "level": "info",
+      "description": "Active A/B slot suffix. A/B partitioning supports safe OTA rollback. Missing indicates non-A/B or single-slot device.",
+      "remediation": "Ensure the device is on the expected boot slot. If the wrong slot is active after an OTA, investigate for update failure."
+    },
+    {
+      "category": "PARTITION",
+      "label": "Inactive Slot Integrity",
+      "command": "getprop ro.boot.slot_suffix 2>/dev/null | grep -qE '^_[ab]$' && avbctl verify-partition --partition system 2>/dev/null || echo N/A",
+      "safe_pattern": "^(verified|N/A)$",
+      "level": "info",
+      "description": "Verify inactive slot partition integrity via avbctl (if available)",
+      "remediation": "If slot verification fails, re-flash the inactive slot from a known-good OTA package.",
+      "empty_is_safe": true
+    },
+    {
+      "category": "PARTITION",
+      "label": "Partition Table Type (GPT/MBR)",
+      "command": "cat /proc/partitions 2>/dev/null | head -20",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Partition table listing from kernel - review for unexpected entries",
+      "remediation": "Verify all listed partitions match the device's expected partition layout from the OEM."
+    },
+    {
+      "category": "PARTITION",
+      "label": "Userdata Filesystem Type",
+      "command": "mount 2>/dev/null | grep ' /data ' | awk '{print $5}' | head -1",
+      "safe_pattern": "^(f2fs|ext4)$",
+      "level": "info",
+      "description": "Userdata filesystem type (f2fs or ext4 expected). Other types may indicate tampering or unusual configurations.",
+      "remediation": "Reflash the userdata partition with the OEM-supplied format if the filesystem type is unexpected."
+    },
+    {
+      "category": "PARTITION",
+      "label": "Unexpected Loop Device Mounts",
+      "command": "mount 2>/dev/null | grep -c '^/dev/loop'",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "description": "Loop device mounts outside of APEX are unusual and may indicate a side-loaded image or hidden filesystem.",
+      "remediation": "Identify and unmount unexpected loop devices: 'losetup -d /dev/loop<N>'. Investigate the backing image.",
+      "empty_is_safe": true
+    },
+    {
+      "category": "PARTITION",
+      "label": "APEX Partitions Mounted",
+      "command": "mount 2>/dev/null | grep -c '/apex/'",
+      "safe_pattern": "^[1-9][0-9]*$",
+      "level": "info",
+      "description": "APEX partitions should be present on Android 10+ for Mainline modules",
+      "remediation": "If APEX partitions are missing on Android 10+, verify the APEX service is running and the build supports Mainline."
+    },
+    {
+      "category": "PARTITION",
+      "label": "Block Devices World-Readable",
+      "command": "find /dev/block -maxdepth 3 -perm -o+r 2>/dev/null | grep -v 'by-name\\|by-num\\|by-partname\\|by-id\\|bootdevice' | wc -l",
+      "safe_pattern": "^0$",
+      "level": "critical",
+      "description": "Block devices readable by all users allow unprivileged processes to read raw partition data including encryption keys and user data.",
+      "remediation": "Remove world-read from block devices: 'chmod o-r /dev/block/<device>'. Enforce via ueventd.rc rules.",
+      "empty_is_safe": true
+    },
+    {
+      "category": "PARTITION",
+      "label": "Userdata Partition Used Space",
+      "command": "df /data 2>/dev/null | awk 'NR==2{print $5}'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Userdata partition usage - extremely high usage (>95%) can cause system instability and logging failures",
+      "remediation": "Free space on /data by clearing app caches, removing unused apps, or factory resetting as last resort."
+    },
+    {
+      "category": "PARTITION",
+      "label": "fstab Encryption Required",
+      "command": "cat /vendor/etc/fstab.* /etc/fstab* 2>/dev/null | grep '/data' | grep -c 'fileencryption\\|forceencrypt\\|forcefdeorfbe'",
+      "safe_pattern": "^[1-9]",
+      "level": "critical",
+      "description": "fstab must enforce encryption for /data. Missing forceencrypt/fileencryption means devices boot without encryption.",
+      "remediation": "Add 'fileencryption=aes-256-xts:aes-256-cts' to the /data entry in fstab and rebuild the vendor image.",
+      "empty_is_safe": true
+    },
+    {
+      "category": "PARTITION",
+      "label": "Cache Partition Present",
+      "command": "mount 2>/dev/null | grep ' /cache ' | head -1",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Cache partition used for OTA staging. Present on legacy A-only devices; absent on A/B devices is normal.",
+      "remediation": "On A-only devices, ensure /cache is mounted and accessible for OTA updates. On A/B devices, absence is expected."
+    },
+    {
+      "category": "PARTITION",
+      "label": "Unlocked Critical Partitions",
+      "command": "cat /proc/cmdline 2>/dev/null | grep -oE 'androidboot.verifiedbootstate=[^ ]*'",
+      "safe_pattern": "androidboot.verifiedbootstate=green",
+      "level": "critical",
+      "description": "verifiedbootstate in cmdline: green=fully verified, yellow=self-signed, orange=unlocked, red=failed. Non-green allows partition tampering.",
+      "remediation": "Lock the bootloader and flash OEM-signed partitions to achieve verifiedbootstate=green."
+    },
+    {
+      "category": "PARTITION",
+      "label": "Metadata Partition Accessible",
+      "command": "ls /dev/block/by-name/metadata 2>/dev/null && echo present || echo absent",
+      "safe_pattern": "^present$",
+      "level": "info",
+      "description": "Metadata partition stores FBE/FDE keys and state. Required for encrypted userdata on Android 9+.",
+      "remediation": "Ensure the metadata partition exists in the partition table. Absence on Android 9+ means encryption keys may not persist."
+    },
+    {
+      "category": "PARTITION",
+      "label": "Sideloading Partition (ota_package)",
+      "command": "find /data/ota_package /cache/*.zip /tmp/*.zip 2>/dev/null | head -5",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Staged OTA or sideloaded zip packages found. Unverified packages can be applied via recovery.",
+      "remediation": "Remove unknown update packages: 'rm /data/ota_package/*'. Only stage OTA packages from trusted update servers.",
+      "empty_is_safe": true
+    }
+  ]
+}
