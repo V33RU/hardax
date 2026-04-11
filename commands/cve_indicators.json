@@ -1,0 +1,174 @@
+{
+  "checks": [
+    {
+      "id": "CVE-002",
+      "category": "CVE_INDICATORS",
+      "label": "Dirty Pipe (CVE-2022-0847) \u2014 Kernel 5.8-5.16.11",
+      "command": "uname -r 2>/dev/null | awk -F'[.-]' '{v=$1\".\"$2\".\"$3; if($1==5 && ($2>8 || ($2==8)) && (($2<16) || ($2==16 && $3+0<=11))) print \"VULNERABLE kernel \"v; else print \"NOT_AFFECTED kernel \"v}'",
+      "safe_pattern": "^NOT_AFFECTED",
+      "level": "critical",
+      "description": "CVE-2022-0847 (Dirty Pipe) allows unprivileged write to read-only files including SUID binaries, enabling local privilege escalation to root. Affects Linux 5.8 through 5.16.11/5.15.25/5.10.102.",
+      "remediation": "Update kernel to >= 5.16.12 or apply the specific backport patch. Verify Android Security Bulletin patch for March 2022.",
+      "why": "Dirty Pipe allows any process to overwrite arbitrary read-only file-backed page cache data, enabling root escalation via SUID binary overwrite.",
+      "risk_if_fail": "Any app or shell user can escalate to root by overwriting SUID binaries."
+    },
+    {
+      "id": "CVE-003",
+      "category": "CVE_INDICATORS",
+      "label": "Bad Binder (CVE-2019-2215) \u2014 Use-After-Free in Binder",
+      "command": "uname -r 2>/dev/null | awk -F'[.-]' '{maj=$1+0; min=$2+0; pat=$3+0; if(maj<4 || (maj==4 && min<14) || (maj==4 && min==14 && pat<150) || (maj==4 && min==19 && pat<57)) print \"POTENTIALLY_VULNERABLE\"; else print \"LIKELY_PATCHED\"}'",
+      "safe_pattern": "^LIKELY_PATCHED",
+      "level": "critical",
+      "description": "CVE-2019-2215 (Bad Binder) is a use-after-free in the Android Binder IPC driver exploitable for local privilege escalation. Actively exploited by Triada malware. Unpatched kernels < 4.14.150 / 4.19.57 are at risk.",
+      "remediation": "Apply Android Security Bulletin October 2019 patch or update kernel. Verify security patch level >= 2019-10-06.",
+      "why": "Bad Binder was exploited in-the-wild by Triada malware for kernel-level root escalation on millions of Android devices.",
+      "risk_if_fail": "Malicious app can escalate to kernel ring-0 privileges via Binder IPC race condition."
+    },
+    {
+      "id": "CVE-004",
+      "category": "CVE_INDICATORS",
+      "label": "Binder Out-of-Bounds (CVE-2020-0041)",
+      "command": "getprop ro.build.version.security_patch 2>/dev/null | awk -F'-' '{y=$1; m=$2; if(y<2020 || (y==2020 && m+0<3)) print \"POTENTIALLY_VULNERABLE SPL=\"y\"-\"m; else print \"LIKELY_PATCHED SPL=\"y\"-\"m}'",
+      "safe_pattern": "^LIKELY_PATCHED",
+      "level": "critical",
+      "description": "CVE-2020-0041 is an out-of-bounds write in Binder driver enabling local privilege escalation. Fixed in Android Security Bulletin March 2020 (2020-03-05 SPL).",
+      "remediation": "Update security patch level to >= 2020-03-05. Apply Android Security Bulletin March 2020 patches.",
+      "why": "Binder out-of-bounds write can corrupt kernel memory and escalate privileges from any app sandbox.",
+      "risk_if_fail": "Apps can escape sandbox and gain kernel privileges via crafted Binder transactions."
+    },
+    {
+      "id": "CVE-005",
+      "category": "CVE_INDICATORS",
+      "label": "epoll Use-After-Free (CVE-2021-1048)",
+      "command": "getprop ro.build.version.security_patch 2>/dev/null | awk -F'-' '{y=$1; m=$2; if(y<2021 || (y==2021 && m+0<11)) print \"POTENTIALLY_VULNERABLE SPL=\"y\"-\"m; else print \"LIKELY_PATCHED SPL=\"y\"-\"m}'",
+      "safe_pattern": "^LIKELY_PATCHED",
+      "level": "critical",
+      "description": "CVE-2021-1048 is a use-after-free in the Linux epoll subsystem allowing local privilege escalation. Fixed in Android Security Bulletin November 2021 (2021-11-06 SPL).",
+      "remediation": "Update security patch level to >= 2021-11-06. Apply Android Security Bulletin November 2021 patches.",
+      "why": "epoll use-after-free can be exploited by malicious apps for kernel privilege escalation.",
+      "risk_if_fail": "Malicious app can achieve kernel-level code execution via epoll file descriptor manipulation."
+    },
+    {
+      "id": "CVE-006",
+      "category": "CVE_INDICATORS",
+      "label": "MTK-su (MediaTek Privilege Escalation Tool)",
+      "command": "find /data/local/tmp /sdcard /system/xbin 2>/dev/null -name 'mtk-su' -o -name 'mtk_su' 2>/dev/null | head -5",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "MTK-su is a MediaTek-specific privilege escalation tool exploiting a backdoor in MediaTek SoC drivers. Grants instant root on affected devices.",
+      "remediation": "Remove mtk-su binary immediately. Update to firmware with MediaTek security patches applied.",
+      "empty_is_safe": true,
+      "why": "MediaTek inadvertently left a debug backdoor in production SoC drivers allowing any app to gain root without exploit.",
+      "risk_if_fail": "Complete device compromise \u2014 any unprivileged process can gain root shell."
+    },
+    {
+      "id": "CVE-007",
+      "category": "CVE_INDICATORS",
+      "label": "MTK Engineering Mode (Debug Backdoor)",
+      "command": "getprop ro.mediatek.platform 2>/dev/null && ls /dev/mtk* 2>/dev/null | head -5",
+      "safe_pattern": ".",
+      "level": "verify",
+      "description": "MediaTek platform detected. Verify MTK engineering mode is disabled and check for mtk-su vulnerability (affected Helio P35/P60/G90 and others).",
+      "remediation": "Check if MTK engineering mode is disabled. Ensure MediaTek security patch applied (2020-04 or later for affected chipsets).",
+      "empty_is_safe": true
+    },
+    {
+      "id": "CVE-008",
+      "category": "CVE_INDICATORS",
+      "label": "MTK-su Exploit Entry Point (/proc/mtk_su)",
+      "command": "ls /proc/mtk_su 2>/dev/null",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "/proc/mtk_su is the kernel interface exploited by MTK-su for instant root on MediaTek devices. Its presence confirms the device is vulnerable.",
+      "remediation": "Apply MediaTek security update. This proc entry should not exist in patched firmware.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "CVE-009",
+      "category": "CVE_INDICATORS",
+      "label": "Stagefright Patch Level (CVE-2015-1538 family)",
+      "command": "getprop ro.build.version.security_patch 2>/dev/null | awk -F'-' '{y=$1; if(y<2016) print \"POTENTIALLY_VULNERABLE - SPL before 2016\"; else print \"LIKELY_PATCHED SPL=\"$0}'",
+      "safe_pattern": "^LIKELY_PATCHED",
+      "level": "warning",
+      "description": "Stagefright (CVE-2015-1538 family) was a critical Android mediaserver vulnerability. Devices with SPL before 2016 are at risk.",
+      "remediation": "Update to Android security patch level 2015-10-01 or later for Stagefright fixes.",
+      "why": "Stagefright allowed remote code execution via MMS without user interaction on billions of Android devices."
+    },
+    {
+      "id": "CVE-010",
+      "category": "CVE_INDICATORS",
+      "label": "Dirty COW (CVE-2016-5195) \u2014 Kernel < 4.8.3",
+      "command": "uname -r 2>/dev/null | awk -F'[.-]' '{maj=$1+0; min=$2+0; pat=$3+0; if(maj<4 || (maj==4 && min<8) || (maj==4 && min==8 && pat<3)) print \"POTENTIALLY_VULNERABLE\"; else print \"LIKELY_PATCHED\"}'",
+      "safe_pattern": "^LIKELY_PATCHED",
+      "level": "critical",
+      "description": "CVE-2016-5195 (Dirty COW) is a race condition in copy-on-write that allows unprivileged local privilege escalation. Affects Linux < 4.8.3.",
+      "remediation": "Update kernel to >= 4.8.3 or apply backport patch. Verify security patch level >= 2016-12-01.",
+      "why": "Dirty COW has been actively exploited in Android malware (ZNIU) for root escalation."
+    },
+    {
+      "id": "CVE-011",
+      "category": "CVE_INDICATORS",
+      "label": "Exynos Baseband Vulnerability Indicators (CVE-2023-24033)",
+      "command": "getprop ro.board.platform 2>/dev/null | grep -iE 'exynos|s5e|samsung' && getprop ro.build.version.security_patch 2>/dev/null | awk -F'-' '{y=$1; m=$2; if(y<2023 || (y==2023 && m+0<3)) print \"POTENTIALLY_VULNERABLE to CVE-2023-24033\"; else print \"LIKELY_PATCHED\"}'",
+      "safe_pattern": "^LIKELY_PATCHED|^$",
+      "level": "critical",
+      "description": "CVE-2023-24033: Exynos Shannon baseband modem zero-click RCE via SIP/VoLTE. Affects Exynos 850/980/1080/2100/2200/1280/1380/1330/W920/Modem 5123/5300. Patch in March 2023 SPL.",
+      "remediation": "Apply March 2023 Android Security Bulletin patch. Consider disabling VoLTE/WiFi Calling on affected Exynos devices until patched.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "CVE-012",
+      "category": "CVE_INDICATORS",
+      "label": "Qualcomm msm_perf / perf Privilege Escalation (CVE-2019-10567)",
+      "command": "ls /dev/msm_perf 2>/dev/null || ls /dev/energy-awareness 2>/dev/null",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Qualcomm performance driver devices (/dev/msm_perf) have had privilege escalation vulnerabilities. Verify patches applied.",
+      "remediation": "Apply Qualcomm security updates and Android Security Bulletin patches for your chipset.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "CVE-013",
+      "category": "CVE_INDICATORS",
+      "label": "Futex Privilege Escalation (CVE-2014-3153 / Towelroot)",
+      "command": "uname -r 2>/dev/null | awk -F'[.-]' '{maj=$1+0; min=$2+0; pat=$3+0; if(maj<3 || (maj==3 && min<14) || (maj==3 && min==14 && pat<5)) print \"POTENTIALLY_VULNERABLE (Towelroot era kernel)\"; else print \"LIKELY_PATCHED\"}'",
+      "safe_pattern": "^LIKELY_PATCHED",
+      "level": "warning",
+      "description": "CVE-2014-3153 (Towelroot) is a futex requeue privilege escalation affecting kernels < 3.14.5. Historic but relevant for legacy devices.",
+      "remediation": "Update kernel. Legacy Android devices on very old kernels should be replaced.",
+      "why": "Towelroot was one of the first widely automated Android root exploits, affecting many legacy devices still in production."
+    },
+    {
+      "id": "CVE-014",
+      "category": "CVE_INDICATORS",
+      "label": "Vulnerable Kernel Modules Loaded",
+      "command": "cat /proc/modules 2>/dev/null | grep -iE 'mali|pvrsrvkm|kgsl|msm_|exynos' | awk '{print $1}' | head -10",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "GPU/SoC kernel modules loaded. Mali (CVE-2023-26083), PowerVR (various), Adreno (Qualcomm) drivers have had high-severity CVEs.",
+      "remediation": "Informational. Ensure vendor kernel patches for GPU drivers are applied via monthly security bulletins.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "CVE-015",
+      "category": "CVE_INDICATORS",
+      "label": "Mali GPU Driver (CVE-2023-26083 / CVE-2022-46891)",
+      "command": "cat /proc/modules 2>/dev/null | grep mali | head -3",
+      "safe_pattern": ".",
+      "level": "verify",
+      "description": "Mali GPU driver loaded. CVE-2023-26083 (Mali memory disclosure) and CVE-2022-46891 (use-after-free) were actively exploited. Verify patch status.",
+      "remediation": "Apply Arm Mali GPU driver security updates. Check Android Security Bulletin for device-specific Mali patches.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "CVE-016",
+      "category": "CVE_INDICATORS",
+      "label": "Security Patch Currency Check",
+      "command": "getprop ro.build.version.security_patch 2>/dev/null | awk -F'-' '{y=$1+0; m=$2+0; curr_y=2025; curr_m=1; diff=(curr_y-y)*12+(curr_m-m); if(diff>6) print \"OUTDATED by \"diff\" months: \"$0; else if(diff>3) print \"WARNING \"diff\" months old: \"$0; else print \"CURRENT \"$0}'",
+      "safe_pattern": "^CURRENT",
+      "level": "warning",
+      "description": "Security patch level currency. Devices more than 6 months behind accumulate unpatched CVEs across all categories.",
+      "remediation": "Update device security patch level. More than 6 months outdated represents significant accumulated CVE risk."
+    }
+  ]
+}
