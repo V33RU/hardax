@@ -4,8 +4,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-4.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.11+-green.svg" alt="Python">
-  <img src="https://img.shields.io/badge/checks-664-orange.svg" alt="Checks">
-  <img src="https://img.shields.io/badge/categories-23-purple.svg" alt="Categories">
+  <img src="https://img.shields.io/badge/checks-686-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/categories-25-purple.svg" alt="Categories">
   <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
   <a href="https://github.com/V33RU/hardax/wiki">
     <img src="https://img.shields.io/badge/wiki-documentation-lightgrey.svg" alt="Wiki">
@@ -21,7 +21,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **664 security checks** across **23 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **686 security checks** across **25 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -36,7 +36,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **664 Security Checks** | Comprehensive coverage across 23 security categories |
+| **686 Security Checks** | Comprehensive coverage across 25 security categories |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
 | **Malware & Hooking Detection** | 18 checks for rootkits, RATs, Frida, Xposed, keyloggers, memory scrapers |
 | **Certificate Audit** | CA certificate analysis with expiry/age calculation - 27 checks |
@@ -190,32 +190,34 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **664 checks** into **23 security categories**:
+HARDAX organizes **686 checks** into **25 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
-| **SYSTEM** | 83 | Kernel, memory, TEE, time, power, build properties, emulator detection, SIM status |
-| **BLUETOOTH** | 84 | BLE/Classic, pairing, profiles (PAN, HFP, A2DP, HID, SPP, OPP, MAP), L2CAP, ATT, SMP, GAP, attack surfaces |
+| **SYSTEM** | 85 | Kernel, memory, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, time, power, build properties, emulator detection, SIM status |
+| **BLUETOOTH** | 83 | BLE/Classic, pairing, profiles (PAN, HFP, A2DP, HID, SPP, OPP, MAP), L2CAP, ATT, SMP, GAP, attack surfaces |
 | **NETWORK** | 60 | Ports, WiFi, cellular, VPN, MQTT, CoAP, CAN bus, HL7, DICOM, active connections |
-| **APPS** | 46 | Permissions, overlay attacks, installation sources, backup audit, dangerous perms |
 | **PRIVACY** | 47 | Biometrics, screen lock, location, sensors, clipboard, audio |
-| **BINARY_HARDENING** | 36 | PIE, NX, RELRO, stack canaries, stripped symbols, ASLR |
+| **APPS** | 44 | Permissions, overlay attacks, installation sources, backup audit, dangerous perms |
+| **BINARY_HARDENING** | 36 | PIE, NX, RELRO, stack canaries, stripped symbols, ASLR, kptr_restrict |
 | **PARTITION** | 27 | dm-verity, OverlayFS, A/B slots, FBE/FDE, mount flags, block device permissions |
-| **CERTIFICATE_AUDIT** | 27 | CA certificates, user certs, pinning bypass, keystore, expiry analysis |
+| **CERTIFICATE_AUDIT** | 25 | CA certificates, user certs, pinning bypass, keystore, expiry analysis |
 | **SELINUX** | 25 | SELinux enforcement, policy, audit, context, boot flags |
-| **STORAGE** | 24 | Filesystem, backup, encryption, partitions |
 | **POS_SECURITY** | 24 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper, NFC relay, PAX CVE |
-| **FORENSIC_INDICATORS** | 23 | Crash history, kernel panics, logcat anomalies, temp artifacts, clipboard forensics |
-| **BOOT_SECURITY** | 22 | Verified boot, AVB, dm-verity, bootloader, integrity |
-| **AUTOMOTIVE** | 21 | Vehicle-specific checks, CAN bus, infotainment |
-| **CRYPTOGRAPHY** | 20 | Encryption, keys, credentials, API keys, certificates |
-| **CIS_BENCHMARK** | 20 | CIS Android Benchmark v1.6.0 controls (89% coverage) |
+| **STORAGE** | 24 | Filesystem, backup, encryption, partitions |
+| **FORENSIC_INDICATORS** | 22 | Crash history, kernel panics, logcat anomalies, temp artifacts, clipboard forensics |
+| **ATTESTATION** | 20 | SafetyNet/Play Integrity, Knox warranty bit, TIMA, RKP, Titan M, fs-verity, bypass detection |
+| **AUTOMOTIVE** | 20 | Vehicle-specific checks, CAN bus, infotainment |
+| **BOOT_SECURITY** | 20 | Verified boot, AVB, dm-verity, bootloader, integrity |
+| **CRYPTOGRAPHY** | 18 | Encryption, keys, credentials, API keys, certificates |
 | **MALWARE** | 18 | Root/Magisk/SuperSU, Frida, Xposed/LSPosed, RATs, keyloggers, memory scrapers, root cloaking |
+| **CIS_BENCHMARK** | 17 | CIS Android Benchmark v1.6.0 controls (89% coverage) |
 | **USB_SECURITY** | 16 | USB debugging, interfaces, serial ports, gadget mode |
-| **DEVICE_MANAGEMENT** | 14 | MDM, accounts, developer options |
+| **CVE_INDICATORS** | 15 | Dirty Pipe, Bad Binder, Dirty COW, MTK-su, Exynos baseband, Mali GPU, kernel CVE ranges |
+| **DEVICE_MANAGEMENT** | 13 | MDM, accounts, developer options |
 | **INPUT** | 9 | Keyboards, accessibility, input methods |
-| **NFC_SECURITY** | 7 | NFC state, Android Beam, tap-to-pay, reader mode, secure element (eSE/UICC) |
 | **MEDICAL** | 7 | Medical device-specific checks |
+| **NFC_SECURITY** | 7 | NFC state, Android Beam, tap-to-pay, reader mode, secure element (eSE/UICC) |
 | **ADB_SECURITY** | 4 | ADB keys, network ADB, debugging |
 
 ---
@@ -283,29 +285,31 @@ HARDAX/
 ├── README.md              # This file
 ├── templates/             # Report templates
 │   └── report.html        # Interactive HTML report template
-└── commands/              # Security check definitions (664 checks, 23 categories)
-    ├── bluetooth.json     #  84 checks - BLE/Classic, pairing, all profiles
-    ├── system.json        #  83 checks - Kernel, TEE, build, emulator, memory
+└── commands/              # Security check definitions (706 checks, 25 categories)
+    ├── system.json        #  85 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator
+    ├── bluetooth.json     #  83 checks - BLE/Classic, pairing, all profiles
     ├── network.json       #  60 checks - Ports, WiFi, VPN, IoT protocols
     ├── privacy.json       #  47 checks - Biometrics, location, sensors
-    ├── apps.json          #  46 checks - Permissions, overlay, backup, install
+    ├── apps.json          #  44 checks - Permissions, overlay, backup, install
     ├── binary_hardening.json # 36 checks - PIE, NX, RELRO, stack canaries, ASLR
     ├── partition.json     #  27 checks - dm-verity, A/B slots, FBE, mount flags
-    ├── certificate_audit.json # 27 checks - CA certs, expiry, MITM
+    ├── certificate_audit.json # 25 checks - CA certs, expiry, MITM
     ├── selinux.json       #  25 checks - Enforcement, policy, audit
-    ├── storage.json       #  24 checks - Encryption, partitions, backup
     ├── pos_security.json  #  24 checks - PCI-DSS, kiosk, NFC relay, PAX CVE
-    ├── forensic_indicators.json # 23 checks - Crashes, logcat, temp artifacts
-    ├── boot_security.json #  22 checks - Verified boot, AVB, dm-verity
-    ├── automotive.json    #  21 checks - Vehicle, CAN bus, infotainment
-    ├── cryptography.json  #  20 checks - Keystore, StrongBox, algorithms
-    ├── cis_benchmark.json #  20 checks - CIS Android Benchmark v1.6.0
+    ├── storage.json       #  24 checks - Encryption, partitions, backup
+    ├── forensic_indicators.json # 22 checks - Crashes, logcat, temp artifacts
+    ├── attestation.json   #  20 checks - SafetyNet/Play Integrity, Knox, Titan M, bypass detection
+    ├── automotive.json    #  20 checks - Vehicle, CAN bus, infotainment
+    ├── boot_security.json #  20 checks - Verified boot, AVB, dm-verity
+    ├── cryptography.json  #  18 checks - Keystore, StrongBox, algorithms
     ├── malware.json       #  18 checks - Root, Frida, Xposed, RATs, scrapers
+    ├── cis_benchmark.json #  17 checks - CIS Android Benchmark v1.6.0
     ├── usb_security.json  #  16 checks - USB debug, MTP, gadget mode
-    ├── device_management.json # 14 checks - MDM, accounts, dev options
+    ├── cve_indicators.json # 15 checks - Dirty Pipe, Bad Binder, MTK-su, kernel CVEs
+    ├── device_management.json # 13 checks - MDM, accounts, dev options
     ├── input.json         #   9 checks - Keyboards, accessibility, IME
-    ├── nfc_security.json  #   7 checks - NFC, reader mode, secure element
     ├── medical.json       #   7 checks - Medical device-specific
+    ├── nfc_security.json  #   7 checks - NFC, reader mode, secure element
     └── adb_security.json  #   4 checks - ADB keys, network ADB
 ```
 
