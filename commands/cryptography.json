@@ -2,24 +2,6 @@
   "checks": [
     {
       "category": "CRYPTOGRAPHY",
-      "label": "Device Encryption",
-      "command": "getprop ro.crypto.state",
-      "safe_pattern": "^encrypted$",
-      "level": "critical",
-      "description": "Device storage should be encrypted, This property reports the encryption state of the device internal storage (userdata partition).",
-      "remediation": "Enable full-disk or file-based encryption via device settings or by flashing an encrypted system image."
-    },
-    {
-      "category": "CRYPTOGRAPHY",
-      "label": "Encryption Type",
-      "command": "getprop ro.crypto.type",
-      "safe_pattern": "^(file|block)$",
-      "level": "info",
-      "description": "Indicates encryption type. Safe ONLY if output is exactly 'file' (FBE) or 'block' (FDE). Prevents partial matches or noisy output.",
-      "remediation": "Ensure the device uses file-based (FBE) or full-disk (FDE) encryption. Reflash firmware if encryption type is missing."
-    },
-    {
-      "category": "CRYPTOGRAPHY",
       "label": "Default Encryption Password Check",
       "command": "getprop ro.crypto.uses_default_password",
       "safe_pattern": "^0$",
