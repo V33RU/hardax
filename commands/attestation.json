@@ -1,0 +1,219 @@
+{
+  "checks": [
+    {
+      "id": "ATT-001",
+      "category": "ATTESTATION",
+      "label": "Verified Boot State",
+      "command": "getprop ro.boot.verifiedbootstate 2>/dev/null",
+      "safe_pattern": "^green$",
+      "level": "critical",
+      "description": "Android Verified Boot state: green=fully verified, yellow=custom key, orange=unlocked, red=failed. Only green is production-safe.",
+      "remediation": "Re-lock bootloader and restore factory boot image to achieve green verified boot state."
+    },
+    {
+      "id": "ATT-002",
+      "category": "ATTESTATION",
+      "label": "Build Tags (Release vs Test Keys)",
+      "command": "getprop ro.build.tags 2>/dev/null",
+      "safe_pattern": "^release-keys$",
+      "level": "warning",
+      "description": "Build tags must be 'release-keys' for Play Integrity API basic integrity. 'test-keys' or 'dev-keys' will fail integrity checks.",
+      "remediation": "Use production/release-signed firmware. Test-key builds will fail Google Play Integrity checks."
+    },
+    {
+      "id": "ATT-003",
+      "category": "ATTESTATION",
+      "label": "Samsung Knox Warranty Bit (ro.boot.warranty_bit)",
+      "command": "getprop ro.boot.warranty_bit 2>/dev/null",
+      "safe_pattern": "^0$|^$",
+      "level": "critical",
+      "description": "Samsung Knox warranty bit — '1' means Knox has been permanently tripped (OEM unlock occurred), disabling Knox security features.",
+      "remediation": "Knox warranty bit cannot be reset. Replace the device if Knox compliance is required.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-004",
+      "category": "ATTESTATION",
+      "label": "Samsung Knox Warranty Bit (ro.warranty_bit)",
+      "command": "getprop ro.warranty_bit 2>/dev/null",
+      "safe_pattern": "^0$|^$",
+      "level": "critical",
+      "description": "Alternative Knox warranty bit property. Non-zero indicates Knox security has been permanently compromised.",
+      "remediation": "Knox warranty bit cannot be reset. Replace the device for Knox-required environments.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-005",
+      "category": "ATTESTATION",
+      "label": "Samsung Knox Version",
+      "command": "getprop ro.build.version.knox 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Samsung Knox version property. Indicates Knox is active and its version.",
+      "remediation": "Informational. Verify Knox version meets your compliance requirements.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-006",
+      "category": "ATTESTATION",
+      "label": "Samsung TIMA (TrustZone Integrity Measurement Architecture)",
+      "command": "getprop 2>/dev/null | grep -i tima",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Samsung TIMA provides TrustZone-based integrity measurement of the Linux kernel. Absence on Samsung devices may indicate Knox is not active.",
+      "remediation": "Informational. TIMA requires Knox-supported Samsung hardware and an active Knox license.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-007",
+      "category": "ATTESTATION",
+      "label": "Samsung RKP (Real-time Kernel Protection)",
+      "command": "getprop 2>/dev/null | grep -i rkp",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Samsung RKP uses hypervisor technology to protect kernel integrity at runtime from TrustZone. A Samsung Knox security feature.",
+      "remediation": "Informational. RKP requires compatible Samsung Knox hardware.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-008",
+      "category": "ATTESTATION",
+      "label": "Titan M / Titan M2 Security Chip",
+      "command": "getprop 2>/dev/null | grep -iE 'titan|.security_level'",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Google Titan M or Titan M2 dedicated security chip provides hardware-isolated key storage and verified boot anchoring (Pixel 3+).",
+      "remediation": "Informational. Titan M is only available on Pixel devices. Use StrongBox-backed keys for sensitive key material.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-009",
+      "category": "ATTESTATION",
+      "label": "Hardware Security Level (StrongBox)",
+      "command": "getprop ro.hardware.security_level 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Hardware security level property. 'StrongBox' indicates dedicated security chip (Titan M/M2 or equivalent).",
+      "remediation": "Informational. For highest security, prefer devices with StrongBox-level hardware security.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-010",
+      "category": "ATTESTATION",
+      "label": "Google Play Protect (Package Verifier)",
+      "command": "settings get global package_verifier_enable 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "warning",
+      "description": "Google Play Protect package verifier must be enabled for malware scanning. Disabled state bypasses Play Integrity checks.",
+      "remediation": "Enable Play Protect: adb shell settings put global package_verifier_enable 1"
+    },
+    {
+      "id": "ATT-011",
+      "category": "ATTESTATION",
+      "label": "Play Protect ADB Install Verification",
+      "command": "settings get global verifier_verify_adb_installs 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "warning",
+      "description": "Play Protect should verify apps installed via ADB. Disabled allows unverified sideloads to bypass integrity checks.",
+      "remediation": "Enable ADB install verification: adb shell settings put global verifier_verify_adb_installs 1"
+    },
+    {
+      "id": "ATT-012",
+      "category": "ATTESTATION",
+      "label": "MagiskHide / DenyList Active",
+      "command": "getprop persist.magisk.hide 2>/dev/null",
+      "safe_pattern": "^$|^0$",
+      "level": "critical",
+      "description": "Magisk Hide active — root is being concealed from SafetyNet/Play Integrity checks. Device is rooted but hiding it.",
+      "remediation": "Device is rooted and actively bypassing integrity checks. Remove Magisk and restore the stock boot image.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-013",
+      "category": "ATTESTATION",
+      "label": "SafetyNet / Play Integrity Bypass Modules",
+      "command": "ls /data/adb/modules/ 2>/dev/null | grep -iE 'safetynet|playintegrity|universal|shamiko|zygisk'",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "SafetyNet/Play Integrity bypass modules (Shamiko, Universal SafetyNet Fix, etc.) found in Magisk modules directory.",
+      "remediation": "Remove bypass modules and Magisk. These modules actively tamper with integrity attestation.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-014",
+      "category": "ATTESTATION",
+      "label": "APK Verity Mode (fs-verity for APKs)",
+      "command": "getprop ro.apk_verity.mode 2>/dev/null",
+      "safe_pattern": "^2$",
+      "level": "warning",
+      "description": "APK verity mode 2 = fs-verity enforced for APKs (Android 12+). Mode 0 or 1 means no or partial APK integrity verification.",
+      "remediation": "Ensure device runs Android 12+ with official firmware. APK verity requires fs-verity kernel support.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-015",
+      "category": "ATTESTATION",
+      "label": "fs-verity Kernel Support",
+      "command": "cat /proc/sys/fs/verity 2>/dev/null || getprop ro.product.first_api_level 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "fs-verity provides file-level integrity verification used by Android 11+ for APK and system file integrity.",
+      "remediation": "Informational. fs-verity is enabled in the kernel for Android 11+ devices. Verify kernel config if missing.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-016",
+      "category": "ATTESTATION",
+      "label": "Device Owner / MDM Enrollment",
+      "command": "dumpsys device_policy 2>/dev/null | grep -iE 'device owner|profile owner' | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Device Owner/MDM enrollment indicates managed device with remote attestation and policy enforcement capability.",
+      "remediation": "Informational. Verify device admin policies and MDM enrollment are authorized.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-017",
+      "category": "ATTESTATION",
+      "label": "Android Enterprise Work Profile",
+      "command": "dumpsys device_policy 2>/dev/null | grep -i 'enabled profiles\\|managed profile' | head -3",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Android Enterprise work profiles indicate managed device with MDM attestation controls active.",
+      "remediation": "Informational. Verify work profile policies meet your compliance requirements.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-018",
+      "category": "ATTESTATION",
+      "label": "First API Level (Attestation Baseline)",
+      "command": "getprop ro.product.first_api_level 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "First API level shipped determines hardware attestation baseline. API 28+ = key attestation, API 32+ = Play Integrity API support.",
+      "remediation": "Informational. Devices shipping with Android 9+ (API 28) support hardware-backed key attestation.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "ATT-019",
+      "category": "ATTESTATION",
+      "label": "Knox DualDAR Encryption Status",
+      "command": "getprop ro.crypto.state 2>/dev/null && getprop persist.security.knox.dualdar 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Samsung Knox DualDAR provides dual-layer encryption: AOSP FBE (Android layer) + Knox MDM-controlled second layer.",
+      "remediation": "Informational. DualDAR requires Knox license and MDM enrollment.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-020",
+      "category": "ATTESTATION",
+      "label": "Security Patch Level (Attestation Currency)",
+      "command": "getprop ro.build.version.security_patch 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "verify",
+      "description": "Security patch level affects Play Integrity API device integrity verdict. Outdated patches may cause device to fail integrity checks.",
+      "remediation": "Update to the latest security patch level. Outdated devices may fail Play Integrity checks in production."
+    }
+  ]
+}
