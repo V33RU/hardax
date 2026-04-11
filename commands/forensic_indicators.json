@@ -75,15 +75,6 @@
     },
     {
       "category": "FORENSIC_INDICATORS",
-      "label": "SELinux Denial Spike",
-      "command": "dmesg 2>/dev/null | grep -c 'avc:  denied' || echo 0",
-      "safe_pattern": "^[0-9]{1,2}$",
-      "level": "warning",
-      "description": "High SELinux denial count (>100) may indicate privilege escalation attempts",
-      "remediation": "Review denied operations in dmesg for escalation patterns. Ensure SELinux is set to enforcing."
-    },
-    {
-      "category": "FORENSIC_INDICATORS",
       "label": "Temp Directory Artifacts count",
       "command": "ls /data/local/tmp/ 2>/dev/null | grep -iE '\\.so$|\\.dex$|\\.apk$|\\.sh$|\\.elf$|frida|inject|hook|payload|gadget' | wc -l",
       "safe_pattern": "^0$",
