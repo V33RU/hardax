@@ -13,17 +13,6 @@
     },
     {
       "category": "CIS_BENCHMARK",
-      "label": "CIS 1.5 - Power Button Instantly Locks",
-      "command": "settings get secure lock_screen_lock_after_timeout 2>/dev/null",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "CIS 1.5: Ensure 'Power button instantly locks' is set to 'Enabled' for immediate device locking",
-      "remediation": "Go to Settings > Security > Screen lock > Power button instantly locks and enable it, or run: settings put secure lock_screen_lock_after_timeout 0",
-      "cis_id": "1.5",
-      "cis_level": "L1"
-    },
-    {
-      "category": "CIS_BENCHMARK",
       "label": "CIS 1.6 - Lock Screen Owner Info Set",
       "command": "settings get secure lock_screen_owner_info_enabled 2>/dev/null",
       "safe_pattern": "^1$",
@@ -65,17 +54,6 @@
       "description": "CIS 1.16: Ensure 'Allow remote lock and erase' is enabled via device admin apps",
       "remediation": "Go to Settings > Security > Device admin apps and ensure at least one admin app (e.g., Find My Device) is activated.",
       "cis_id": "1.16",
-      "cis_level": "L1"
-    },
-    {
-      "category": "CIS_BENCHMARK",
-      "label": "CIS 1.18 - Package Verifier Enabled",
-      "command": "settings get global package_verifier_enable 2>/dev/null",
-      "safe_pattern": "^1$",
-      "level": "warning",
-      "description": "CIS 1.18: Ensure 'Improve harmful app detection' is enabled for enhanced malware scanning",
-      "remediation": "Go to Settings > Security > Google Play Protect and enable 'Improve harmful app detection', or run: settings put global package_verifier_enable 1",
-      "cis_id": "1.18",
       "cis_level": "L1"
     },
     {
@@ -186,17 +164,6 @@
       "description": "CIS 2.4: Device information/error reporting should be disabled for privacy",
       "remediation": "Disable usage and diagnostics reporting in Settings > Privacy, or run: settings put secure send_action_app_error 0",
       "cis_id": "2.4",
-      "cis_level": "L1"
-    },
-    {
-      "category": "CIS_BENCHMARK",
-      "label": "CIS 2.11 - Bluetooth Scanning Disabled",
-      "command": "settings get global ble_scan_always_enabled 2>/dev/null",
-      "safe_pattern": "^0$|^null$",
-      "level": "warning",
-      "description": "CIS 2.11: Ensure 'Bluetooth scanning' is disabled to prevent location tracking via BLE beacons",
-      "remediation": "Go to Settings > Location > Scanning and disable 'Bluetooth scanning', or run: settings put global ble_scan_always_enabled 0",
-      "cis_id": "2.11",
       "cis_level": "L1"
     },
     {
