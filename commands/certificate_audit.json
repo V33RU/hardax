@@ -182,15 +182,6 @@
     },
     {
       "category": "CERTIFICATE_AUDIT",
-      "label": "Hardware Keystore Type",
-      "command": "getprop ro.hardware.keystore 2>/dev/null",
-      "safe_pattern": ".+",
-      "level": "info",
-      "description": "Hardware keystore implementation in use",
-      "remediation": "Verify the device uses a hardware-backed keystore such as Strongbox or TEE."
-    },
-    {
-      "category": "CERTIFICATE_AUDIT",
       "label": "Keystore Credentials Count (user 0)",
       "command": "ls /data/misc/keystore/user_0/ 2>/dev/null | wc -l",
       "safe_pattern": "^[0-9]+$",
@@ -224,15 +215,6 @@
       "level": "info",
       "description": "Confirms presence of Google Conscrypt TLS provider",
       "remediation": "Install the com.android.conscrypt module if missing to ensure up-to-date TLS."
-    },
-    {
-      "category": "CERTIFICATE_AUDIT",
-      "label": "HTTP Proxy Configured",
-      "command": "settings get global http_proxy 2>/dev/null",
-      "safe_pattern": "^null$|^$",
-      "level": "warning",
-      "description": "Reports if an HTTP proxy is configured, which may intercept traffic",
-      "remediation": "Remove the HTTP proxy setting via \"settings put global http_proxy :0\" or clear it in Settings."
     },
     {
       "category": "CERTIFICATE_AUDIT",
