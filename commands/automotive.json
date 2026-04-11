@@ -105,15 +105,6 @@
     },
     {
       "category": "AUTOMOTIVE",
-      "label": "GPS/Location Always On",
-      "command": "settings get secure location_mode 2>/dev/null",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "Location tracking enabled - privacy concern for vehicles",
-      "remediation": "Set location mode to off or device-only when not navigating. Run: settings put secure location_mode 0."
-    },
-    {
-      "category": "AUTOMOTIVE",
       "label": "Driving Mode Restrictions",
       "command": "settings get global car_dock_sound 2>/dev/null; dumpsys car_service 2>/dev/null | grep -i 'driving\\|restriction' | head -3",
       "safe_pattern": ".",
