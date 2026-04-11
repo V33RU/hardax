@@ -6,7 +6,7 @@
       "command": "dumpsys appops | grep -E 'READ_EXTERNAL_STORAGE|ACCESS_FINE_LOCATION'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Apps with access to external storage or fine location — evidence collector, review for suspicious entries.",
+      "description": "Apps with access to external storage or fine location \u2014 evidence collector, review for suspicious entries.",
       "remediation": "Revoke permissions for suspicious apps: appops set <package> <op> ignore",
       "empty_is_safe": true
     },
@@ -300,24 +300,6 @@
       "level": "critical",
       "description": "Installing from unknown sources should be disabled",
       "remediation": "Disable unknown sources: settings put secure install_non_market_apps 0"
-    },
-    {
-      "category": "APPS",
-      "label": "Package Verifier Enabled",
-      "command": "settings get global package_verifier_enable",
-      "safe_pattern": "^1$",
-      "level": "warning",
-      "description": "Package verification should be enabled",
-      "remediation": "Enable package verification: settings put global package_verifier_enable 1"
-    },
-    {
-      "category": "APPS",
-      "label": "Verify Apps Over USB",
-      "command": "settings get global verifier_verify_adb_installs",
-      "safe_pattern": "^1$",
-      "level": "warning",
-      "description": "Verify apps installed via ADB",
-      "remediation": "Enable ADB install verification: settings put global verifier_verify_adb_installs 1"
     },
     {
       "category": "APPS",
