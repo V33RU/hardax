@@ -117,15 +117,6 @@
       "level": "warning",
       "description": "Accessibility services enabled on kiosk or POS devices can be abused to bypass lock task mode, simulate user input, or exfiltrate screen content.",
       "remediation": "Disable accessibility services via 'settings put secure accessibility_enabled 0' or block them via MDM policy."
-    },
-    {
-      "category": "DEVICE_MANAGEMENT",
-      "label": "Active Accessibility Services",
-      "command": "settings get secure enabled_accessibility_services 2>/dev/null",
-      "safe_pattern": "^(null|)$",
-      "level": "high",
-      "description": "Lists active accessibility service components. Any enabled service on a hardened device is a potential kiosk bypass or input injection vector.",
-      "remediation": "Clear active services with 'settings put secure enabled_accessibility_services null' and audit installed apps."
     }
   ]
 }
