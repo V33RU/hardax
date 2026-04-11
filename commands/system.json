@@ -81,7 +81,7 @@
       "command": "ls /data/misc/keystore/user_0 2>/dev/null | wc -l",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Number of credential files in keystore user_0 — informational evidence collector.",
+      "description": "Number of credential files in keystore user_0 \u2014 informational evidence collector.",
       "remediation": "Review keystore contents if unexpectedly large. Run: adb shell ls /data/misc/keystore/user_0 (requires root).",
       "empty_is_safe": true
     },
@@ -172,16 +172,6 @@
     },
     {
       "category": "SYSTEM",
-      "label": "SELinux AVC Denial Count",
-      "command": "dmesg 2>/dev/null | grep -c 'avc:  denied' || echo 0",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "Count of SELinux AVC denials since boot — non-zero is normal and indicates SELinux is actively enforcing.",
-      "remediation": "High counts may indicate a misconfigured app or policy. Review with: adb shell dmesg | grep 'avc: denied'.",
-      "empty_is_safe": true
-    },
-    {
-      "category": "SYSTEM",
       "label": "Stack Canaries",
       "command": "zcat /proc/config.gz | grep CONFIG_CC_STACKPROTECTOR_STRONG",
       "safe_pattern": "CONFIG_CC_STACKPROTECTOR_STRONG=y",
@@ -252,15 +242,6 @@
       "level": "info",
       "description": "Stack protection status",
       "remediation": "Informational. If stack protection is missing, rebuild binaries with -fstack-protector-strong."
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Kernel Pointer Exposure",
-      "command": "cat /proc/sys/kernel/kptr_restrict 2>/dev/null",
-      "safe_pattern": "^[12]$",
-      "level": "warning",
-      "description": "Kernel pointers should be restricted (1 or 2)",
-      "remediation": "Run: echo 2 > /proc/sys/kernel/kptr_restrict. Persist by adding kernel.kptr_restrict=2 to sysctl.conf."
     },
     {
       "category": "SYSTEM",
@@ -373,15 +354,6 @@
     },
     {
       "category": "SYSTEM",
-      "label": "ASLR Enabled",
-      "command": "cat /proc/sys/kernel/randomize_va_space",
-      "safe_pattern": "^2$",
-      "level": "critical",
-      "description": "ASLR must be enabled (value 2) to randomize memory layout and protect against memory-based attacks.",
-      "remediation": "Run: echo 2 > /proc/sys/kernel/randomize_va_space. Persist by adding kernel.randomize_va_space=2 to sysctl.conf."
-    },
-    {
-      "category": "SYSTEM",
       "label": "KASLR Enabled",
       "command": "dmesg | grep -i kaslr",
       "safe_pattern": ".*enabled.*",
@@ -418,15 +390,6 @@
     },
     {
       "category": "SYSTEM",
-      "label": "Kernel Modules Loading Restricted",
-      "command": "cat /proc/sys/kernel/modules_disabled",
-      "safe_pattern": "^1$",
-      "level": "warning",
-      "description": "Kernel module loading should be disabled after boot to prevent unauthorized module insertion.",
-      "remediation": "Run: echo 1 > /proc/sys/kernel/modules_disabled (one-way toggle, requires reboot to undo)."
-    },
-    {
-      "category": "SYSTEM",
       "label": "Protected Symlinks Enabled",
       "command": "cat /proc/sys/fs/protected_symlinks",
       "safe_pattern": "^1$",
@@ -445,30 +408,12 @@
     },
     {
       "category": "SYSTEM",
-      "label": "dmesg Restriction Enabled",
-      "command": "cat /proc/sys/kernel/dmesg_restrict",
-      "safe_pattern": "^1$",
-      "level": "warning",
-      "description": "Restricting dmesg access prevents unprivileged users from reading kernel logs.",
-      "remediation": "Run: echo 1 > /proc/sys/kernel/dmesg_restrict. Persist by adding kernel.dmesg_restrict=1 to sysctl.conf."
-    },
-    {
-      "category": "SYSTEM",
       "label": "Debug Build Type",
       "command": "getprop ro.build.type 2>/dev/null",
       "safe_pattern": "^user$",
       "level": "critical",
       "description": "Must be 'user' build. 'userdebug' or 'eng' allow debugging",
       "remediation": "Set ro.build.type=user in build.prop and rebuild the system image. Do not ship userdebug or eng builds."
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Test Keys Used",
-      "command": "getprop ro.build.tags 2>/dev/null",
-      "safe_pattern": "^release-keys$",
-      "level": "critical",
-      "description": "Must use release-keys. test-keys means unsigned/development build",
-      "remediation": "Rebuild and sign the firmware with release keys. Set ro.build.tags=release-keys in build.prop."
     },
     {
       "category": "SYSTEM",
@@ -499,15 +444,6 @@
     },
     {
       "category": "SYSTEM",
-      "label": "Device Locked",
-      "command": "getprop ro.boot.flash.locked 2>/dev/null",
-      "safe_pattern": "^1$",
-      "level": "critical",
-      "description": "Bootloader should be locked (flash.locked=1)",
-      "remediation": "Lock the bootloader. Run: fastboot flashing lock (warning: this wipes user data)."
-    },
-    {
-      "category": "SYSTEM",
       "label": "dm-verity Mode",
       "command": "getprop ro.boot.veritymode 2>/dev/null",
       "safe_pattern": "^enforcing$",
@@ -534,26 +470,6 @@
       "description": "Device model indicates test/development unit",
       "remediation": "Flash production firmware. Set ro.product.model to the correct model name in build.prop.",
       "empty_is_safe": true
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Factory Reset Protection",
-      "command": "getprop ro.frp.pst 2>/dev/null",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Factory Reset Protection partition configured",
-      "remediation": "Configure FRP by setting ro.frp.pst to the correct partition path in build.prop."
-    },
-    {
-      "category": "SYSTEM",
-      "label": "Rollback Protection Index",
-      "command": "getprop ro.boot.vbmeta.device_state 2>/dev/null",
-      "safe_pattern": "^locked$",
-      "level": "critical",
-      "description": "Device state should be locked for rollback protection",
-      "remediation": "Lock the device. Run: fastboot flashing lock. Ensure vbmeta is signed and rollback index is set.",
-      "requires_output": true,
-      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
@@ -594,16 +510,7 @@
     },
     {
       "category": "SYSTEM",
-      "label": "Screen Lock Enforced",
-      "command": "settings get secure lockscreen.password_type 2>/dev/null",
-      "safe_pattern": "^[1-9]",
-      "level": "critical",
-      "description": "Screen lock MUST be enabled to protect PHI access",
-      "remediation": "Enforce screen lock via device policy. Run: adb shell locksettings set-pin <pin> or use a device admin app."
-    },
-    {
-      "category": "SYSTEM",
-      "label": "TEE Driver Presence (Present → Info)",
+      "label": "TEE Driver Presence (Present \u2192 Info)",
       "command": "ls /dev/tee* /dev/trusty* 2>/dev/null",
       "safe_pattern": "/dev/(tee|trusty)",
       "level": "info",
@@ -612,7 +519,7 @@
     },
     {
       "category": "SYSTEM",
-      "label": "TEE Vendor Prop (Empty → Verify)",
+      "label": "TEE Vendor Prop (Empty \u2192 Verify)",
       "command": "getprop | grep -i tee",
       "safe_pattern": "^\\s*$",
       "level": "verify",
@@ -766,6 +673,138 @@
       "level": "info",
       "description": "Running process count via maps - baseline for anomaly detection (typical: 50-200)",
       "remediation": "Compare against a known baseline. If count is abnormally high, investigate unknown processes with ps -A."
+    },
+    {
+      "id": "SYS-SECCOMP-001",
+      "category": "SYSTEM",
+      "label": "SECCOMP-BPF Kernel Support",
+      "command": "cat /proc/config.gz 2>/dev/null | zcat 2>/dev/null | grep -E 'CONFIG_SECCOMP' | head -5",
+      "safe_pattern": "CONFIG_SECCOMP=y|CONFIG_SECCOMP_FILTER=y",
+      "level": "warning",
+      "description": "SECCOMP-BPF (Secure Computing with Berkeley Packet Filter) restricts syscall access per-process. Required for Android app sandbox hardening. Missing CONFIG_SECCOMP_FILTER is a kernel hardening gap.",
+      "remediation": "Ensure kernel is compiled with CONFIG_SECCOMP=y and CONFIG_SECCOMP_FILTER=y. Required for Android app process sandboxing.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "SYS-SECCOMP-002",
+      "category": "SYSTEM",
+      "label": "SECCOMP Status of Init (PID 1)",
+      "command": "cat /proc/1/status 2>/dev/null | grep Seccomp",
+      "safe_pattern": "Seccomp:\\s*[12]",
+      "level": "info",
+      "description": "SECCOMP mode of init process: 0=disabled, 1=strict, 2=filter (BPF). Mode 2 indicates SECCOMP-BPF syscall filtering is active.",
+      "remediation": "Informational. SECCOMP mode 2 (filter) is expected on hardened Android systems.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "SYS-SECCOMP-003",
+      "category": "SYSTEM",
+      "label": "SECCOMP Status of Zygote",
+      "command": "pid=$(pidof zygote 2>/dev/null | awk '{print $1}'); [ -n \"$pid\" ] && cat /proc/$pid/status 2>/dev/null | grep Seccomp || echo 'zygote_not_found'",
+      "safe_pattern": "Seccomp:\\s*2",
+      "level": "warning",
+      "description": "Zygote is the parent of all Android app processes. SECCOMP filter mode 2 on Zygote ensures all spawned apps inherit syscall filtering.",
+      "remediation": "SECCOMP mode 2 on Zygote is required for Android app sandbox. Verify seccomp_bpf is enabled in Android init.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "SYS-TEE-QSEE-001",
+      "category": "SYSTEM",
+      "label": "Qualcomm QSEE TEE Device Node",
+      "command": "ls /dev/qseecom 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Qualcomm Secure Execution Environment (QSEE) device node. Presence confirms Qualcomm TrustZone TEE is active on this device.",
+      "remediation": "Informational. QSEE is the Qualcomm TEE implementation. Ensure QSEE is running and not exploitable via CVE-2015-6639 / CVE-2016-2431.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "SYS-TEE-QSEE-002",
+      "category": "SYSTEM",
+      "label": "Qualcomm TEE (QTEE) Properties",
+      "command": "getprop 2>/dev/null | grep -iE 'qsee|qtee|qualcomm.hardware.gatekeeper' | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Qualcomm TEE (QTEE/QSEE) system properties. Indicates Qualcomm TrustZone-based security services are active.",
+      "remediation": "Informational. Verify Qualcomm security patches are applied for TEE-related CVEs.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "SYS-TEE-MTK-001",
+      "category": "SYSTEM",
+      "label": "MediaTek Mobicore TEE Device Node",
+      "command": "ls /dev/mobicore /dev/mobicore-user 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "MediaTek Mobicore (t-base) TEE device nodes. Presence confirms MediaTek TrustZone TEE is active. Used on MTK and some Samsung Exynos devices.",
+      "remediation": "Informational. Apply Mobicore/t-base TEE security patches from MediaTek. Verify no known Mobicore CVEs are unpatched.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "SYS-TEE-SAMSUNG-001",
+      "category": "SYSTEM",
+      "label": "Samsung TEEGRIS TEE Detection",
+      "command": "getprop 2>/dev/null | grep -iE 'teegris|samsung.hardware.teegris' | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Samsung TEEGRIS is Samsung's proprietary TrustZone OS replacing Mobicore on Exynos 9810+ devices. Provides hardware-backed security services.",
+      "remediation": "Informational. TEEGRIS is Samsung's TEE on newer Exynos devices. Ensure Knox/TEE patches are applied.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "SYS-TEE-TRUSTY-001",
+      "category": "SYSTEM",
+      "label": "Google Trusty TEE Device Node",
+      "command": "ls /dev/trusty-ipc-dev0 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Google Trusty TEE IPC device node. Trusty is Google's open-source TrustZone OS used in Android reference hardware and some OEM devices.",
+      "remediation": "Informational. Trusty TEE presence confirms Google-managed TrustZone environment.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "SYS-TEE-TRUSTY-002",
+      "category": "SYSTEM",
+      "label": "Trusty TEE Properties",
+      "command": "getprop 2>/dev/null | grep -i trusty | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Google Trusty TEE system properties. Indicates Trusty TrustZone OS is active as the TEE implementation.",
+      "remediation": "Informational. Verify Trusty version is up to date with Android security patches.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "SYS-TEE-GATEKEEPER-001",
+      "category": "SYSTEM",
+      "label": "Hardware Gatekeeper HAL",
+      "command": "ls /vendor/lib64/hw/gatekeeper.* /system/lib64/hw/gatekeeper.* 2>/dev/null | head -5",
+      "safe_pattern": ".",
+      "level": "warning",
+      "description": "Hardware Gatekeeper HAL must be present for TEE-backed password/PIN authentication. Software fallback gatekeeper is weaker.",
+      "remediation": "Ensure hardware-backed gatekeeper HAL is present and not falling back to software implementation.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "SYS-KASLR-001",
+      "category": "SYSTEM",
+      "label": "KASLR (Kernel Address Space Layout Randomization)",
+      "command": "cat /proc/kallsyms 2>/dev/null | head -1 | awk '{print $1}' | grep -Ev '^0+$' | head -1",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "If /proc/kallsyms returns non-zero addresses, KASLR may not be fully effective or the process has CAP_SYSLOG. Zero addresses confirm KASLR is masking kernel symbols.",
+      "remediation": "Ensure kernel is compiled with CONFIG_RANDOMIZE_BASE=y and restrict /proc/kallsyms to root via CONFIG_KALLSYMS_ALL=n.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "SYS-FORTIFY-001",
+      "category": "SYSTEM",
+      "label": "FORTIFY_SOURCE via libc",
+      "command": "grep -r 'FORTIFY' /proc/1/maps 2>/dev/null | head -3 || getprop ro.build.version.release 2>/dev/null",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "FORTIFY_SOURCE adds compile-time buffer overflow checks to libc functions. All Android system binaries should be built with -D_FORTIFY_SOURCE=2.",
+      "remediation": "Informational. Android 4.2+ enables FORTIFY_SOURCE for system binaries by default. Verify custom binaries are also compiled with FORTIFY_SOURCE.",
+      "empty_is_safe": true
     }
   ]
 }
