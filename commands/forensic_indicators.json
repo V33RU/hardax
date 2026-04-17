@@ -94,7 +94,7 @@
       "empty_is_safe": true
     },
     {
-      "category": "PRIVACY",
+      "category": "FORENSIC_INDICATORS",
       "label": "Corporate MDM Accounts",
       "command": "dumpsys account 2>/dev/null | grep -icE 'exchange|activesync|microsoft|office365|mdm|workspace|intune' || echo 0",
       "safe_pattern": ".*",
@@ -103,7 +103,7 @@
       "remediation": "Verify MDM enrollment is intentional. Remove enterprise accounts if the device is personal."
     },
     {
-      "category": "PRIVACY",
+      "category": "FORENSIC_INDICATORS",
       "label": "Email Accounts Count",
       "command": "dumpsys account 2>/dev/null | grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}' | wc -l",
       "safe_pattern": "^[0-5]$",
@@ -112,7 +112,7 @@
       "remediation": "Remove unused email accounts to reduce attack surface and exposure risk."
     },
     {
-      "category": "PRIVACY",
+      "category": "FORENSIC_INDICATORS",
       "label": "Email Accounts files",
       "command": "dumpsys account 2>/dev/null | grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}'",
       "safe_pattern": ".",
@@ -122,7 +122,7 @@
       "empty_is_safe": true
     },
     {
-      "category": "DEVICE_MANAGEMENT",
+      "category": "FORENSIC_INDICATORS",
       "label": "Multi-User Profiles Count",
       "command": "pm list users 2>/dev/null | wc -l || echo 1",
       "safe_pattern": "^[1-2]$",
@@ -131,7 +131,7 @@
       "remediation": "Remove unnecessary user profiles. Ensure all active profiles have consistent security settings."
     },
     {
-      "category": "DEVICE_MANAGEMENT",
+      "category": "FORENSIC_INDICATORS",
       "label": "Work Profile Present",
       "command": "dumpsys user 2>/dev/null | grep -ci 'work profile\\|managed profile' || echo 0",
       "safe_pattern": ".*",
@@ -140,7 +140,7 @@
       "remediation": "Verify the work profile is authorized. Remove it if MDM control is not expected."
     },
     {
-      "category": "DEVICE_MANAGEMENT",
+      "category": "FORENSIC_INDICATORS",
       "label": "Secondary User Profiles",
       "command": "pm list users 2>/dev/null | grep -v 'UserInfo{0' | wc -l",
       "safe_pattern": "^0$",
@@ -150,7 +150,7 @@
       "empty_is_safe": true
     },
     {
-      "category": "NETWORK",
+      "category": "FORENSIC_INDICATORS",
       "label": "Background Data Whitelist Apps",
       "command": "cmd netpolicy list restrict-background-whitelist 2>/dev/null | wc -l || echo 0",
       "safe_pattern": "^[0-9]$",
@@ -159,7 +159,7 @@
       "remediation": "Review whitelisted apps and revoke background data access for any that are unnecessary."
     },
     {
-      "category": "NETWORK",
+      "category": "FORENSIC_INDICATORS",
       "label": "Active VoIP Telecom Calls",
       "command": "dumpsys telecom 2>/dev/null | grep -ciE 'state=ACTIVE|state=DIALING|state=RINGING' || echo 0",
       "safe_pattern": "^0$",
@@ -169,7 +169,7 @@
       "empty_is_safe": true
     },
     {
-      "category": "NETWORK",
+      "category": "FORENSIC_INDICATORS",
       "label": "Data Usage Anomaly Check",
       "command": "dumpsys netstats 2>/dev/null | grep -oE 'rxBytes=[0-9]+' | head -1 | grep -oE '[0-9]+' | awk '{gb=$1/1073741824; if(gb>10) print \"HIGH_\"int(gb)\"GB\"; else print \"NORMAL\"}'",
       "safe_pattern": "NORMAL",
@@ -178,7 +178,7 @@
       "remediation": "Identify top data-consuming apps in network stats. Restrict or remove suspicious ones."
     },
     {
-      "category": "SYSTEM",
+      "category": "FORENSIC_INDICATORS",
       "label": "Active Window Overlays",
       "command": "dumpsys window 2>/dev/null | grep -ci 'TYPE_APPLICATION_OVERLAY' || echo 0",
       "safe_pattern": "^0$",
@@ -188,7 +188,7 @@
       "empty_is_safe": true
     },
     {
-      "category": "SYSTEM",
+      "category": "FORENSIC_INDICATORS",
       "label": "System Services Total Count",
       "command": "dumpsys -l 2>/dev/null | wc -l || echo 0",
       "safe_pattern": "^[5-9][0-9]$|^[1-2][0-9]{2}$",
@@ -197,7 +197,7 @@
       "remediation": "Compare service list against a known-good baseline. Investigate any unknown services."
     },
     {
-      "category": "SYSTEM",
+      "category": "FORENSIC_INDICATORS",
       "label": "Non-Standard System Services",
       "command": "dumpsys -l 2>/dev/null | grep -vicE 'android|google|samsung|qualcomm|mediatek|huawei|xiaomi|oppo|vivo|sony' | head -1",
       "safe_pattern": "^[0-9]$",
