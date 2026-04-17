@@ -40,7 +40,7 @@
       "category": "CRYPTOGRAPHY",
       "label": "Service-Based Encryption Check",
       "command": "service call mount 7",
-      "safe_pattern": "00000001",
+      "safe_pattern": "^00000001$",
       "level": "medium",
       "description": "Encryption is typically active when the response contains '00000001'. Because binder output is structured, this specific pattern is reliable with minimal false-positive risk.",
       "remediation": "Enable device encryption via Settings > Security. If the mount service reports inactive, reboot and retry."
