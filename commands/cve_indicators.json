@@ -3,7 +3,7 @@
     {
       "id": "CVE-002",
       "category": "CVE_INDICATORS",
-      "label": "Dirty Pipe (CVE-2022-0847) \u2014 Kernel 5.8-5.16.11",
+      "label": "Dirty Pipe (CVE-2022-0847) — Kernel 5.8-5.16.11",
       "command": "uname -r 2>/dev/null | awk -F'[.-]' '{v=$1\".\"$2\".\"$3; if($1==5 && ($2>8 || ($2==8)) && (($2<16) || ($2==16 && $3+0<=11))) print \"VULNERABLE kernel \"v; else print \"NOT_AFFECTED kernel \"v}'",
       "safe_pattern": "^NOT_AFFECTED",
       "level": "critical",
@@ -15,7 +15,7 @@
     {
       "id": "CVE-003",
       "category": "CVE_INDICATORS",
-      "label": "Bad Binder (CVE-2019-2215) \u2014 Use-After-Free in Binder",
+      "label": "Bad Binder (CVE-2019-2215) — Use-After-Free in Binder",
       "command": "uname -r 2>/dev/null | awk -F'[.-]' '{maj=$1+0; min=$2+0; pat=$3+0; if(maj<4 || (maj==4 && min<14) || (maj==4 && min==14 && pat<150) || (maj==4 && min==19 && pat<57)) print \"POTENTIALLY_VULNERABLE\"; else print \"LIKELY_PATCHED\"}'",
       "safe_pattern": "^LIKELY_PATCHED",
       "level": "critical",
@@ -59,7 +59,7 @@
       "remediation": "Remove mtk-su binary immediately. Update to firmware with MediaTek security patches applied.",
       "empty_is_safe": true,
       "why": "MediaTek inadvertently left a debug backdoor in production SoC drivers allowing any app to gain root without exploit.",
-      "risk_if_fail": "Complete device compromise \u2014 any unprivileged process can gain root shell."
+      "risk_if_fail": "Complete device compromise — any unprivileged process can gain root shell."
     },
     {
       "id": "CVE-007",
@@ -97,7 +97,7 @@
     {
       "id": "CVE-010",
       "category": "CVE_INDICATORS",
-      "label": "Dirty COW (CVE-2016-5195) \u2014 Kernel < 4.8.3",
+      "label": "Dirty COW (CVE-2016-5195) — Kernel < 4.8.3",
       "command": "uname -r 2>/dev/null | awk -F'[.-]' '{maj=$1+0; min=$2+0; pat=$3+0; if(maj<4 || (maj==4 && min<8) || (maj==4 && min==8 && pat<3)) print \"POTENTIALLY_VULNERABLE\"; else print \"LIKELY_PATCHED\"}'",
       "safe_pattern": "^LIKELY_PATCHED",
       "level": "critical",
@@ -164,7 +164,7 @@
       "id": "CVE-016",
       "category": "CVE_INDICATORS",
       "label": "Security Patch Currency Check",
-      "command": "getprop ro.build.version.security_patch 2>/dev/null | awk -F'-' '{y=$1+0; m=$2+0; curr_y=2025; curr_m=1; diff=(curr_y-y)*12+(curr_m-m); if(diff>6) print \"OUTDATED by \"diff\" months: \"$0; else if(diff>3) print \"WARNING \"diff\" months old: \"$0; else print \"CURRENT \"$0}'",
+      "command": "getprop ro.build.version.security_patch 2>/dev/null | awk -F'-' '{y=$1+0; m=$2+0; \"date +%Y\" | getline curr_y; \"date +%m\" | getline curr_m; curr_y+=0; curr_m+=0; diff=(curr_y-y)*12+(curr_m-m); if(diff>6) print \"OUTDATED by \"diff\" months: \"$0; else if(diff>3) print \"WARNING \"diff\" months old: \"$0; else print \"CURRENT \"$0}'",
       "safe_pattern": "^CURRENT",
       "level": "warning",
       "description": "Security patch level currency. Devices more than 6 months behind accumulate unpatched CVEs across all categories.",
