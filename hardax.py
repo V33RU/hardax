@@ -13,6 +13,7 @@ License: MIT
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import argparse
+import getpass
 import base64
 import collections
 import csv
@@ -2096,12 +2097,11 @@ Examples:
             missing.append("--host")
         if not args.ssh_user:
             missing.append("--ssh-user")
-        if not args.ssh_pass:
-            missing.append("--ssh-pass")
         if missing:
             print("ERROR: For --mode ssh you must provide: " + ", ".join(missing), file=sys.stderr)
             sys.exit(1)
-        device = SshDevice(args.host, args.port, args.ssh_user, args.ssh_pass)
+        ssh_pass = args.ssh_pass or getpass.getpass(f"SSH password for {args.ssh_user}@{args.host}: ")
+        device = SshDevice(args.host, args.port, args.ssh_user, ssh_pass)
 
     else:  # uart
         if not args.uart_port:
