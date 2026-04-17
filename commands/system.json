@@ -81,7 +81,7 @@
       "command": "ls /data/misc/keystore/user_0 2>/dev/null | wc -l",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Number of credential files in keystore user_0 \u2014 informational evidence collector.",
+      "description": "Number of credential files in keystore user_0 — informational evidence collector.",
       "remediation": "Review keystore contents if unexpectedly large. Run: adb shell ls /data/misc/keystore/user_0 (requires root).",
       "empty_is_safe": true
     },
@@ -374,7 +374,7 @@
       "category": "SYSTEM",
       "label": "Core Dumps Disabled",
       "command": "cat /proc/sys/kernel/core_pattern",
-      "safe_pattern": "^\\|/dev/null$",
+      "safe_pattern": "^(\\|/dev/null|/dev/null)$",
       "level": "warning",
       "description": "Core dumps should be disabled to prevent sensitive data leakage.",
       "remediation": "Disable core dumps. Run: echo '|/dev/null' > /proc/sys/kernel/core_pattern. Persist via sysctl.conf."
@@ -510,7 +510,7 @@
     },
     {
       "category": "SYSTEM",
-      "label": "TEE Driver Presence (Present \u2192 Info)",
+      "label": "TEE Driver Presence (Present → Info)",
       "command": "ls /dev/tee* /dev/trusty* 2>/dev/null",
       "safe_pattern": "/dev/(tee|trusty)",
       "level": "info",
@@ -519,7 +519,7 @@
     },
     {
       "category": "SYSTEM",
-      "label": "TEE Vendor Prop (Empty \u2192 Verify)",
+      "label": "TEE Vendor Prop (Empty → Verify)",
       "command": "getprop | grep -i tee",
       "safe_pattern": "^\\s*$",
       "level": "verify",
@@ -778,7 +778,7 @@
       "category": "SYSTEM",
       "label": "Hardware Gatekeeper HAL",
       "command": "ls /vendor/lib64/hw/gatekeeper.* /system/lib64/hw/gatekeeper.* 2>/dev/null | head -5",
-      "safe_pattern": ".",
+      "safe_pattern": "gatekeeper\\.",
       "level": "warning",
       "description": "Hardware Gatekeeper HAL must be present for TEE-backed password/PIN authentication. Software fallback gatekeeper is weaker.",
       "remediation": "Ensure hardware-backed gatekeeper HAL is present and not falling back to software implementation.",
