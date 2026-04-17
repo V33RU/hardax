@@ -212,7 +212,7 @@
       "category": "POS_SECURITY",
       "label": "PAX Terminal Services",
       "command": "ps -A -o cmd 2>/dev/null | grep -iE 'pax|paydroid|neptune|sagittarius' | grep -v grep",
-      "safe_pattern": "",
+      "safe_pattern": ".",
       "level": "info",
       "description": "PAX terminal-specific processes detected - verify all services are legitimate PAX firmware",
       "remediation": "Cross-check running PAX processes against the official PAX firmware manifest for this device model.",
