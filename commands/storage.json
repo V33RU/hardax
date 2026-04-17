@@ -40,7 +40,7 @@
       "category": "STORAGE",
       "label": "Mount Points (rw/ro)",
       "command": "mount | grep -E ' rw| ro'",
-      "safe_pattern": "",
+      "safe_pattern": ".",
       "level": "info",
       "description": "Review mounted partitions and access permissions (evidence collector)",
       "remediation": "Remount sensitive partitions as read-only using 'mount -o remount,ro <partition>'."
