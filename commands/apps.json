@@ -6,7 +6,7 @@
       "command": "dumpsys appops | grep -E 'READ_EXTERNAL_STORAGE|ACCESS_FINE_LOCATION'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Apps with access to external storage or fine location \u2014 evidence collector, review for suspicious entries.",
+      "description": "Apps with access to external storage or fine location — evidence collector, review for suspicious entries.",
       "remediation": "Revoke permissions for suspicious apps: appops set <package> <op> ignore",
       "empty_is_safe": true
     },
@@ -413,6 +413,39 @@
       "level": "warning",
       "description": "Non-system apps sharing UIDs may indicate privilege escalation risk. Apps sharing a UID run in the same process sandbox and can access each other's data.",
       "remediation": "Uninstall apps sharing UIDs unless they are from the same trusted vendor: pm uninstall <package>"
+    },
+    {
+      "category": "APPS",
+      "label": "System Apps Signed with v1-only Signature Scheme",
+      "command": "for pkg in $(pm list packages -s 2>/dev/null | sed 's/^package://' | head -50); do info=$(dumpsys package \"$pkg\" 2>/dev/null | grep -E 'signatures=|signingInfo' | head -1); echo \"$pkg: $info\"; done | grep -i 'v1' | head -10",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "empty_is_safe": true,
+      "null_is_safe": false,
+      "description": "System apps signed only with the JAR (v1) signature scheme are vulnerable to Janus-style (CVE-2017-13156) tampering. Modern apps should use signature scheme v2 or v3 (or v4 with incremental). Empty output means no v1-only system apps were found in the sampled set.",
+      "remediation": "Ensure all system apps are signed with APK signature scheme v2 or v3. Rebuild or re-sign affected apps using apksigner with --v2-signing-enabled and --v3-signing-enabled."
+    },
+    {
+      "category": "APPS",
+      "label": "Apps Requesting QUERY_ALL_PACKAGES",
+      "command": "pm list packages -U 2>/dev/null | head -1 >/dev/null; for pkg in $(pm list packages 2>/dev/null | sed 's/^package://' | head -200); do dumpsys package \"$pkg\" 2>/dev/null | grep -q 'QUERY_ALL_PACKAGES' && echo \"$pkg\"; done | head -20",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "empty_is_safe": true,
+      "null_is_safe": false,
+      "description": "QUERY_ALL_PACKAGES (Android 11+) lets an app enumerate every installed package on the device, bypassing the new package-visibility restrictions. Legitimate uses are narrow (launchers, antivirus). Many sideloaded or adware apps abuse it.",
+      "remediation": "Review each listed app. Uninstall or revoke the permission for any app whose legitimate function does not require enumerating all installed packages."
+    },
+    {
+      "category": "APPS",
+      "label": "Apps Requesting REQUEST_INSTALL_PACKAGES",
+      "command": "for pkg in $(pm list packages 2>/dev/null | sed 's/^package://' | head -200); do dumpsys package \"$pkg\" 2>/dev/null | grep -q 'REQUEST_INSTALL_PACKAGES' && echo \"$pkg\"; done | head -20",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "empty_is_safe": true,
+      "null_is_safe": false,
+      "description": "REQUEST_INSTALL_PACKAGES lets an app prompt the user to sideload APKs. Necessary for app stores, browsers, and file managers; abused by malware to drop payloads. On a locked-down kiosk or POS device the list should ideally be empty or limited to the OEM updater.",
+      "remediation": "Review each listed app. On kiosk/POS devices, restrict this permission to the OEM update agent only; revoke it for browsers, file managers, and unknown apps."
     }
   ]
 }

@@ -169,6 +169,17 @@
       "level": "warning",
       "description": "Security patch level currency. Devices more than 6 months behind accumulate unpatched CVEs across all categories.",
       "remediation": "Update device security patch level. More than 6 months outdated represents significant accumulated CVE risk."
+    },
+    {
+      "category": "CVE_INDICATORS",
+      "label": "WebView Debugging Enabled (debug.webview)",
+      "command": "getprop debug.webview.debug 2>/dev/null; getprop persist.webview.debug 2>/dev/null",
+      "safe_pattern": "^(|0|false)$",
+      "level": "warning",
+      "empty_is_safe": true,
+      "null_is_safe": true,
+      "description": "When debug.webview.debug or the equivalent setWebContentsDebuggingEnabled is on, any chrome://inspect client can attach to in-app WebViews, expose the DOM, and run arbitrary JavaScript in the app's context. Should be off in production, especially for payment and IoT control UIs that use WebView.",
+      "remediation": "Disable WebView debugging in production builds. Remove WebView.setWebContentsDebuggingEnabled(true) from app code, and ensure debug.webview.debug is not set."
     }
   ]
 }
