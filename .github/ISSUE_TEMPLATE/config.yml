@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/V33RU/hardax/security/advisories/new
+    about: Please report security issues privately, not as public issues.
