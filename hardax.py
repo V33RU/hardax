@@ -27,7 +27,6 @@ import signal
 import subprocess
 import sys
 import time
-import tempfile
 from datetime import datetime
 from string import Template
 from typing import List, Dict, Any, Tuple, Optional
@@ -1253,6 +1252,20 @@ def loadChecks(jsonPath: Optional[str], jsonDir: Optional[str]) -> List[Dict[str
         print("ERROR: No checks loaded. Provide --json or --json-dir.", file=sys.stderr)
         sys.exit(1)
 
+    # Surface checks whose safe_pattern is not a valid regex. Such checks
+    # silently degrade to substring matching at run time, which can flip
+    # SAFE/CRITICAL results — warn so authors can fix them.
+    patternIssues: List[str] = []
+    for chk in merged:
+        patternIssues.extend(validateCheckPattern(chk))
+    if patternIssues:
+        print(f"{Colors.YELLOW}⚠ {len(patternIssues)} check(s) have invalid safe_pattern "
+              f"regex (will fall back to substring match):{Colors.RESET}", file=sys.stderr)
+        for msg in patternIssues[:10]:
+            print(f"  {msg}", file=sys.stderr)
+        if len(patternIssues) > 10:
+            print(f"  ... and {len(patternIssues) - 10} more", file=sys.stderr)
+
     return merged
 
 
@@ -1815,6 +1828,24 @@ def writeCsvReport(path: str, rows: List[Dict[str, Any]]) -> None:
             w.writerow({k: r.get(k, "") for k in fieldnames})
 
 
+def writeJsonReport(path: str, deviceInfo: Dict[str, str],
+                    rows: List[Dict[str, Any]], counts: Dict[str, int],
+                    certs: Optional[List[Dict[str, Any]]],
+                    target: str) -> None:
+    """Write a machine-readable JSON report for CI / tooling consumption."""
+    payload = {
+        "version": __version__,
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "target": target,
+        "device": deviceInfo or {},
+        "counts": counts,
+        "checks": rows,
+        "certificates": certs or [],
+    }
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, default=str)
+
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  REPORT GENERATION - HTML (Hacker Aesthetic)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2057,6 +2088,14 @@ Examples:
     ap.add_argument("--progress-numbers", action="store_true", help="Show numeric progress counter")
     ap.add_argument("--show-commands", action="store_true", help="Print each command as it runs")
     ap.add_argument("--skip-certs", action="store_true", help="Skip certificate audit")
+    ap.add_argument("--category", default="",
+                    help="Comma-separated category names to include (case-insensitive, e.g. SYSTEM,NETWORK)")
+    ap.add_argument("--severity", default="",
+                    help="Comma-separated levels to include: info,warning,critical")
+    ap.add_argument("--json-out", action="store_true",
+                    help="Also write a machine-readable JSON report alongside TXT/CSV/HTML")
+    ap.add_argument("--exit-code", action="store_true",
+                    help="Set process exit code by findings: 0=clean, 1=warning, 2=critical")
 
     args = ap.parse_args()
 
@@ -2069,6 +2108,21 @@ Examples:
 
     # Load checks
     checks = loadChecks(args.json, args.json_dir)
+
+    # Optional filters: --category and --severity
+    if args.category:
+        wanted = {c.strip().lower() for c in args.category.split(",") if c.strip()}
+        before = len(checks)
+        checks = [c for c in checks if c.get("category", "").lower() in wanted]
+        print(f"{Colors.BRIGHT_CYAN}⟳ Category filter: {before} → {len(checks)} checks{Colors.RESET}")
+    if args.severity:
+        wanted = {s.strip().lower() for s in args.severity.split(",") if s.strip()}
+        before = len(checks)
+        checks = [c for c in checks if c.get("level", "").lower() in wanted]
+        print(f"{Colors.BRIGHT_CYAN}⟳ Severity filter: {before} → {len(checks)} checks{Colors.RESET}")
+    if not checks:
+        print("ERROR: No checks remain after filtering.", file=sys.stderr)
+        sys.exit(1)
 
     # Build device connection
     device: Device
@@ -2100,7 +2154,11 @@ Examples:
         if missing:
             print("ERROR: For --mode ssh you must provide: " + ", ".join(missing), file=sys.stderr)
             sys.exit(1)
-        ssh_pass = args.ssh_pass or getpass.getpass(f"SSH password for {args.ssh_user}@{args.host}: ")
+        ssh_pass = (
+            args.ssh_pass
+            or os.environ.get("HARDAX_SSH_PASS")
+            or getpass.getpass(f"SSH password for {args.ssh_user}@{args.host}: ")
+        )
         device = SshDevice(args.host, args.port, args.ssh_user, ssh_pass)
 
     else:  # uart
@@ -2128,6 +2186,7 @@ Examples:
     txtFile = os.path.join(txtDir, "audit_report.txt")
     htmlFile = os.path.join(htmlDir, "audit_report.html")
     csvFile = os.path.join(htmlDir, "audit_report.csv")
+    jsonFile = os.path.join(htmlDir, "audit_report.json") if args.json_out else None
 
     # Root detection
     print(f"\n{Colors.BRIGHT_CYAN}🔍 Starting security audit with {len(checks)} checks...{Colors.RESET}\n")
@@ -2283,6 +2342,8 @@ Examples:
     writeTxtReport(txtFile, deviceInfo, rows, counts, certs, device.idString())
     writeCsvReport(csvFile, rows)
     writeHtmlReport(htmlFile, deviceInfo, rows, counts, certs)
+    if jsonFile:
+        writeJsonReport(jsonFile, deviceInfo, rows, counts, certs, device.idString())
 
     # Close SSH / UART if used
     if isinstance(device, (SshDevice, UartDevice)):
@@ -2373,8 +2434,20 @@ Examples:
     _box_line(f"  {D}TXT {R}  {D}{txtFile}{R}")
     _box_line(f"  {D}HTML{R}  {D}{htmlFile}{R}")
     _box_line(f"  {D}CSV {R}  {D}{csvFile}{R}")
+    if jsonFile:
+        _box_line(f"  {D}JSON{R}  {D}{jsonFile}{R}")
 
     _box_bottom()
+
+    # Opt-in: map findings to process exit code for CI integration.
+    # 0 = clean (no critical, no warning), 1 = warnings only, 2 = critical present.
+    # Off by default to avoid breaking existing scripts that rely on exit 0.
+    if args.exit_code:
+        if counts.get("critical", 0) > 0:
+            sys.exit(2)
+        if counts.get("warning", 0) > 0:
+            sys.exit(1)
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
