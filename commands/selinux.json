@@ -403,6 +403,17 @@
       "requires_root": false,
       "description": "A device can report global Enforcing mode while individual critical domains (e.g. untrusted_app, shell) are set permissive. semanage permissive -l lists them on Linux; getprop permissive hint on Android. NO_TOOL = tool not available, not a failure.",
       "remediation": "Remove permissive domains with 'semanage permissive -d <domain>'. Ensure no domain is individually set to permissive."
+    },
+    {
+      "category": "SELINUX",
+      "label": "SELinux Policy Version",
+      "command": "cat /sys/fs/selinux/policyvers 2>/dev/null",
+      "safe_pattern": "^(3[0-9]|[4-9][0-9])$",
+      "level": "info",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Reports the SELinux policy version loaded in the kernel. Modern Android (12+) ships with policy version 30 or higher. A markedly lower version suggests a downgraded or custom policy, often associated with rooted or modified devices.",
+      "remediation": "Lower than expected policy versions warrant investigation: check whether a custom kernel or sepolicy patch was applied, and reflash stock firmware if integrity is required."
     }
   ]
 }

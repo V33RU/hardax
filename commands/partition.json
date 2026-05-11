@@ -253,6 +253,78 @@
       "description": "Staged OTA or sideloaded zip packages found. Unverified packages can be applied via recovery.",
       "remediation": "Remove unknown update packages: 'rm /data/ota_package/*'. Only stage OTA packages from trusted update servers.",
       "empty_is_safe": true
+    },
+    {
+      "category": "PARTITION",
+      "label": "noexec on /storage/emulated User Storage",
+      "command": "out=$(mount 2>/dev/null | grep ' /storage/emulated ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'noexec' && echo OK || echo MISSING; else echo NA; fi",
+      "safe_pattern": "^(OK|NA)$",
+      "level": "warning",
+      "description": "User-facing storage (the modern /sdcard at /storage/emulated) should be mounted noexec. Apps and attackers commonly drop binaries here; without noexec they can be executed directly. NA means the path is not mounted on this device.",
+      "remediation": "Add 'noexec' to the fstab entry for /storage/emulated and remount: 'mount -o remount,noexec /storage/emulated'."
+    },
+    {
+      "category": "PARTITION",
+      "label": "nosuid on /storage/emulated User Storage",
+      "command": "out=$(mount 2>/dev/null | grep ' /storage/emulated ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'nosuid' && echo OK || echo MISSING; else echo NA; fi",
+      "safe_pattern": "^(OK|NA)$",
+      "level": "critical",
+      "description": "User storage must be nosuid. A missing nosuid flag lets a planted setuid root binary keep its privileges when executed from user storage, a direct privilege-escalation path. NA means the path is not mounted on this device.",
+      "remediation": "Add 'nosuid' to the fstab entry for /storage/emulated and remount: 'mount -o remount,nosuid /storage/emulated'."
+    },
+    {
+      "category": "PARTITION",
+      "label": "noexec on /mnt/media_rw (USB OTG)",
+      "command": "out=$(mount 2>/dev/null | grep ' /mnt/media_rw ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'noexec' && echo OK || echo MISSING; else echo NA; fi",
+      "safe_pattern": "^(OK|NA)$",
+      "level": "warning",
+      "description": "USB OTG storage mounted under /mnt/media_rw must be noexec to stop malware on inserted drives from executing. NA means no USB storage is currently attached.",
+      "remediation": "Add 'noexec' to the fstab entry for /mnt/media_rw and remount: 'mount -o remount,noexec /mnt/media_rw'."
+    },
+    {
+      "category": "PARTITION",
+      "label": "nosuid on /mnt/media_rw (USB OTG)",
+      "command": "out=$(mount 2>/dev/null | grep ' /mnt/media_rw ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'nosuid' && echo OK || echo MISSING; else echo NA; fi",
+      "safe_pattern": "^(OK|NA)$",
+      "level": "critical",
+      "description": "USB storage must be nosuid; a setuid binary on a USB drive must not retain root when executed. NA means no USB storage is currently attached.",
+      "remediation": "Add 'nosuid' to the fstab entry for /mnt/media_rw and remount: 'mount -o remount,nosuid /mnt/media_rw'."
+    },
+    {
+      "category": "PARTITION",
+      "label": "noexec on /cache",
+      "command": "out=$(mount 2>/dev/null | grep ' /cache ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'noexec' && echo OK || echo MISSING; else echo NA; fi",
+      "safe_pattern": "^(OK|NA)$",
+      "level": "warning",
+      "description": "/cache is writable scratch space. Without noexec, dropped binaries can be executed. NA means /cache is not a separate partition on this device (common on A/B devices that have removed /cache).",
+      "remediation": "Add 'noexec' to the fstab entry for /cache and remount: 'mount -o remount,noexec /cache'."
+    },
+    {
+      "category": "PARTITION",
+      "label": "nosuid on /cache",
+      "command": "out=$(mount 2>/dev/null | grep ' /cache ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'nosuid' && echo OK || echo MISSING; else echo NA; fi",
+      "safe_pattern": "^(OK|NA)$",
+      "level": "critical",
+      "description": "/cache must be nosuid to prevent setuid escalation from this writable region. NA means /cache is not a separate partition on this device.",
+      "remediation": "Add 'nosuid' to the fstab entry for /cache and remount: 'mount -o remount,nosuid /cache'."
+    },
+    {
+      "category": "PARTITION",
+      "label": "noexec on /metadata",
+      "command": "out=$(mount 2>/dev/null | grep ' /metadata ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'noexec' && echo OK || echo MISSING; else echo NA; fi",
+      "safe_pattern": "^(OK|NA)$",
+      "level": "warning",
+      "description": "/metadata stores file-based encryption metadata and should never need to execute binaries. NA means the device has no metadata partition (older A-only devices).",
+      "remediation": "Add 'noexec' to the fstab entry for /metadata and remount: 'mount -o remount,noexec /metadata'."
+    },
+    {
+      "category": "PARTITION",
+      "label": "nosuid on /metadata",
+      "command": "out=$(mount 2>/dev/null | grep ' /metadata ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'nosuid' && echo OK || echo MISSING; else echo NA; fi",
+      "safe_pattern": "^(OK|NA)$",
+      "level": "critical",
+      "description": "/metadata must be nosuid; it is writable and a setuid binary placed there must not gain privilege. NA means the device has no metadata partition.",
+      "remediation": "Add 'nosuid' to the fstab entry for /metadata and remount: 'mount -o remount,nosuid /metadata'."
     }
   ]
 }
