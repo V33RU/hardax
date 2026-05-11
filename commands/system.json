@@ -591,11 +591,11 @@
     },
     {
       "category": "SYSTEM",
-      "label": "Safe Browsing",
+      "label": "Safe Boot Disallowed",
       "command": "settings get global safe_boot_disallowed",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Safe browsing configuration",
+      "description": "safe_boot_disallowed controls whether the device may be rebooted into Safe Boot. Note: this is unrelated to WebView SafeBrowsing (see separate check). Informational; the value indicates whether OEM or admin policy restricts Safe Boot access.",
       "remediation": "Informational. Review safe boot policy settings in your device management configuration."
     },
     {
@@ -805,6 +805,28 @@
       "description": "FORTIFY_SOURCE adds compile-time buffer overflow checks to libc functions. All Android system binaries should be built with -D_FORTIFY_SOURCE=2.",
       "remediation": "Informational. Android 4.2+ enables FORTIFY_SOURCE for system binaries by default. Verify custom binaries are also compiled with FORTIFY_SOURCE.",
       "empty_is_safe": true
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Device Provisioned (Setup Wizard Complete)",
+      "command": "settings get global device_provisioned 2>/dev/null",
+      "safe_pattern": "^1$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "device_provisioned indicates whether initial device setup completed. A value of 0 means the device is stuck in (or has been reset into) the setup wizard, which is a partially-configured state often with weaker defaults. Critical for kiosk and POS deployments to confirm post-provisioning state.",
+      "remediation": "Complete the device setup flow. If the value is 0 unexpectedly, the device may have been factory reset; reprovision through the standard onboarding."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "WebView SafeBrowsing Enabled",
+      "command": "settings get global webview_safe_browsing_state 2>/dev/null",
+      "safe_pattern": "^(1|null)$",
+      "level": "info",
+      "empty_is_safe": true,
+      "null_is_safe": true,
+      "description": "WebView SafeBrowsing protects in-app web content from malicious URLs (similar to Chrome SafeBrowsing). Null or empty means the per-device override is unset and WebView uses its own default (typically enabled). Explicit 0 means an admin or app has disabled it.",
+      "remediation": "If the value is 0, restore WebView default by clearing the setting: 'settings delete global webview_safe_browsing_state'."
     }
   ]
 }

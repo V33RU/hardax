@@ -557,6 +557,28 @@
       "level": "warning",
       "description": "WARNING: Common TCP on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Often missed in firewall rules!",
       "remediation": "Apply ip6tables rules matching your iptables rules. Block exposed ports: ip6tables -A INPUT -p tcp --dport <port> -j DROP"
+    },
+    {
+      "category": "NETWORK",
+      "label": "Allow 2G Disabled (Android 14+)",
+      "command": "settings get global cell_2g_allowed 2>/dev/null",
+      "safe_pattern": "^0$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "null_is_safe": true,
+      "description": "Android 14 introduces a per-SIM toggle to disable 2G. Disabling 2G prevents cellular-downgrade attacks where a rogue base station forces a device onto unauthenticated GSM. Critical for cellular POS terminals and any device handling sensitive traffic over mobile data.",
+      "remediation": "On Android 14+, set under Settings > Network & internet > SIMs > Allow 2G off, or run: 'settings put global cell_2g_allowed 0'. On older Android, this control is not available."
+    },
+    {
+      "category": "NETWORK",
+      "label": "Hotspot WPA Mode",
+      "command": "dumpsys wifi 2>/dev/null | grep -iE 'softap.*security|wifi.*ap.*security|getSecurityType' | head -5",
+      "safe_pattern": "WPA[23]|SAE",
+      "level": "warning",
+      "empty_is_safe": true,
+      "null_is_safe": false,
+      "description": "If the device hosts a Wi-Fi hotspot it should run WPA2 or WPA3 (SAE), never Open or WEP. Empty output means the hotspot is not active, which is also acceptable. Critical for any device that may act as an access point in the field.",
+      "remediation": "If a hotspot is in use, configure it for WPA2-Personal or WPA3-Personal (SAE) under Settings > Network & internet > Hotspot & tethering."
     }
   ]
 }

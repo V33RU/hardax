@@ -168,6 +168,28 @@
       "level": "warning",
       "description": "KeyMint HAL (Android 12+) provides stronger key attestation and hardware-backed cryptography than legacy Keymaster. Absence may indicate an older or less-secure keystore implementation.",
       "remediation": "Update to Android 12+ firmware with KeyMint HAL support. Avoid relying on legacy Keymaster for key attestation."
+    },
+    {
+      "category": "CRYPTOGRAPHY",
+      "label": "Kernel Entropy Pool Size",
+      "command": "cat /proc/sys/kernel/random/entropy_avail 2>/dev/null",
+      "safe_pattern": "^(2[5-9][0-9]|[3-9][0-9]{2,}|[1-9][0-9]{3,})$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "/proc/sys/kernel/random/entropy_avail reports available entropy in bits. Modern kernels (5.18+) maintain a fixed 256 once seeded, older kernels report up to 4096. Values below about 256 at runtime indicate a starved CSPRNG, which weakens every TLS handshake and key generation. Embedded boards often boot with very low entropy.",
+      "remediation": "On embedded boards, enable a hardware RNG (TRNG, virtio-rng, or /dev/hwrng feed into haveged or rngd) so the kernel pool seeds quickly. On modern kernels the value is fixed at 256 once seeded and is not actionable beyond ensuring the initial seed succeeds."
+    },
+    {
+      "category": "CRYPTOGRAPHY",
+      "label": "Widevine DRM Security Level",
+      "command": "dumpsys media.drm 2>/dev/null | grep -iE 'widevine|securityLevel|security level' | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": true,
+      "null_is_safe": false,
+      "description": "Widevine DRM security level: L1 = hardware-backed (TEE), L2 = TEE for crypto only, L3 = software-only. Payment and streaming apps relying on Widevine assume L1; L3 indicates weakened hardware trust (often after root or custom ROM). Informational; the report shows the captured level for triage.",
+      "remediation": "L3 on a device that ships with L1 hardware suggests the TEE attestation is broken, the bootloader is unlocked, or the device is custom-ROM'd. Investigate the cause; reflash stock firmware if integrity is required."
     }
   ]
 }
