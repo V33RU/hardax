@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    name: Python syntax & import check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Parse hardax.py
+        run: python -c "import ast; ast.parse(open('hardax.py').read()); print('AST OK')"
+      - name: Show version
+        run: python hardax.py --version
+      - name: Help text renders
+        run: python hardax.py --help > /dev/null
+
+  json-checks:
+    name: Validate commands/*.json
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate each JSON file is parseable
+        run: |
+          set -e
+          for f in commands/*.json; do
+            python -c "import json,sys; json.load(open('$f')); print('OK: $f')"
+          done
+      - name: Validate required fields and regex patterns
+        run: |
+          python - <<'PY'
+          import json, re, sys, os, glob
+          required = {"category","label","command","safe_pattern","level","description"}
+          fail = 0
+          for path in sorted(glob.glob("commands/*.json")):
+              data = json.load(open(path))
+              checks = data["checks"] if isinstance(data, dict) and "checks" in data else data
+              for i, c in enumerate(checks, 1):
+                  missing = required - set(c.keys())
+                  if missing:
+                      print(f"FAIL {path}#{i}: missing {sorted(missing)}")
+                      fail += 1
+                  pat = c.get("safe_pattern", "")
+                  if pat:
+                      try:
+                          re.compile(pat, re.IGNORECASE | re.MULTILINE | re.DOTALL)
+                      except re.error as e:
+                          print(f"FAIL {path}#{i} [{c.get('label','?')}]: invalid regex: {e}")
+                          fail += 1
+          if fail:
+              sys.exit(f"{fail} check(s) failed validation")
+          print("All checks valid.")
+          PY
