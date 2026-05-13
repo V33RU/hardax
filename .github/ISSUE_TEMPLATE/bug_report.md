@@ -10,14 +10,14 @@ A clear description of what's broken.
 
 ## To reproduce
 1. Connection mode: `adb` / `ssh` / `uart`
-2. Command run: `python3 hardax.py ...`
+2. Command run: `hardax ...` or `python3 -m hardax ...`
 3. What happened
 
 ## Expected behavior
 What you expected to happen instead.
 
 ## Environment
-- HARDAX version: `python3 hardax.py --version`
+- HARDAX version: `hardax --version`
 - Host OS: (Linux / macOS / Windows + version)
 - Python version: `python3 --version`
 - Target device: (model, Android version)

@@ -1,3 +1,0 @@
-cryptography>=3.0
-paramiko>=2.7
-pyserial>=3.5

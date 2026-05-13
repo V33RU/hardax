@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hardax"
+version = "5.2.0"
+description = "Hardening Audit eXaminer: security configuration auditor for Android-based devices (POS, IoT, automotive, medical, kiosk)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [
+    { name = "V33RU (Mr-IoT, IOTSRG)", email = "v33raiot@gmail.com" }
+]
+keywords = [
+    "android",
+    "security",
+    "audit",
+    "hardening",
+    "iot",
+    "pos",
+    "automotive",
+    "medical",
+    "adb",
+    "ssh",
+    "uart",
+    "penetration-testing",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: System Administrators",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Software Development :: Testing",
+]
+dependencies = []
+
+[project.optional-dependencies]
+ssh = ["paramiko>=2.7"]
+uart = ["pyserial>=3.5"]
+certs = ["cryptography>=3.0"]
+all = [
+    "paramiko>=2.7",
+    "pyserial>=3.5",
+    "cryptography>=3.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/V33RU/hardax"
+Repository = "https://github.com/V33RU/hardax"
+Issues = "https://github.com/V33RU/hardax/issues"
+Releases = "https://github.com/V33RU/hardax/releases"
+
+[project.scripts]
+hardax = "hardax:main"
+
+[tool.setuptools]
+packages = ["hardax"]
+
+[tool.setuptools.package-data]
+hardax = [
+    "commands/*.json",
+    "templates/*.html",
+]
