@@ -2,14 +2,27 @@
 
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.2.1-blue.svg" alt="Version">
-  <img src="https://img.shields.io/badge/python-3.11+-green.svg" alt="Python">
+  <a href="https://pypi.org/project/hardax/">
+    <img src="https://img.shields.io/pypi/v/hardax.svg?label=pypi&color=blue" alt="PyPI">
+  </a>
+  <a href="https://pypi.org/project/hardax/">
+    <img src="https://img.shields.io/pypi/pyversions/hardax.svg?label=python" alt="Python">
+  </a>
   <img src="https://img.shields.io/badge/checks-706-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-25-purple.svg" alt="Categories">
-  <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
+  <a href="https://github.com/V33RU/hardax/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
+  </a>
+  <a href="https://github.com/V33RU/hardax/actions/workflows/ci.yml">
+    <img src="https://github.com/V33RU/hardax/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
   <a href="https://github.com/V33RU/hardax/wiki">
     <img src="https://img.shields.io/badge/wiki-documentation-lightgrey.svg" alt="Wiki">
   </a>
+</p>
+
+<p align="center">
+  <a href="https://pypi.org/project/hardax/"><strong>pip install hardax</strong></a>
 </p>
 
 <p align="center">
@@ -21,7 +34,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **686 security checks** across **25 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **706 security checks** across **25 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -36,7 +49,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **686 Security Checks** | Comprehensive coverage across 25 security categories |
+| **706 Security Checks** | Comprehensive coverage across 25 security categories |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
 | **Malware & Hooking Detection** | 18 checks for rootkits, RATs, Frida, Xposed, keyloggers, memory scrapers |
 | **Certificate Audit** | CA certificate analysis with expiry/age calculation - 27 checks |
@@ -203,30 +216,30 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **686 checks** into **25 security categories**:
+HARDAX organizes **706 checks** into **25 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
-| **SYSTEM** | 85 | Kernel, memory, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, time, power, build properties, emulator detection, SIM status |
+| **SYSTEM** | 87 | Kernel, memory, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, time, power, build properties, emulator detection, SIM status, device provisioning, WebView |
 | **BLUETOOTH** | 83 | BLE/Classic, pairing, profiles (PAN, HFP, A2DP, HID, SPP, OPP, MAP), L2CAP, ATT, SMP, GAP, attack surfaces |
-| **NETWORK** | 60 | Ports, WiFi, cellular, VPN, MQTT, CoAP, CAN bus, HL7, DICOM, active connections |
-| **PRIVACY** | 47 | Biometrics, screen lock, location, sensors, clipboard, audio |
-| **APPS** | 44 | Permissions, overlay attacks, installation sources, backup audit, dangerous perms |
+| **NETWORK** | 62 | Ports, WiFi, cellular (incl. Allow 2G), VPN, MQTT, CoAP, CAN bus, HL7, DICOM, hotspot WPA mode, active connections |
+| **PRIVACY** | 48 | Biometrics, screen lock, location, sensors, clipboard, audio, Android 13+ Restricted Settings |
+| **APPS** | 47 | Permissions, overlay attacks, install sources, backup audit, APK signature scheme, QUERY_ALL_PACKAGES, REQUEST_INSTALL_PACKAGES |
 | **BINARY_HARDENING** | 36 | PIE, NX, RELRO, stack canaries, stripped symbols, ASLR, kptr_restrict |
-| **PARTITION** | 27 | dm-verity, OverlayFS, A/B slots, FBE/FDE, mount flags, block device permissions |
+| **PARTITION** | 35 | dm-verity, OverlayFS, A/B slots, FBE/FDE, mount flags (noexec / nosuid / nodev on /data, /storage/emulated, /mnt/media_rw, /cache, /metadata), block device permissions |
+| **SELINUX** | 26 | SELinux enforcement, policy version, audit, context, boot flags |
 | **CERTIFICATE_AUDIT** | 25 | CA certificates, user certs, pinning bypass, keystore, expiry analysis |
-| **SELINUX** | 25 | SELinux enforcement, policy, audit, context, boot flags |
 | **POS_SECURITY** | 24 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper, NFC relay, PAX CVE |
 | **STORAGE** | 24 | Filesystem, backup, encryption, partitions |
 | **FORENSIC_INDICATORS** | 22 | Crash history, kernel panics, logcat anomalies, temp artifacts, clipboard forensics |
 | **ATTESTATION** | 20 | SafetyNet/Play Integrity, Knox warranty bit, TIMA, RKP, Titan M, fs-verity, bypass detection |
 | **AUTOMOTIVE** | 20 | Vehicle-specific checks, CAN bus, infotainment |
 | **BOOT_SECURITY** | 20 | Verified boot, AVB, dm-verity, bootloader, integrity |
-| **CRYPTOGRAPHY** | 18 | Encryption, keys, credentials, API keys, certificates |
+| **CRYPTOGRAPHY** | 20 | Encryption, keys, credentials, API keys, certificates, kernel entropy, Widevine DRM level |
 | **MALWARE** | 18 | Root/Magisk/SuperSU, Frida, Xposed/LSPosed, RATs, keyloggers, memory scrapers, root cloaking |
 | **CIS_BENCHMARK** | 17 | CIS Android Benchmark v1.6.0 controls (89% coverage) |
 | **USB_SECURITY** | 16 | USB debugging, interfaces, serial ports, gadget mode |
-| **CVE_INDICATORS** | 15 | Dirty Pipe, Bad Binder, Dirty COW, MTK-su, Exynos baseband, Mali GPU, kernel CVE ranges |
+| **CVE_INDICATORS** | 16 | Dirty Pipe, Bad Binder, Dirty COW, MTK-su, Exynos baseband, Mali GPU, kernel CVE ranges, WebView debugging |
 | **DEVICE_MANAGEMENT** | 13 | MDM, accounts, developer options |
 | **INPUT** | 9 | Keyboards, accessibility, input methods |
 | **MEDICAL** | 7 | Medical device-specific checks |
@@ -302,26 +315,26 @@ HARDAX/
     ├── templates/
     │   └── report.html    # Interactive HTML report template
     └── commands/          # Security check definitions (706 checks, 25 categories)
-        ├── system.json        #  85 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator
+        ├── system.json        #  87 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator, WebView
         ├── bluetooth.json     #  83 checks - BLE/Classic, pairing, all profiles
-        ├── network.json       #  60 checks - Ports, WiFi, VPN, IoT protocols
-        ├── privacy.json       #  47 checks - Biometrics, location, sensors
-        ├── apps.json          #  44 checks - Permissions, overlay, backup, install
+        ├── network.json       #  62 checks - Ports, WiFi, VPN, IoT protocols, Allow 2G, hotspot WPA
+        ├── privacy.json       #  48 checks - Biometrics, location, sensors, Restricted Settings
+        ├── apps.json          #  47 checks - Permissions, overlay, backup, install, APK signature scheme
         ├── binary_hardening.json # 36 checks - PIE, NX, RELRO, stack canaries, ASLR
-        ├── partition.json     #  27 checks - dm-verity, A/B slots, FBE, mount flags
+        ├── partition.json     #  35 checks - dm-verity, A/B slots, FBE, mount flags (noexec/nosuid/nodev)
+        ├── selinux.json       #  26 checks - Enforcement, policy version, audit
         ├── certificate_audit.json # 25 checks - CA certs, expiry, MITM
-        ├── selinux.json       #  25 checks - Enforcement, policy, audit
         ├── pos_security.json  #  24 checks - PCI-DSS, kiosk, NFC relay, PAX CVE
         ├── storage.json       #  24 checks - Encryption, partitions, backup
         ├── forensic_indicators.json # 22 checks - Crashes, logcat, temp artifacts
         ├── attestation.json   #  20 checks - SafetyNet/Play Integrity, Knox, Titan M, bypass detection
         ├── automotive.json    #  20 checks - Vehicle, CAN bus, infotainment
         ├── boot_security.json #  20 checks - Verified boot, AVB, dm-verity
-        ├── cryptography.json  #  18 checks - Keystore, StrongBox, algorithms
+        ├── cryptography.json  #  20 checks - Keystore, StrongBox, kernel entropy, Widevine DRM
         ├── malware.json       #  18 checks - Root, Frida, Xposed, RATs, scrapers
         ├── cis_benchmark.json #  17 checks - CIS Android Benchmark v1.6.0
         ├── usb_security.json  #  16 checks - USB debug, MTP, gadget mode
-        ├── cve_indicators.json # 15 checks - Dirty Pipe, Bad Binder, MTK-su, kernel CVEs
+        ├── cve_indicators.json # 16 checks - Dirty Pipe, Bad Binder, MTK-su, kernel CVEs, WebView debug
         ├── device_management.json # 13 checks - MDM, accounts, dev options
         ├── input.json         #   9 checks - Keyboards, accessibility, IME
         ├── medical.json       #   7 checks - Medical device-specific
@@ -331,24 +344,57 @@ HARDAX/
 
 ---
 
-## Future Roadmap
+## Roadmap
 
-- [ ] `--category` flag to run specific categories
-- [ ] `--severity` flag to filter by level
-- [ ] `--format json` for JSON output
-- [ ] Exit codes for CI/CD integration
-- [ ] CVE Correlation Engine
-- [ ] Binary Hardening Analysis (ASLR, NX, PIE)
-- [ ] HARDAX Risk Score (0-100)
-- [ ] Save baseline configuration
-- [ ] Diff reports between scans
-- [ ] Device profiles (IoT/Automotive/Medical presets)
-- [ ] CIS Android Benchmark full mapping
-- [ ] OWASP MASVS/MSTG mapping
-- [ ] NIST guidelines mapping
-- [ ] Remediation suggestions
+### Shipped
+
+- [x] `--category` flag to run specific categories (v5.0.0)
+- [x] `--severity` flag to filter by level (v5.0.0)
+- [x] `--json-out` for machine-readable JSON output (v5.0.0)
+- [x] `--exit-code` for CI/CD integration, exit 0/1/2 (v5.0.0)
+- [x] Branch-protected `main` with PR workflow (v5.0.0)
+- [x] CI workflow validates every `commands/*.json` regex (v5.0.0)
+- [x] 20 new checks: mount-flag hardening, Restricted Settings, Allow 2G, Hotspot WPA, kernel entropy, Widevine DRM level, SELinux policy version, APK signature scheme, app permission audits, WebView SafeBrowsing and debug (v5.1.0)
+- [x] Lock Screen Timeout false-positive fix (v5.1.0)
+- [x] Pip-installable Python package, `pip install hardax` (v5.2.0)
+- [x] PyPI Trusted Publishing on every GitHub release (v5.2.1)
+
+### Open
+
+Grouped by theme. Order within a group is rough priority.
+
+#### Analysis features
+- [ ] Baseline capture and diff (compare two scans, surface regressions)
+- [ ] HARDAX Risk Score (0-100 composite across all 25 categories)
+- [ ] CVE correlation (map findings to relevant CVE IDs automatically)
+
+#### Additional security checks
+- [ ] TLS protocol minimum / cipher policy on the device
+- [ ] Wi-Fi Protected Management Frames (PMF) state
+- [ ] TrustZone / TEE OS specific version (beyond presence detection)
+- [ ] Hidden SSID hotspot detection
+- [ ] Samsung Knox Container / Workspace state
+
+#### Compliance mappings
+- [ ] CIS Android Benchmark v1.6.0: fill the remaining 11% to 100% coverage
+- [ ] OWASP MASVS / MSTG mapping per check
+- [ ] NIST 800-53 / 800-171 mapping per check
+- [ ] PCI-DSS 4.0 detailed mapping (POS terminals)
+
+#### Tooling and ergonomics
+- [ ] `--profile` flag with built-in presets (kiosk / POS / automotive / medical / IoT)
+- [ ] Inline remediation suggestions in the HTML report
 - [ ] Multi-device parallel scanning
-- [ ] Web dashboard (Flask/FastAPI)
-- [ ] Plugin architecture
-- [ ] APK analysis integration
-- [ ] Firmware extraction support
+- [ ] Plugin architecture for custom check loaders
+- [ ] Official Docker image with adb / paramiko / pyserial pre-installed
+- [ ] Web dashboard (Flask / FastAPI) for centralised audit storage and history
+
+#### Code quality
+- [ ] pytest suite covering the engine, transports, and reporters
+- [ ] Split the 2400-line `hardax/__init__.py` into modules (transports, engine, reporters, cli)
+- [ ] Formal JSON schema for `commands/*.json` (jsonschema validation)
+- [ ] Type hints throughout, clean under `mypy --strict`
+
+#### External integration
+- [ ] APK static analysis (apktool / jadx integration)
+- [ ] SARIF output (for GitHub code scanning and similar tools)
