@@ -414,6 +414,72 @@
       "null_is_safe": false,
       "description": "Reports the SELinux policy version loaded in the kernel. Modern Android (12+) ships with policy version 30 or higher. A markedly lower version suggests a downgraded or custom policy, often associated with rooted or modified devices.",
       "remediation": "Lower than expected policy versions warrant investigation: check whether a custom kernel or sepolicy patch was applied, and reflash stock firmware if integrity is required."
+    },
+    {
+      "category": "SELINUX",
+      "label": "checkreqprot is 0 (kernel evaluates effective protection)",
+      "command": "sh -c 'out=$(cat /sys/fs/selinux/checkreqprot 2>/dev/null); if [ -z \"$out\" ]; then echo NA; else echo \"$out\"; fi'",
+      "safe_pattern": "^(0|NA)$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "/sys/fs/selinux/checkreqprot controls whether the kernel checks the requested (legacy, weaker, value 1) or effective (modern, value 0) protection on mmap and mprotect. Modern Android with kernel 5.x defaults to 0. NA means the sysfs entry has been removed in newer kernels (6.4+), which is also safe.",
+      "remediation": "Set the kernel default via SELINUX_CHECKREQPROT_VALUE=0 in the kernel config or via boot-time mount option. On Android this is a kernel-build decision; if you find 1 on a production device, investigate why the kernel was downgraded.",
+      "why": "checkreqprot=1 is a known bypass vector for W^X and exec-page exploits because the kernel only checks the protection the app asked for, not the protection it actually got after kernel mapping.",
+      "risk_if_fail": "Kernel evaluates a weaker protection than what is effective, undermining mprotect-based mitigations and enabling certain code-injection chains.",
+      "nist_800_53": "SI-3, SI-7"
+    },
+    {
+      "category": "SELINUX",
+      "label": "MLS is enabled in the loaded policy (/sys/fs/selinux/mls = 1)",
+      "command": "sh -c 'out=$(cat /sys/fs/selinux/mls 2>/dev/null); if [ -z \"$out\" ]; then echo NA; else echo \"$out\"; fi'",
+      "safe_pattern": "^1$",
+      "level": "critical",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "/sys/fs/selinux/mls reports whether MLS (Multi-Level Security) is compiled into the loaded policy. MLS is what powers Android's per-app MCS category isolation, the boundary between any two installed apps on the same device. A value of 0 means MLS is off and the per-app sandbox no longer enforces category separation. NA on a non-Android Linux is acceptable.",
+      "remediation": "Build the kernel and SELinux policy with MLS support (CONFIG_SECURITY_SELINUX_MLS=y or equivalent for the policy compiler). On Android this is the AOSP default; finding 0 indicates a custom build that removed MLS.",
+      "why": "Without MLS, app data isolation between user apps relies only on UID-based separation, which is a weaker boundary that has historically been bypassed via shared UID grouping or sandbox escapes.",
+      "risk_if_fail": "Apps on the same device may be able to read each other's data when sandbox boundaries are bypassed."
+    },
+    {
+      "category": "SELINUX",
+      "label": "SELinux policy file is not world-readable",
+      "command": "sh -c 'p=/sys/fs/selinux/policy; if [ ! -e \"$p\" ]; then echo NO_FILE; else perm=$(ls -l \"$p\" 2>/dev/null | head -1 | awk \"{print substr(\\$1,8,1)}\"); if [ \"$perm\" = \"r\" ]; then echo WORLD_READ; elif [ -z \"$perm\" ]; then echo UNKNOWN_PERM; else echo OK; fi; fi'",
+      "safe_pattern": "^OK$",
+      "level": "critical",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "The compiled SELinux policy at /sys/fs/selinux/policy should be readable only by root. If world-readable, any unprivileged app can dump the binary policy and use it to map out the device's security model offline, which is the first step in tools like sepolicy-inject.",
+      "remediation": "On Android, /sys/fs/selinux/policy is created by the kernel and its mode is set by the SELinux subsystem. World-readable typically indicates a non-default kernel or a manually-modified mount. Reflash a stock kernel or investigate which init.rc rule is changing the mode.",
+      "why": "An attacker who can read the compiled policy can craft targeted bypass payloads, find permissive domains, and identify dontaudit rules that hide policy gaps.",
+      "risk_if_fail": "Confidentiality of the device's security policy is lost; offline policy analysis becomes possible for any installed app."
+    },
+    {
+      "category": "SELINUX",
+      "label": "No per-domain permissive denials recorded in dmesg",
+      "command": "sh -c 'if command -v dmesg >/dev/null 2>&1; then c=$(dmesg 2>/dev/null | grep -ci \"permissive=1\"); echo \"PERMISSIVE_AVC_COUNT=$c\"; else echo NO_DMESG; fi'",
+      "safe_pattern": "^(PERMISSIVE_AVC_COUNT=0|NO_DMESG)$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Even when getenforce reports Enforcing globally, individual domains can be marked permissive (typically via magiskpolicy or a sepolicy-inject patch). Each AVC denial for a permissive domain carries permissive=1 in dmesg. Any non-zero count indicates at least one domain is bypassing enforcement.",
+      "remediation": "Inspect the offending AVC denials: 'dmesg | grep permissive=1 | head -20'. The scontext field identifies the permissive domain. If you did not deliberately mark a domain permissive (e.g. for development), reflash to stock and audit for runtime SELinux tampering.",
+      "why": "Per-domain permissive is a stealthier attack than fully disabling SELinux: getenforce still reports Enforcing, the kernel cmdline check still passes, but specific domains (often relevant to an exploit) silently bypass policy.",
+      "risk_if_fail": "Targeted SELinux bypass for a specific attack chain, undetectable by the standard getenforce / ro.boot.selinux checks."
+    },
+    {
+      "category": "SELINUX",
+      "label": "No offensive policy-tampering tools present on disk",
+      "command": "sh -c 'found=\"\"; for f in /data/local/tmp/sepolicy-inject /data/local/tmp/sepolicy_inject /data/local/tmp/sesearch /data/local/tmp/seinfo /data/local/tmp/setools /data/local/sepolicy-inject /sbin/sepolicy-inject /system/xbin/sepolicy-inject /system/bin/sepolicy-inject /data/local/tmp/magiskpolicy; do [ -e \"$f\" ] && found=\"$found $f\"; done; if [ -z \"$found\" ]; then echo NONE; else echo \"FOUND:$found\"; fi'",
+      "safe_pattern": "^NONE$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "sepolicy-inject (from the setools fork), sesearch, seinfo (from setools-android), and magiskpolicy are not shipped on any stock Android device. Their presence in /data/local/tmp or other writable locations is a strong indicator that someone has been parsing or modifying the running SELinux policy. The 8ksec SELinux Internals blog walks through using exactly these tools to inject allow rules and bypass restrictions.",
+      "remediation": "Remove the listed binaries. Investigate how they were placed: ADB push by a developer, a malicious app extracting them from assets, or a leftover from a security-testing session. On a production device, none of these should ever exist.",
+      "why": "These tools have no legitimate purpose on a production device. Their presence demonstrates intent or active capability to modify SELinux policy at runtime.",
+      "risk_if_fail": "SELinux policy may have been (or may currently be being) modified to allow privileged operations that the original policy denies."
     }
   ]
 }
