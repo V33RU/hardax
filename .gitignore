@@ -3,6 +3,12 @@ __pycache__/
 *.py[cod]
 *.pyo
 
+# Build artifacts (pip / setuptools / wheel)
+build/
+dist/
+*.egg-info/
+.eggs/
+
 # Audit output
 hardax_output/
 

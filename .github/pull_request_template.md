@@ -19,13 +19,13 @@
 <!-- How did you test this? Paste relevant output / a successful run. -->
 
 ```
-python3 hardax.py --version
-# ...
+hardax --version
+# or from a source checkout: python3 -m hardax --version
 ```
 
 ## Checklist
 
-- [ ] Code parses (`python3 -c "import ast; ast.parse(open('hardax.py').read())"`)
+- [ ] Code parses (`python3 -c "import ast; ast.parse(open('hardax/__init__.py').read())"`)
 - [ ] New JSON checks have a valid `safe_pattern` regex
 - [ ] No new required dependencies added without discussion
 - [ ] README / docs updated if user-facing behavior changed
