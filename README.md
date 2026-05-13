@@ -8,7 +8,7 @@
   <a href="https://pypi.org/project/hardax/">
     <img src="https://img.shields.io/pypi/pyversions/hardax.svg?label=python" alt="Python">
   </a>
-  <img src="https://img.shields.io/badge/checks-706-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-711-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-25-purple.svg" alt="Categories">
   <a href="https://github.com/V33RU/hardax/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
@@ -34,7 +34,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **706 security checks** across **25 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **711 security checks** across **25 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -49,7 +49,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **706 Security Checks** | Comprehensive coverage across 25 security categories |
+| **711 Security Checks** | Comprehensive coverage across 25 security categories |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
 | **Malware & Hooking Detection** | 18 checks for rootkits, RATs, Frida, Xposed, keyloggers, memory scrapers |
 | **Certificate Audit** | CA certificate analysis with expiry/age calculation - 27 checks |
@@ -216,7 +216,7 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **706 checks** into **25 security categories**:
+HARDAX organizes **711 checks** into **25 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
@@ -227,7 +227,7 @@ HARDAX organizes **706 checks** into **25 security categories**:
 | **APPS** | 47 | Permissions, overlay attacks, install sources, backup audit, APK signature scheme, QUERY_ALL_PACKAGES, REQUEST_INSTALL_PACKAGES |
 | **BINARY_HARDENING** | 36 | PIE, NX, RELRO, stack canaries, stripped symbols, ASLR, kptr_restrict |
 | **PARTITION** | 35 | dm-verity, OverlayFS, A/B slots, FBE/FDE, mount flags (noexec / nosuid / nodev on /data, /storage/emulated, /mnt/media_rw, /cache, /metadata), block device permissions |
-| **SELINUX** | 26 | SELinux enforcement, policy version, audit, context, boot flags |
+| **SELINUX** | 31 | SELinux enforcement, policy version, audit, context, boot flags |
 | **CERTIFICATE_AUDIT** | 25 | CA certificates, user certs, pinning bypass, keystore, expiry analysis |
 | **POS_SECURITY** | 24 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper, NFC relay, PAX CVE |
 | **STORAGE** | 24 | Filesystem, backup, encryption, partitions |
@@ -314,7 +314,7 @@ HARDAX/
     ├── __main__.py        # Enables 'python -m hardax'
     ├── templates/
     │   └── report.html    # Interactive HTML report template
-    └── commands/          # Security check definitions (706 checks, 25 categories)
+    └── commands/          # Security check definitions (711 checks, 25 categories)
         ├── system.json        #  87 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator, WebView
         ├── bluetooth.json     #  83 checks - BLE/Classic, pairing, all profiles
         ├── network.json       #  62 checks - Ports, WiFi, VPN, IoT protocols, Allow 2G, hotspot WPA
@@ -322,7 +322,7 @@ HARDAX/
         ├── apps.json          #  47 checks - Permissions, overlay, backup, install, APK signature scheme
         ├── binary_hardening.json # 36 checks - PIE, NX, RELRO, stack canaries, ASLR
         ├── partition.json     #  35 checks - dm-verity, A/B slots, FBE, mount flags (noexec/nosuid/nodev)
-        ├── selinux.json       #  26 checks - Enforcement, policy version, audit
+        ├── selinux.json       #  31 checks - Enforcement, policy version, audit
         ├── certificate_audit.json # 25 checks - CA certs, expiry, MITM
         ├── pos_security.json  #  24 checks - PCI-DSS, kiosk, NFC relay, PAX CVE
         ├── storage.json       #  24 checks - Encryption, partitions, backup
