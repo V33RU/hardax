@@ -361,17 +361,40 @@ HARDAX/
 
 ### Open
 
-- [ ] CVE Correlation Engine
-- [ ] HARDAX Risk Score (0-100)
-- [ ] Save baseline configuration
-- [ ] Diff reports between scans
-- [ ] Device profiles (IoT / Automotive / Medical presets)
-- [ ] CIS Android Benchmark full mapping
-- [ ] OWASP MASVS/MSTG mapping
-- [ ] NIST 800-53 / 800-171 mapping
-- [ ] Remediation suggestions (per check)
+Grouped by theme. Order within a group is rough priority.
+
+#### Analysis features
+- [ ] Baseline capture and diff (compare two scans, surface regressions)
+- [ ] HARDAX Risk Score (0-100 composite across all 25 categories)
+- [ ] CVE correlation (map findings to relevant CVE IDs automatically)
+
+#### Additional security checks
+- [ ] TLS protocol minimum / cipher policy on the device
+- [ ] Wi-Fi Protected Management Frames (PMF) state
+- [ ] TrustZone / TEE OS specific version (beyond presence detection)
+- [ ] Hidden SSID hotspot detection
+- [ ] Samsung Knox Container / Workspace state
+
+#### Compliance mappings
+- [ ] CIS Android Benchmark v1.6.0: fill the remaining 11% to 100% coverage
+- [ ] OWASP MASVS / MSTG mapping per check
+- [ ] NIST 800-53 / 800-171 mapping per check
+- [ ] PCI-DSS 4.0 detailed mapping (POS terminals)
+
+#### Tooling and ergonomics
+- [ ] `--profile` flag with built-in presets (kiosk / POS / automotive / medical / IoT)
+- [ ] Inline remediation suggestions in the HTML report
 - [ ] Multi-device parallel scanning
-- [ ] Web dashboard (Flask / FastAPI)
-- [ ] Plugin architecture
-- [ ] APK analysis integration
-- [ ] Firmware extraction support
+- [ ] Plugin architecture for custom check loaders
+- [ ] Official Docker image with adb / paramiko / pyserial pre-installed
+- [ ] Web dashboard (Flask / FastAPI) for centralised audit storage and history
+
+#### Code quality
+- [ ] pytest suite covering the engine, transports, and reporters
+- [ ] Split the 2400-line `hardax/__init__.py` into modules (transports, engine, reporters, cli)
+- [ ] Formal JSON schema for `commands/*.json` (jsonschema validation)
+- [ ] Type hints throughout, clean under `mypy --strict`
+
+#### External integration
+- [ ] APK static analysis (apktool / jadx integration)
+- [ ] SARIF output (for GitHub code scanning and similar tools)
