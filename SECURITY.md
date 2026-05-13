@@ -16,7 +16,7 @@ When reporting, please include:
 
 - A description of the issue and its potential impact
 - Steps to reproduce
-- The version of HARDAX affected (`python3 hardax.py --version`)
+- The version of HARDAX affected (`hardax --version`)
 - Your environment (OS, Python version, ADB/SSH/UART mode)
 
 ## Response Expectations
@@ -27,7 +27,7 @@ one week and to publish a fix or mitigation as soon as practical.
 ## Scope
 
 In scope:
-- The HARDAX engine (`hardax.py`)
+- The HARDAX engine (`hardax/__init__.py`)
 - JSON check definitions in `commands/`
 - The HTML/CSV/JSON report generation
 - Command injection, path traversal, or credential-handling issues

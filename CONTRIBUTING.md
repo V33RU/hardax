@@ -37,8 +37,13 @@ flip a SAFE/CRITICAL classification. Test your regex.
 ## Running Locally
 
 ```bash
-python3 hardax.py --version
-python3 hardax.py --json-dir commands --category SYSTEM --severity critical
+# After pip install
+hardax --version
+hardax --category SYSTEM --severity critical
+
+# From a source checkout without installing
+python3 -m hardax --version
+python3 -m hardax --category SYSTEM --severity critical
 ```
 
 Python 3.11+ required.

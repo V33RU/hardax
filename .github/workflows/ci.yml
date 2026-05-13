@@ -18,15 +18,46 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Parse hardax.py
-        run: python -c "import ast; ast.parse(open('hardax.py').read()); print('AST OK')"
-      - name: Show version
-        run: python hardax.py --version
-      - name: Help text renders
-        run: python hardax.py --help > /dev/null
+      - name: Parse hardax package
+        run: python -c "import ast; ast.parse(open('hardax/__init__.py').read()); print('AST OK')"
+      - name: Show version (module mode)
+        run: python -m hardax --version
+      - name: Help text renders (module mode)
+        run: python -m hardax --help > /dev/null
+
+  install-test:
+    name: pip install smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+      - name: Install built wheel
+        run: |
+          python -m pip install dist/*.whl
+      - name: Console command runs
+        run: |
+          hardax --version
+          hardax --help > /dev/null
+      - name: Bundled checks load via console command
+        run: |
+          # No --json or --json-dir means hardax should find its bundled commands/.
+          # Without a device it will fail at adb step; we only need the load to succeed.
+          python -c "
+          import hardax, os
+          pkg_dir = os.path.dirname(hardax.__file__)
+          assert os.path.isdir(os.path.join(pkg_dir, 'commands')), 'commands/ not bundled'
+          assert os.path.isfile(os.path.join(pkg_dir, 'templates', 'report.html')), 'templates/report.html not bundled'
+          print('Bundled data OK')
+          "
 
   json-checks:
-    name: Validate commands/*.json
+    name: Validate hardax/commands/*.json
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +67,7 @@ jobs:
       - name: Validate each JSON file is parseable
         run: |
           set -e
-          for f in commands/*.json; do
+          for f in hardax/commands/*.json; do
             python -c "import json,sys; json.load(open('$f')); print('OK: $f')"
           done
       - name: Validate required fields and regex patterns
@@ -45,7 +76,7 @@ jobs:
           import json, re, sys, os, glob
           required = {"category","label","command","safe_pattern","level","description"}
           fail = 0
-          for path in sorted(glob.glob("commands/*.json")):
+          for path in sorted(glob.glob("hardax/commands/*.json")):
               data = json.load(open(path))
               checks = data["checks"] if isinstance(data, dict) and "checks" in data else data
               for i, c in enumerate(checks, 1):
