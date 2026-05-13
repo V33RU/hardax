@@ -2,7 +2,7 @@
 
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.1.0-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/version-5.2.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/python-3.11+-green.svg" alt="Python">
   <img src="https://img.shields.io/badge/checks-706-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-25-purple.svg" alt="Categories">
@@ -81,28 +81,41 @@ HARDAX works with any Android-based device accessible via ADB, SSH, or UART:
 - ADB (Android Debug Bridge) installed and in PATH
 - USB Debugging enabled on target device
 
-### Quick Start
+### Install with pip (recommended)
 
 ```bash
-# Clone the repository
-git clone https://github.com/v33ru/hardax.git
-cd hardax
+# Core (ADB mode only)
+pip install hardax
 
-# Connect your device via USB
-adb devices
+# With SSH support (paramiko)
+pip install 'hardax[ssh]'
 
-# Run HARDAX
-python3 hardax.py
+# With UART / serial support (pyserial)
+pip install 'hardax[uart]'
+
+# With certificate audit support (cryptography)
+pip install 'hardax[certs]'
+
+# Everything
+pip install 'hardax[all]'
 ```
 
-### Optional Dependencies
+After installation the `hardax` console command is available:
 
 ```bash
-# For Linux
-pip install paramiko cryptography pyserial
+adb devices
+hardax
+```
 
-# For Windows
-py -m pip install -r requirements.txt
+### Install from source (development)
+
+```bash
+git clone https://github.com/V33RU/hardax.git
+cd hardax
+pip install -e '.[all]'
+
+# Or run without installing
+python3 -m hardax
 ```
 
 ---
@@ -113,54 +126,54 @@ py -m pip install -r requirements.txt
 
 ```bash
 # Auto-detect connected device
-python3 hardax.py
+hardax
 
 # Show commands being executed
-python3 hardax.py --show-commands
+hardax --show-commands
 
 # Load all check files from commands/ directory
-python3 hardax.py --json-dir commands
+hardax --json-dir commands
 
 # Specify device by serial
-python3 hardax.py --serial DEVICE_SERIAL
+hardax --serial DEVICE_SERIAL
 
 # Custom output directory
-python3 hardax.py --out ./my_reports
+hardax --out ./my_reports
 
 # Skip certificate audit
-python3 hardax.py --skip-certs
+hardax --skip-certs
 ```
 
 ### SSH Mode (Network)
 
 ```bash
-python3 hardax.py --mode ssh --host 192.168.1.100 --ssh-user root --ssh-pass password
+hardax --mode ssh --host 192.168.1.100 --ssh-user root --ssh-pass password
 ```
 
 ### UART Mode (Serial Console)
 
 ```bash
 # Auto-detect baud rate
-python3 hardax.py --mode uart --uart-port /dev/ttyUSB0
+hardax --mode uart --uart-port /dev/ttyUSB0
 
 # Specify baud rate
-python3 hardax.py --mode uart --uart-port /dev/ttyUSB0 --baud 115200
+hardax --mode uart --uart-port /dev/ttyUSB0 --baud 115200
 
 # Windows
-python3 hardax.py --mode uart --uart-port COM3 --baud 115200
+hardax --mode uart --uart-port COM3 --baud 115200
 ```
 
 ### Network ADB
 
 ```bash
 adb connect 192.168.1.100:5555
-python3 hardax.py --json-dir commands
+hardax --json-dir commands
 ```
 
 ### All Options
 
 ```
-usage: hardax.py [OPTIONS]
+usage: hardax [OPTIONS]
 
 Options:
   --version             Show version
@@ -280,37 +293,40 @@ Create or modify JSON files in the `commands/` directory:
 
 ```
 HARDAX/
-├── hardax.py              # Main engine
-├── requirements.txt       # Python dependencies (paramiko, cryptography, pyserial)
+├── pyproject.toml         # Package metadata, dependencies, entry point
 ├── README.md              # This file
-├── templates/             # Report templates
-│   └── report.html        # Interactive HTML report template
-└── commands/              # Security check definitions (706 checks, 25 categories)
-    ├── system.json        #  85 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator
-    ├── bluetooth.json     #  83 checks - BLE/Classic, pairing, all profiles
-    ├── network.json       #  60 checks - Ports, WiFi, VPN, IoT protocols
-    ├── privacy.json       #  47 checks - Biometrics, location, sensors
-    ├── apps.json          #  44 checks - Permissions, overlay, backup, install
-    ├── binary_hardening.json # 36 checks - PIE, NX, RELRO, stack canaries, ASLR
-    ├── partition.json     #  27 checks - dm-verity, A/B slots, FBE, mount flags
-    ├── certificate_audit.json # 25 checks - CA certs, expiry, MITM
-    ├── selinux.json       #  25 checks - Enforcement, policy, audit
-    ├── pos_security.json  #  24 checks - PCI-DSS, kiosk, NFC relay, PAX CVE
-    ├── storage.json       #  24 checks - Encryption, partitions, backup
-    ├── forensic_indicators.json # 22 checks - Crashes, logcat, temp artifacts
-    ├── attestation.json   #  20 checks - SafetyNet/Play Integrity, Knox, Titan M, bypass detection
-    ├── automotive.json    #  20 checks - Vehicle, CAN bus, infotainment
-    ├── boot_security.json #  20 checks - Verified boot, AVB, dm-verity
-    ├── cryptography.json  #  18 checks - Keystore, StrongBox, algorithms
-    ├── malware.json       #  18 checks - Root, Frida, Xposed, RATs, scrapers
-    ├── cis_benchmark.json #  17 checks - CIS Android Benchmark v1.6.0
-    ├── usb_security.json  #  16 checks - USB debug, MTP, gadget mode
-    ├── cve_indicators.json # 15 checks - Dirty Pipe, Bad Binder, MTK-su, kernel CVEs
-    ├── device_management.json # 13 checks - MDM, accounts, dev options
-    ├── input.json         #   9 checks - Keyboards, accessibility, IME
-    ├── medical.json       #   7 checks - Medical device-specific
-    ├── nfc_security.json  #   7 checks - NFC, reader mode, secure element
-    └── adb_security.json  #   4 checks - ADB keys, network ADB
+├── LICENSE                # MIT
+└── hardax/                # The installable Python package
+    ├── __init__.py        # Main engine (was hardax.py)
+    ├── __main__.py        # Enables 'python -m hardax'
+    ├── templates/
+    │   └── report.html    # Interactive HTML report template
+    └── commands/          # Security check definitions (706 checks, 25 categories)
+        ├── system.json        #  85 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator
+        ├── bluetooth.json     #  83 checks - BLE/Classic, pairing, all profiles
+        ├── network.json       #  60 checks - Ports, WiFi, VPN, IoT protocols
+        ├── privacy.json       #  47 checks - Biometrics, location, sensors
+        ├── apps.json          #  44 checks - Permissions, overlay, backup, install
+        ├── binary_hardening.json # 36 checks - PIE, NX, RELRO, stack canaries, ASLR
+        ├── partition.json     #  27 checks - dm-verity, A/B slots, FBE, mount flags
+        ├── certificate_audit.json # 25 checks - CA certs, expiry, MITM
+        ├── selinux.json       #  25 checks - Enforcement, policy, audit
+        ├── pos_security.json  #  24 checks - PCI-DSS, kiosk, NFC relay, PAX CVE
+        ├── storage.json       #  24 checks - Encryption, partitions, backup
+        ├── forensic_indicators.json # 22 checks - Crashes, logcat, temp artifacts
+        ├── attestation.json   #  20 checks - SafetyNet/Play Integrity, Knox, Titan M, bypass detection
+        ├── automotive.json    #  20 checks - Vehicle, CAN bus, infotainment
+        ├── boot_security.json #  20 checks - Verified boot, AVB, dm-verity
+        ├── cryptography.json  #  18 checks - Keystore, StrongBox, algorithms
+        ├── malware.json       #  18 checks - Root, Frida, Xposed, RATs, scrapers
+        ├── cis_benchmark.json #  17 checks - CIS Android Benchmark v1.6.0
+        ├── usb_security.json  #  16 checks - USB debug, MTP, gadget mode
+        ├── cve_indicators.json # 15 checks - Dirty Pipe, Bad Binder, MTK-su, kernel CVEs
+        ├── device_management.json # 13 checks - MDM, accounts, dev options
+        ├── input.json         #   9 checks - Keyboards, accessibility, IME
+        ├── medical.json       #   7 checks - Medical device-specific
+        ├── nfc_security.json  #   7 checks - NFC, reader mode, secure element
+        └── adb_security.json  #   4 checks - ADB keys, network ADB
 ```
 
 ---
