@@ -315,26 +315,26 @@ HARDAX/
     ├── templates/
     │   └── report.html    # Interactive HTML report template
     └── commands/          # Security check definitions (706 checks, 25 categories)
-        ├── system.json        #  85 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator
+        ├── system.json        #  87 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator, WebView
         ├── bluetooth.json     #  83 checks - BLE/Classic, pairing, all profiles
-        ├── network.json       #  60 checks - Ports, WiFi, VPN, IoT protocols
-        ├── privacy.json       #  47 checks - Biometrics, location, sensors
-        ├── apps.json          #  44 checks - Permissions, overlay, backup, install
+        ├── network.json       #  62 checks - Ports, WiFi, VPN, IoT protocols, Allow 2G, hotspot WPA
+        ├── privacy.json       #  48 checks - Biometrics, location, sensors, Restricted Settings
+        ├── apps.json          #  47 checks - Permissions, overlay, backup, install, APK signature scheme
         ├── binary_hardening.json # 36 checks - PIE, NX, RELRO, stack canaries, ASLR
-        ├── partition.json     #  27 checks - dm-verity, A/B slots, FBE, mount flags
+        ├── partition.json     #  35 checks - dm-verity, A/B slots, FBE, mount flags (noexec/nosuid/nodev)
+        ├── selinux.json       #  26 checks - Enforcement, policy version, audit
         ├── certificate_audit.json # 25 checks - CA certs, expiry, MITM
-        ├── selinux.json       #  25 checks - Enforcement, policy, audit
         ├── pos_security.json  #  24 checks - PCI-DSS, kiosk, NFC relay, PAX CVE
         ├── storage.json       #  24 checks - Encryption, partitions, backup
         ├── forensic_indicators.json # 22 checks - Crashes, logcat, temp artifacts
         ├── attestation.json   #  20 checks - SafetyNet/Play Integrity, Knox, Titan M, bypass detection
         ├── automotive.json    #  20 checks - Vehicle, CAN bus, infotainment
         ├── boot_security.json #  20 checks - Verified boot, AVB, dm-verity
-        ├── cryptography.json  #  18 checks - Keystore, StrongBox, algorithms
+        ├── cryptography.json  #  20 checks - Keystore, StrongBox, kernel entropy, Widevine DRM
         ├── malware.json       #  18 checks - Root, Frida, Xposed, RATs, scrapers
         ├── cis_benchmark.json #  17 checks - CIS Android Benchmark v1.6.0
         ├── usb_security.json  #  16 checks - USB debug, MTP, gadget mode
-        ├── cve_indicators.json # 15 checks - Dirty Pipe, Bad Binder, MTK-su, kernel CVEs
+        ├── cve_indicators.json # 16 checks - Dirty Pipe, Bad Binder, MTK-su, kernel CVEs, WebView debug
         ├── device_management.json # 13 checks - MDM, accounts, dev options
         ├── input.json         #   9 checks - Keyboards, accessibility, IME
         ├── medical.json       #   7 checks - Medical device-specific
