@@ -46,7 +46,7 @@ python3 -m hardax --version
 python3 -m hardax --category SYSTEM --severity critical
 ```
 
-Python 3.11+ required.
+Python 3.10+ required.
 
 ## Commit Style
 
