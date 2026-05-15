@@ -35,8 +35,8 @@ from typing import List, Dict, Any, Tuple, Optional
 #  PYTHON VERSION CHECK
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-if sys.version_info < (3, 11):
-    sys.exit(f"[ERROR] HARDAX requires Python 3.11 or higher. "
+if sys.version_info < (3, 10):
+    sys.exit(f"[ERROR] HARDAX requires Python 3.10 or higher. "
              f"Detected: {sys.version_info.major}.{sys.version_info.minor}")
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
