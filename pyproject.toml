@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hardax"
-version = "5.3.1"
+version = "5.3.2"
 description = "Hardening Audit eXaminer: security configuration auditor for Android-based devices (POS, IoT, automotive, medical, kiosk)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [
-    { name = "V33RU (Mr-IoT, IOTSRG)", email = "v33raiot@gmail.com" }
+    { name = "V33RU (Mr-IoT, IOTSRG)", email = "no-reply@gmail.com" }
 ]
 keywords = [
     "android",
