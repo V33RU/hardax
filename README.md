@@ -163,6 +163,20 @@ hardax --skip-certs
 hardax --mode ssh --host 192.168.1.100 --ssh-user root --ssh-pass password
 ```
 
+The target host's SSH key must be in `~/.ssh/known_hosts` first, otherwise the connection is refused (strict host-key checking, the safe default). Populate it once with:
+
+```bash
+ssh-keyscan -H -t ed25519,rsa 192.168.1.100 >> ~/.ssh/known_hosts
+```
+
+For CI / lab environments auditing many fresh devices where pre-population is impractical, pass `--ssh-tofu` to silently accept unknown host keys on first contact. A clear warning is printed each time:
+
+```bash
+hardax --mode ssh --host 192.168.1.100 --ssh-user root --ssh-pass "$AUDIT_PASS" --ssh-tofu
+```
+
+The SSH password can also come from the `HARDAX_SSH_PASS` environment variable, which keeps it out of `ps` and shell history.
+
 ### UART Mode (Serial Console)
 
 ```bash
@@ -195,7 +209,10 @@ Options:
   --host HOST           SSH hostname/IP
   --port PORT           SSH port (default: 22)
   --ssh-user USER       SSH username
-  --ssh-pass PASS       SSH password
+  --ssh-pass PASS       SSH password (also accepts HARDAX_SSH_PASS env var)
+  --ssh-tofu            SSH trust-on-first-use: silently accept unknown
+                        host keys (CI / lab convenience; weakens MITM
+                        protection on first connection). Default off.
   --uart-port PORT      UART serial port (e.g. /dev/ttyUSB0, COM3)
   --baud RATE           UART baud rate (0 = auto-detect, default: 0)
   --json FILE           Path to single JSON checks file
@@ -358,6 +375,10 @@ HARDAX/
 - [x] Lock Screen Timeout false-positive fix (v5.1.0)
 - [x] Pip-installable Python package, `pip install hardax` (v5.2.0)
 - [x] PyPI Trusted Publishing on every GitHub release (v5.2.1)
+- [x] 5 new SELinux checks from the 8ksec internals audit (v5.3.0)
+- [x] Supply-chain hardening: SHA-pinned actions + Sigstore attestations on every wheel (v5.3.1)
+- [x] Python 3.10 support (v5.3.3)
+- [x] Safe SSH host-key default restored, `--ssh-tofu` opt-in for CI / lab convenience (v5.3.3)
 
 ### Open
 
