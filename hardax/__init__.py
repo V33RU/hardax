@@ -43,7 +43,7 @@ if sys.version_info < (3, 10):
 #  VERSION & CONSTANTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-__version__ = "5.3.2"
+__version__ = "5.3.3"
 
 REQUIRED_CHECK_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
 
@@ -642,7 +642,8 @@ class AdbDevice(Device):
 class SshDevice(Device):
     """Execute commands on a device over SSH (paramiko)."""
 
-    def __init__(self, host: str, port: int, user: str, password: str):
+    def __init__(self, host: str, port: int, user: str, password: str,
+                 trust_on_first_use: bool = False):
         try:
             import paramiko
         except Exception:
@@ -657,12 +658,40 @@ class SshDevice(Device):
 
         self.client = self.paramiko.SSHClient()
         self.client.load_system_host_keys()
-        self.client.set_missing_host_key_policy(self.paramiko.AutoAddPolicy())
+        if trust_on_first_use:
+            # User explicitly opted in via --ssh-tofu. Print a clear warning
+            # so this never happens by accident or unnoticed.
+            print(
+                f"{Colors.YELLOW}⚠ SSH host-key trust-on-first-use enabled (--ssh-tofu).{Colors.RESET}\n"
+                f"{Colors.YELLOW}  First connections will silently trust any host key; "
+                f"vulnerable to MITM during the first handshake.{Colors.RESET}\n"
+                f"{Colors.YELLOW}  Only use this on controlled lab / CI networks.{Colors.RESET}",
+                file=sys.stderr,
+            )
+            self.client.set_missing_host_key_policy(self.paramiko.AutoAddPolicy())
+        else:
+            # Safe default: refuse to connect to hosts whose key is not
+            # already in the user's known_hosts. Pre-populate with
+            # 'ssh-keyscan -H host >> ~/.ssh/known_hosts' or pass --ssh-tofu.
+            self.client.set_missing_host_key_policy(self.paramiko.RejectPolicy())
         try:
             self.client.connect(hostname=host, port=port, username=user,
                                 password=password, look_for_keys=False,
                                 allow_agent=False, timeout=20)
-        except (paramiko.AuthenticationException, paramiko.SSHException, OSError) as e:
+        except self.paramiko.SSHException as e:
+            msg = str(e)
+            if "not found in known_hosts" in msg.lower() or "Server" in msg:
+                print(
+                    f"ERROR: SSH host key for {host}:{port} is not in known_hosts.\n"
+                    f"  Either pre-populate it on the auditor machine:\n"
+                    f"    ssh-keyscan -H -t ed25519,rsa {host} >> ~/.ssh/known_hosts\n"
+                    f"  Or, if you accept the trust-on-first-use risk, pass --ssh-tofu.",
+                    file=sys.stderr,
+                )
+            else:
+                print(f"ERROR: SSH connection failed: {e}", file=sys.stderr)
+            sys.exit(1)
+        except (paramiko.AuthenticationException, OSError) as e:
             print(f"ERROR: SSH connection failed: {e}", file=sys.stderr)
             sys.exit(1)
 
@@ -2082,6 +2111,10 @@ Examples:
     ap.add_argument("--port", type=int, default=22, help="SSH port (or overridden by UART)")
     ap.add_argument("--ssh-user", help="SSH username")
     ap.add_argument("--ssh-pass", help="SSH password")
+    ap.add_argument("--ssh-tofu", action="store_true",
+                    help="SSH trust-on-first-use: silently accept and store unknown host keys. "
+                         "Convenient for CI / lab networks auditing many fresh devices; "
+                         "weakens the SSH MITM guarantee on the first connection. Off by default.")
     ap.add_argument("--uart-port", help="UART serial port (e.g. /dev/ttyUSB0, /dev/ttyS0, COM3)")
     ap.add_argument("--baud", type=int, default=0, help="UART baud rate (0 = auto-detect, common: 115200, 9600)")
     ap.add_argument("--out", default="hardax_output", help="Output directory")
@@ -2159,7 +2192,8 @@ Examples:
             or os.environ.get("HARDAX_SSH_PASS")
             or getpass.getpass(f"SSH password for {args.ssh_user}@{args.host}: ")
         )
-        device = SshDevice(args.host, args.port, args.ssh_user, ssh_pass)
+        device = SshDevice(args.host, args.port, args.ssh_user, ssh_pass,
+                           trust_on_first_use=args.ssh_tofu)
 
     else:  # uart
         if not args.uart_port:
