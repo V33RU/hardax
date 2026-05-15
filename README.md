@@ -90,7 +90,7 @@ HARDAX works with any Android-based device accessible via ADB, SSH, or UART:
 
 ### Prerequisites
 
-- Python 3.11 or higher
+- Python 3.10 or higher
 - ADB (Android Debug Bridge) installed and in PATH
 - USB Debugging enabled on target device
 
