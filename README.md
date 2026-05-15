@@ -28,7 +28,7 @@
 <p align="center">
 </p>
 
-![](https://raw.githubusercontent.com/V33RU/my-slides/refs/heads/main/images/report.png)
+![HARDAX overview: Android security configuration auditor](https://raw.githubusercontent.com/V33RU/hardax/main/.github/assets/hardax-overview.png)
 
 ---
 
