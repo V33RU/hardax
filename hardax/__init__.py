@@ -657,7 +657,7 @@ class SshDevice(Device):
 
         self.client = self.paramiko.SSHClient()
         self.client.load_system_host_keys()
-        self.client.set_missing_host_key_policy(self.paramiko.RejectPolicy())
+        self.client.set_missing_host_key_policy(self.paramiko.AutoAddPolicy())
         try:
             self.client.connect(hostname=host, port=port, username=user,
                                 password=password, look_for_keys=False,
