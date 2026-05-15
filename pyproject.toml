@@ -7,7 +7,7 @@ name = "hardax"
 version = "5.3.1"
 description = "Hardening Audit eXaminer: security configuration auditor for Android-based devices (POS, IoT, automotive, medical, kiosk)"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [
     { name = "V33RU (Mr-IoT, IOTSRG)", email = "v33raiot@gmail.com" }
@@ -36,6 +36,7 @@ classifiers = [
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Security",
