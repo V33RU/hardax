@@ -6,7 +6,7 @@
     <img src="https://img.shields.io/pypi/v/hardax.svg?label=pypi&color=blue" alt="PyPI">
   </a>
   <a href="https://pypi.org/project/hardax/">
-    <img src="https://img.shields.io/pypi/pyversions/hardax.svg?label=python" alt="Python">
+    <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg" alt="Python 3.10 | 3.11 | 3.12">
   </a>
   <img src="https://img.shields.io/badge/checks-711-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-25-purple.svg" alt="Categories">
