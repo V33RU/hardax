@@ -180,6 +180,62 @@
       "null_is_safe": true,
       "description": "When debug.webview.debug or the equivalent setWebContentsDebuggingEnabled is on, any chrome://inspect client can attach to in-app WebViews, expose the DOM, and run arbitrary JavaScript in the app's context. Should be off in production, especially for payment and IoT control UIs that use WebView.",
       "remediation": "Disable WebView debugging in production builds. Remove WebView.setWebContentsDebuggingEnabled(true) from app code, and ensure debug.webview.debug is not set."
+    },
+    {
+      "id": "CVE-016",
+      "category": "CVE_INDICATORS",
+      "label": "Copy Fail (CVE-2026-31431) algif_aead page-cache write",
+      "command": "sh -c 'v=$(uname -r 2>/dev/null | awk -F\"[.-]\" \"{printf \\\"%d.%d.%d\\\", \\$1, \\$2, \\$3}\"); ka=$(echo \"$v\" | cut -d. -f1); kb=$(echo \"$v\" | cut -d. -f2); kc=$(echo \"$v\" | cut -d. -f3); vuln=0; case \"${ka}.${kb}\" in 4.*) vuln=1 ;; 5.10) [ \"$kc\" -lt 254 ] && vuln=1 ;; 5.15) [ \"$kc\" -lt 204 ] && vuln=1 ;; 6.1)  [ \"$kc\" -lt 170 ] && vuln=1 ;; 6.6)  [ \"$kc\" -lt 137 ] && vuln=1 ;; 6.12) [ \"$kc\" -lt 85 ]  && vuln=1 ;; 6.18) [ \"$kc\" -lt 22 ]  && vuln=1 ;; 6.19) [ \"$kc\" -lt 12 ]  && vuln=1 ;; 5.*|6.*) vuln=1 ;; esac; [ \"$vuln\" = \"1\" ] && echo \"POTENTIALLY_VULNERABLE kernel $v\" || echo \"LIKELY_PATCHED kernel $v\"'",
+      "safe_pattern": "^LIKELY_PATCHED",
+      "level": "critical",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Linux kernel crypto/algif_aead lets an unprivileged local user write four controlled bytes into the page cache of any readable file, leading to root. Actively exploited per CISA KEV. Affects 4.14 through 6.19.11 with stable-branch fixes at 5.10.254, 5.15.204, 6.1.170, 6.6.137, 6.12.85, 6.18.22, 6.19.12.",
+      "remediation": "Update the kernel to the relevant patched stable point. On Android: take the latest vendor OTA. On Linux distros: 'apt full-upgrade' / 'dnf update' / 'pacman -Syu' then reboot.",
+      "why": "AEAD interface allows tampering with cached file pages, including setuid binaries and credential stores.",
+      "risk_if_fail": "Local root via /etc/passwd or /usr/bin/su page-cache corruption."
+    },
+    {
+      "id": "CVE-017",
+      "category": "CVE_INDICATORS",
+      "label": "DirtyDecrypt (CVE-2026-31635) rxrpc rxgk page-cache write",
+      "command": "sh -c 'v=$(uname -r 2>/dev/null); maj=$(echo \"$v\" | awk -F\"[.-]\" \"{print \\$1+0}\"); min=$(echo \"$v\" | awk -F\"[.-]\" \"{print \\$2+0}\"); rxrpc_loaded=$(grep -c \"^rxrpc \" /proc/modules 2>/dev/null || echo 0); rxrpc_proto=$(grep -c \"^RxRPC\" /proc/net/protocols 2>/dev/null || echo 0); if [ \"$maj\" -lt 6 ] || { [ \"$maj\" -eq 6 ] && [ \"$min\" -lt 16 ]; }; then echo \"NOT_AFFECTED kernel $v rxgk introduced in 6.16\"; elif [ \"$rxrpc_loaded\" = \"0\" ] && [ \"$rxrpc_proto\" = \"0\" ]; then echo \"NOT_AFFECTED rxrpc not active on $v\"; else echo \"POTENTIALLY_VULNERABLE kernel $v rxrpc active\"; fi'",
+      "safe_pattern": "^NOT_AFFECTED",
+      "level": "warning",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Linux kernel net/rxrpc rxgk_decrypt_skb is missing the COW guard, allowing in-place decrypt to corrupt the page cache when frag pages come from splice. Only kernels with rxgk (6.16 and later) are affected, and only when rxrpc is loaded or built in.",
+      "remediation": "Update to the rxrpc-fixed point release (commits a2567217ade9, beee051f259a, e2f1a80d8b1e). If rxrpc is not needed, blacklist it: 'echo install rxrpc /bin/false > /etc/modprobe.d/rxrpc.conf && rmmod rxrpc'.",
+      "why": "Same page-cache write primitive as Dirty Pipe, reached via the AFS RxRPC RESPONSE path.",
+      "risk_if_fail": "Local root via writing to setuid binaries or credential files in the page cache."
+    },
+    {
+      "id": "CVE-018",
+      "category": "CVE_INDICATORS",
+      "label": "Dirty Frag and Fragnesia (CVE-2026-43284, 43500, 46300) xfrm/ESP/RxRPC surface",
+      "command": "sh -c 'loaded=\"\"; for m in esp4 esp6 rxrpc; do grep -q \"^${m} \" /proc/modules 2>/dev/null && loaded=\"${loaded} ${m}\"; done; xfrm_active=$([ -e /proc/net/xfrm_stat ] && echo yes || echo no); esp_proto=$(awk \"/^(ESP|esp)/\" /proc/net/protocols 2>/dev/null | head -1 | awk \"{print \\$1}\"); rxrpc_proto=$(awk \"/^RxRPC/\" /proc/net/protocols 2>/dev/null | head -1 | awk \"{print \\$1}\"); mitig=\"\"; for f in /etc/modprobe.d/dirtyfrag.conf /etc/modprobe.d/blacklist-dirtyfrag.conf; do [ -f \"$f\" ] && grep -qE \"install (esp4|esp6|rxrpc) /bin/false\" \"$f\" 2>/dev/null && mitig=\"${mitig} ${f}\"; done; surface=0; [ -n \"$loaded\" ] && surface=1; [ \"$xfrm_active\" = \"yes\" ] && surface=1; [ -n \"$esp_proto\" ] && surface=1; [ -n \"$rxrpc_proto\" ] && surface=1; if [ \"$surface\" = \"0\" ]; then echo \"NOT_AFFECTED no xfrm/esp/rxrpc surface\"; elif [ -n \"$mitig\" ]; then echo \"MITIGATED loaded:${loaded:- none} blacklist:${mitig}\"; else echo \"POTENTIALLY_VULNERABLE loaded:${loaded:- none} xfrm:${xfrm_active} esp_proto:${esp_proto:-none} rxrpc_proto:${rxrpc_proto:-none}\"; fi'",
+      "safe_pattern": "^(NOT_AFFECTED|MITIGATED)",
+      "level": "critical",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Dirty Frag (xfrm-ESP and rxrpc page-cache write, CVE-2026-43284 and CVE-2026-43500) and Fragnesia (xfrm ESP-in-TCP, CVE-2026-46300) all share the same attack surface: the xfrm/IPsec ESP code path and rxrpc, reachable via splice into the kernel page cache. Detection looks at both loadable modules and built-in surface (some Android kernels compile esp4/esp6 into the kernel), plus the standard blacklist mitigation file recommended by the V12 and V4bel PoCs.",
+      "remediation": "Apply the upstream patches that landed on 13 May 2026. If patching is delayed, drop the mitigation file: 'printf %s\\\\n \"install esp4 /bin/false\" \"install esp6 /bin/false\" \"install rxrpc /bin/false\" > /etc/modprobe.d/dirtyfrag.conf && rmmod esp4 esp6 rxrpc 2>/dev/null && echo 3 > /proc/sys/vm/drop_caches'. Breaks IPsec VPN and AFS until patched.",
+      "why": "Page-cache write primitive in a widely shipped subsystem, exploitable from an unprivileged local user namespace.",
+      "risk_if_fail": "Local root via in-page-cache overwrite of /usr/bin/su or /etc/shadow."
+    },
+    {
+      "id": "CVE-019",
+      "category": "CVE_INDICATORS",
+      "label": "Unprivileged user namespaces hardening (Fragnesia exploit precondition)",
+      "command": "sh -c 'mx=$(cat /proc/sys/user/max_user_namespaces 2>/dev/null); u=$(cat /proc/sys/kernel/unprivileged_userns_clone 2>/dev/null); aaur=$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null); se=$(getenforce 2>/dev/null || cat /sys/fs/selinux/enforce 2>/dev/null); hardened=0; [ \"$u\" = \"0\" ] && hardened=1; [ \"$aaur\" = \"1\" ] && hardened=1; [ \"$mx\" = \"0\" ] && hardened=1; case \"$se\" in Enforcing|1) hardened=1 ;; esac; if [ \"$hardened\" = \"1\" ]; then echo \"HARDENED max_userns=${mx:-na} userns_clone=${u:-na} apparmor=${aaur:-na} selinux=${se:-na}\"; else echo \"OPEN max_userns=${mx:-na} userns_clone=${u:-na} apparmor=${aaur:-na} selinux=${se:-na}\"; fi'",
+      "safe_pattern": "^HARDENED",
+      "level": "warning",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Most recent Linux LPE chains in this family (Fragnesia, Dirty Frag, Dirty Pipe variants) require the attacker to obtain CAP_NET_ADMIN inside an unprivileged user namespace via unshare(CLONE_NEWUSER). A hardened system either disables user namespaces (max_user_namespaces=0 or kernel.unprivileged_userns_clone=0), restricts them via AppArmor (Ubuntu 23.10+), or enforces SELinux (Android default and several Linux distros). Any one of those four mechanisms blocks the precondition.",
+      "remediation": "On Linux distros: 'sysctl -w kernel.unprivileged_userns_clone=0' or 'sysctl -w user.max_user_namespaces=0'. On Ubuntu 23.10 and later: keep 'kernel.apparmor_restrict_unprivileged_userns=1' (default). On Android: keep SELinux Enforcing.",
+      "why": "Defence in depth: removes the standard local-attacker entry point used by almost every recent kernel LPE PoC.",
+      "risk_if_fail": "Attacker has the namespace primitive needed to reach the vulnerable kernel paths."
     }
   ]
 }
