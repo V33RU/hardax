@@ -8,7 +8,7 @@
   <a href="https://pypi.org/project/hardax/">
     <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg" alt="Python 3.10 | 3.11 | 3.12">
   </a>
-  <img src="https://img.shields.io/badge/checks-724-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-728-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-25-purple.svg" alt="Categories">
   <a href="https://github.com/V33RU/hardax/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
@@ -34,7 +34,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **724 security checks** across **25 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **728 security checks** across **25 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -49,7 +49,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **724 Security Checks** | Comprehensive coverage across 25 security categories |
+| **728 Security Checks** | Comprehensive coverage across 25 security categories |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
 | **Malware & Hooking Detection** | 18 checks for rootkits, RATs, Frida, Xposed, keyloggers, memory scrapers |
 | **Certificate Audit** | CA certificate analysis with expiry/age calculation - 27 checks |
@@ -233,7 +233,7 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **724 checks** into **25 security categories**:
+HARDAX organizes **728 checks** into **25 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
@@ -256,7 +256,7 @@ HARDAX organizes **724 checks** into **25 security categories**:
 | **MALWARE** | 18 | Root/Magisk/SuperSU, Frida, Xposed/LSPosed, RATs, keyloggers, memory scrapers, root cloaking |
 | **CIS_BENCHMARK** | 17 | CIS Android Benchmark v1.6.0 controls (89% coverage) |
 | **USB_SECURITY** | 16 | USB debugging, interfaces, serial ports, gadget mode |
-| **CVE_INDICATORS** | 29 | Dirty Pipe, Bad Binder, Dirty COW, MTK-su, Exynos baseband, Mali GPU, kernel CVE ranges, WebView debugging |
+| **CVE_INDICATORS** | 33 | Dirty Pipe, Bad Binder, Dirty COW, MTK-su, Exynos baseband, Mali GPU, kernel CVE ranges, WebView debugging |
 | **DEVICE_MANAGEMENT** | 13 | MDM, accounts, developer options |
 | **INPUT** | 9 | Keyboards, accessibility, input methods |
 | **MEDICAL** | 7 | Medical device-specific checks |
@@ -331,7 +331,7 @@ HARDAX/
     ├── __main__.py        # Enables 'python -m hardax'
     ├── templates/
     │   └── report.html    # Interactive HTML report template
-    └── commands/          # Security check definitions (724 checks, 25 categories)
+    └── commands/          # Security check definitions (728 checks, 25 categories)
         ├── system.json        #  87 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator, WebView
         ├── bluetooth.json     #  83 checks - BLE/Classic, pairing, all profiles
         ├── network.json       #  62 checks - Ports, WiFi, VPN, IoT protocols, Allow 2G, hotspot WPA
@@ -351,7 +351,7 @@ HARDAX/
         ├── malware.json       #  18 checks - Root, Frida, Xposed, RATs, scrapers
         ├── cis_benchmark.json #  17 checks - CIS Android Benchmark v1.6.0
         ├── usb_security.json  #  16 checks - USB debug, MTP, gadget mode
-        ├── cve_indicators.json # 29 checks - Dirty Pipe, Bad Binder, MTK-su, kernel CVEs, WebView debug
+        ├── cve_indicators.json # 33 checks - Dirty Pipe, Bad Binder, MTK-su, kernel CVEs, WebView debug
         ├── device_management.json # 13 checks - MDM, accounts, dev options
         ├── input.json         #   9 checks - Keyboards, accessibility, IME
         ├── medical.json       #   7 checks - Medical device-specific
