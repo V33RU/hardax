@@ -337,13 +337,61 @@
       "id": "CVE-029",
       "category": "CVE_INDICATORS",
       "label": "Android Security Bulletin compliance against known-exploited kernel CVEs",
-      "command": "sh -c 'sp=$(getprop ro.build.version.security_patch 2>/dev/null | tr -d -); if [ -z \"$sp\" ]; then echo \"UNKNOWN no ro.build.version.security_patch\"; exit 0; fi; gap=\"\"; chk() { d=$1; cve=$2; [ \"$sp\" -lt \"$d\" ] && gap=\"${gap} ${cve}(${d})\"; }; chk 20160501 CVE-2016-2431; chk 20160701 CVE-2016-5342; chk 20161101 CVE-2016-5195; chk 20191001 CVE-2019-2215; chk 20200301 CVE-2020-0041; chk 20210301 CVE-2021-0399; chk 20211101 CVE-2021-1048; chk 20220401 CVE-2022-0847; chk 20230201 CVE-2023-20938; chk 20250901 CVE-2025-38352; chk 20260301 CVE-2026-21385; if [ -z \"$gap\" ]; then echo \"COMPLIANT patch=$sp all listed exploited-CVE bulletins applied\"; else echo \"BEHIND patch=$sp missing:${gap}\"; fi'",
+      "command": "sh -c 'sp=$(getprop ro.build.version.security_patch 2>/dev/null | tr -d -); if [ -z \"$sp\" ]; then echo \"UNKNOWN no ro.build.version.security_patch\"; exit 0; fi; gap=\"\"; chk() { d=$1; cve=$2; [ \"$sp\" -lt \"$d\" ] && gap=\"${gap} ${cve}(${d})\"; }; chk 20160501 CVE-2016-2431; chk 20160701 CVE-2016-5342; chk 20161101 CVE-2016-5195; chk 20191001 CVE-2019-2215; chk 20200301 CVE-2020-0041; chk 20210301 CVE-2021-0399; chk 20211101 CVE-2021-1048; chk 20220401 CVE-2022-0847; chk 20230201 CVE-2023-20938; chk 20250901 CVE-2025-38352; chk 20260301 CVE-2026-21385; chk 20240501 CVE-2024-1086; chk 20240601 CVE-2024-32896; chk 20240801 CVE-2024-36971; chk 20241001 CVE-2024-43047; if [ -z \"$gap\" ]; then echo \"COMPLIANT patch=$sp all listed exploited-CVE bulletins applied\"; else echo \"BEHIND patch=$sp missing:${gap}\"; fi'",
       "safe_pattern": "^COMPLIANT",
       "level": "critical",
       "empty_is_safe": false,
       "null_is_safe": false,
       "description": "Reads ro.build.version.security_patch and names every actively-exploited or CISA-KEV-listed kernel CVE that the device's bulletin date is behind on. Complements the per-CVE checks: this one captures the patch-level signal across the full known-exploited catalogue in one place. List is curated, updated per release.",
       "remediation": "Take the latest Android vendor OTA. The 'missing' field names each unpatched CVE."
+    },
+    {
+      "id": "CVE-030",
+      "category": "CVE_INDICATORS",
+      "label": "netfilter nf_tables UAF (CVE-2024-1086, CISA KEV)",
+      "command": "sh -c 'v=$(uname -r 2>/dev/null | awk -F\"[.-]\" \"{printf \\\"%d.%d.%d\\\", \\$1, \\$2, \\$3}\"); ka=$(echo \"$v\" | cut -d. -f1); kb=$(echo \"$v\" | cut -d. -f2); kc=$(echo \"$v\" | cut -d. -f3); vuln=0; case \"${ka}.${kb}\" in 3.*|4.*) vuln=1 ;; 5.0|5.1|5.2|5.3|5.4|5.5|5.6|5.7|5.8|5.9|5.10|5.11|5.12|5.13|5.14) vuln=1 ;; 5.15) [ \"$kc\" -lt 149 ] && vuln=1 ;; 6.0) vuln=1 ;; 6.1)  [ \"$kc\" -lt 76 ]  && vuln=1 ;; 6.2|6.3|6.4|6.5) vuln=1 ;; 6.6)  [ \"$kc\" -lt 15 ]  && vuln=1 ;; 6.7)  [ \"$kc\" -lt 3 ]   && vuln=1 ;; esac; nft_loaded=$(grep -c \"^nf_tables \" /proc/modules 2>/dev/null || echo 0); if [ \"$vuln\" = \"1\" ]; then echo \"POTENTIALLY_VULNERABLE kernel $v nf_tables_loaded=$nft_loaded\"; else echo \"LIKELY_PATCHED kernel $v\"; fi'",
+      "safe_pattern": "^LIKELY_PATCHED",
+      "level": "critical",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Use-after-free in nft_verdict_init in net/netfilter/nf_tables_api.c. Positive verdict values are treated as drop errors, causing double-free in nf_hook_slow. Public exploit code on GitHub. CISA KEV May 2024. Affects kernel 3.15 through 6.7.2 across all stable branches.",
+      "remediation": "Update to kernel 5.15.149+, 6.1.76+, 6.6.15+, or 6.7.3+. If patching is delayed, blacklist nf_tables via modprobe.d (will break netfilter rules that depend on nftables)."
+    },
+    {
+      "id": "CVE-031",
+      "category": "CVE_INDICATORS",
+      "label": "Pixel logic-error privesc (CVE-2024-32896, CISA KEV)",
+      "command": "sh -c 'mfg=$(getprop ro.product.manufacturer 2>/dev/null); brand=$(getprop ro.product.brand 2>/dev/null); model=$(getprop ro.product.model 2>/dev/null); sp=$(getprop ro.build.version.security_patch 2>/dev/null | tr -d -); pixel=0; case \"${mfg}${brand}${model}\" in *[Gg]oogle*|*[Pp]ixel*) pixel=1 ;; esac; if [ \"$pixel\" = \"0\" ]; then echo \"NOT_AFFECTED non-Pixel mfg=${mfg:-?} model=${model:-?}\"; elif [ -z \"$sp\" ]; then echo \"UNKNOWN pixel device, no security_patch\"; elif [ \"$sp\" -lt \"20240601\" ]; then echo \"POTENTIALLY_VULNERABLE pixel patch=$sp pre-2024-06-01\"; else echo \"LIKELY_PATCHED pixel patch=$sp\"; fi'",
+      "safe_pattern": "^(NOT_AFFECTED|LIKELY_PATCHED)",
+      "level": "critical",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Logic error allowing local privilege escalation on Pixel devices. Actively exploited in-the-wild per CISA KEV (July 2024). Patched in June 2024 Pixel Update.",
+      "remediation": "Install the June 2024 (or later) Pixel security patch level."
+    },
+    {
+      "id": "CVE-032",
+      "category": "CVE_INDICATORS",
+      "label": "__dst_negative_advice UAF (CVE-2024-36971, CISA KEV)",
+      "command": "sh -c 'v=$(uname -r 2>/dev/null | awk -F\"[.-]\" \"{printf \\\"%d.%d.%d\\\", \\$1, \\$2, \\$3}\"); ka=$(echo \"$v\" | cut -d. -f1); kb=$(echo \"$v\" | cut -d. -f2); kc=$(echo \"$v\" | cut -d. -f3); vuln=0; case \"${ka}.${kb}\" in 4.6|4.7|4.8|4.9|4.10|4.11|4.12|4.13|4.14|4.15|4.16|4.17|4.18) vuln=1 ;; 4.19) [ \"$kc\" -lt 317 ] && vuln=1 ;; 4.20) vuln=1 ;; 5.0|5.1|5.2|5.3) vuln=1 ;; 5.4)  [ \"$kc\" -lt 279 ] && vuln=1 ;; 5.5|5.6|5.7|5.8|5.9) vuln=1 ;; 5.10) [ \"$kc\" -lt 220 ] && vuln=1 ;; 5.11|5.12|5.13|5.14) vuln=1 ;; 5.15) [ \"$kc\" -lt 162 ] && vuln=1 ;; 5.16|5.17|5.18|5.19|6.0) vuln=1 ;; 6.1)  [ \"$kc\" -lt 95 ]  && vuln=1 ;; 6.2|6.3|6.4|6.5) vuln=1 ;; 6.6)  [ \"$kc\" -lt 35 ]  && vuln=1 ;; 6.7|6.8) vuln=1 ;; 6.9)  [ \"$kc\" -lt 5 ]   && vuln=1 ;; esac; [ \"$vuln\" = \"1\" ] && echo \"POTENTIALLY_VULNERABLE kernel $v\" || echo \"LIKELY_PATCHED kernel $v\"'",
+      "safe_pattern": "^LIKELY_PATCHED",
+      "level": "critical",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Race condition in __dst_negative_advice() failing to enforce RCU rules when clearing socket destination cache. Use-after-free in net/. Pixel zero-day, actively exploited in-the-wild per CISA KEV (August 2024). Affects 4.6 through patched points 4.19.317, 5.4.279, 5.10.220, 5.15.162, 6.1.95, 6.6.35, 6.9.5.",
+      "remediation": "Update kernel to the relevant patched stable point or take the latest Android OTA. Affected over a large range of Linux versions."
+    },
+    {
+      "id": "CVE-033",
+      "category": "CVE_INDICATORS",
+      "label": "Qualcomm DSP/FastRPC UAF (CVE-2024-43047, CISA KEV)",
+      "command": "sh -c 'sp=$(getprop ro.build.version.security_patch 2>/dev/null | tr -d -); vsp=$(getprop ro.vendor.build.security_patch 2>/dev/null | tr -d -); board=$(getprop ro.product.board 2>/dev/null); soc=$(getprop ro.hardware 2>/dev/null); qcom=0; case \"${board}${soc}\" in *msm*|*qcom*|*sdm*|*sm[0-9]*|*MSM*) qcom=1 ;; esac; if [ \"$qcom\" = \"0\" ]; then echo \"NOT_AFFECTED non-qcom board=${board:-?} soc=${soc:-?}\"; exit 0; fi; best=$sp; [ -n \"$vsp\" ] && [ \"$vsp\" -gt \"${best:-0}\" ] 2>/dev/null && best=$vsp; if [ -z \"$best\" ]; then echo \"UNKNOWN qcom, no security_patch property\"; elif [ \"$best\" -lt \"20241001\" ]; then echo \"POTENTIALLY_VULNERABLE qcom patch=$best pre-2024-10-01\"; else echo \"LIKELY_PATCHED qcom patch=$best\"; fi'",
+      "safe_pattern": "^(NOT_AFFECTED|LIKELY_PATCHED)",
+      "level": "critical",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Use-after-free in Qualcomm FastRPC / DSP service while maintaining memory maps of HLOS memory. Spyware-chain zero-day, actively exploited per CISA KEV (October 2024). Affects Snapdragon 8 Gen 1/2/3, FastConnect 6700/6800/6900/7800, automotive SA/SG, audio WCD. Patched in Qualcomm October 2024 security bulletin.",
+      "remediation": "Install the 2024-10-01 or later vendor security patch level. Compare ro.vendor.build.security_patch (or ro.build.version.security_patch on devices without separate vendor SPL)."
     }
   ]
 }
