@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hardax"
-version = "5.6.0"
+version = "5.7.0"
 description = "Hardening Audit eXaminer: security configuration auditor for Android-based devices (POS, IoT, automotive, medical, kiosk)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -43,7 +43,11 @@ classifiers = [
     "Topic :: System :: Systems Administration",
     "Topic :: Software Development :: Testing",
 ]
-dependencies = []
+dependencies = [
+    "paramiko>=2.7",
+    "pyserial>=3.5",
+    "cryptography>=3.0",
+]
 
 [project.optional-dependencies]
 ssh = ["paramiko>=2.7"]
