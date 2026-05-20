@@ -97,21 +97,12 @@ HARDAX works with any Android-based device accessible via ADB, SSH, or UART:
 ### Install with pip (recommended)
 
 ```bash
-# Core (ADB mode only)
 pip install hardax
-
-# With SSH support (paramiko)
-pip install 'hardax[ssh]'
-
-# With UART / serial support (pyserial)
-pip install 'hardax[uart]'
-
-# With certificate audit support (cryptography)
-pip install 'hardax[certs]'
-
-# Everything
-pip install 'hardax[all]'
 ```
+
+paramiko, pyserial, and cryptography are pulled in automatically so all four modes (ADB, SSH, UART, certificate audit) work out of the box.
+
+The `[ssh]`, `[uart]`, `[certs]`, `[all]` extras still exist for backward compat with any script that used them; they are now no-ops since the deps are required.
 
 After installation the `hardax` console command is available:
 
