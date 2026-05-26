@@ -77,10 +77,11 @@
       "category": "POS_SECURITY",
       "label": "Open Listening Ports",
       "command": "netstat -tlnp 2>/dev/null | grep -E 'LISTEN' | awk '{print $4}' | grep -oE '[0-9]+$' | sort -u | tr '\\n' ',' | sed 's/,$//'",
-      "safe_pattern": ".*",
+      "safe_pattern": "^$",
       "level": "info",
-      "description": "PCI-DSS 1.1.6: Review all listening ports on POS terminal",
-      "remediation": "Close unnecessary listening ports and disable services not required for POS operation."
+      "description": "Lists listening TCP ports on the device. SAFE if no ports are listening (typical for a locked-down POS terminal). Any port produces an INFO entry in the report with the port list so the auditor can review whether the listed ports are expected. This is the inverse of the previous behaviour (v5.7.0 and earlier flagged 'no ports' as INFO and 'ports listed' as SAFE, which was the wrong direction for a POS audit).",
+      "remediation": "Close unnecessary listening ports and disable services not required for POS operation.",
+      "empty_is_safe": true
     },
     {
       "category": "POS_SECURITY",
