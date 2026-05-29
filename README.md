@@ -52,7 +52,7 @@ HARDAX is designed for:
 | **750 Security Checks** | Comprehensive coverage across 26 security categories |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
 | **Malware & Hooking Detection** | 18 checks for rootkits, RATs, Frida, Xposed, keyloggers, memory scrapers |
-| **Certificate Audit** | CA certificate analysis with expiry/age calculation - 27 checks |
+| **Certificate Audit** | CA certificate analysis with expiry/age calculation - 25 checks |
 | **Root Auto-Detection** | Detects root method (Magisk/SuperSU/su/ssh-root/uart-root) and adapts privilege escalation accordingly |
 | **ADB Resilience** | 5-layer protection: connection check, auto-reconnect, timeout, SKIPPED status |
 | **Triple Connection Modes** | ADB (USB/Network), SSH, and UART serial console support |
@@ -345,10 +345,11 @@ HARDAX/
         ├── usb_security.json  #  16 checks - USB debug, MTP, gadget mode
         ├── cve_indicators.json # 33 checks - Dirty Pipe, Bad Binder, MTK-su, kernel CVEs, WebView debug
         ├── device_management.json # 13 checks - MDM, accounts, dev options
-        ├── input.json         #   9 checks - Keyboards, accessibility, IME
-        ├── medical.json       #   7 checks - Medical device-specific
-        ├── nfc_security.json  #   7 checks - NFC, reader mode, secure element
-        └── adb_security.json  #   4 checks - ADB keys, network ADB
+        ├── input.json         #  12 checks - Keyboards, accessibility, IME INTERNET audit, kbd layout, clipboard auto-clear
+        ├── medical.json       #  12 checks - Medical apps, IEEE 11073 PHD, DICOM MWL, PACS C-STORE, insulin/cardiac telemetry
+        ├── nfc_security.json  #   9 checks - NFC, reader mode, secure element, tag write protection, HCE AID priority
+        ├── adb_security.json  #   8 checks - ADB keys, network ADB allowlist, shell privilege, USB-debug notify, adbd integrity
+        └── modern_android.json #  8 checks - A13/A14/A15: Photo Picker, READ_MEDIA_*, POST_NOTIFICATIONS, FGS type, Theft Detection Lock, Identity Check, Restricted Networking, Advanced Protection
 ```
 
 ---
