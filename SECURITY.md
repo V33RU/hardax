@@ -36,4 +36,4 @@ Out of scope:
 - Vulnerabilities in target devices (those are the *findings* HARDAX is
   designed to surface)
 - Vulnerabilities in third-party dependencies (`paramiko`, `pyserial`,
-  `cryptography`) — please report those upstream
+  `cryptography`) - please report those upstream

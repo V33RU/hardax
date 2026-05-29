@@ -81,7 +81,7 @@
       "command": "ls /data/misc/keystore/user_0 2>/dev/null | wc -l",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Number of credential files in keystore user_0 — informational evidence collector.",
+      "description": "Number of credential files in keystore user_0 - informational evidence collector.",
       "remediation": "Review keystore contents if unexpectedly large. Run: adb shell ls /data/misc/keystore/user_0 (requires root).",
       "empty_is_safe": true
     },
