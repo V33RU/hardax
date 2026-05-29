@@ -65,6 +65,28 @@
       "description": "Secure element status - eSE/UICC stores payment credentials, HCE indicates host card emulation",
       "remediation": "Verify only trusted apps use HCE. Remove unknown NFC payment apps from Settings > Apps.",
       "empty_is_safe": false
+    },
+    {
+      "id": "NFC-TAG-WRITEPROT-001",
+      "category": "NFC_SECURITY",
+      "label": "NFC Tag Write Protection Default",
+      "command": "PKGS=$(dumpsys nfc 2>/dev/null | grep -iE 'foreground.dispatch|tag.intent|NfcAdapter' | grep -oE '[a-z0-9_]+(\\.[a-z0-9_]+)+' | sort -u); echo $PKGS | tr ' ' '\\n' | grep -vE '^(com\\.android\\.nfc|android|com\\.google\\.android)' | head -10",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Lists non-system apps that have registered for NFC tag intents (NDEF_DISCOVERED / TAG_DISCOVERED / TECH_DISCOVERED). Any such app can silently rewrite a writable NFC tag the moment the device taps it. On POS terminals, transit gates and access-control readers this dispatch list should contain only the vetted card-reader app, not random installed apps that opted into NFC.",
+      "remediation": "Uninstall or revoke NFC capability for non-essential apps that registered tag intents. For dedicated readers, lock the foreground dispatch to the kiosk app and confirm it never writes unless the operator explicitly initiates a tag-program flow.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "NFC-AID-PRIORITY-001",
+      "category": "NFC_SECURITY",
+      "label": "HCE AID Conflict Resolution Priority",
+      "command": "dumpsys nfc 2>/dev/null | sed -n '/Registered HCE services/,/Preferred/p' | grep -iE 'AID|service' | head -20",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Enumerates registered Host Card Emulation services and their declared AIDs (Application IDs). When two apps register the same payment AID (e.g. A0000000031010 Visa, A0000000041010 Mastercard), Android shows the resolution chooser and the user's pick wins. A malicious wallet that registers a common payment AID can hijack the tap if it convinces the user once. Operator must verify only the intended wallet owns payment AIDs.",
+      "remediation": "In Settings > Apps > Default apps > Tap and pay, confirm the default payment app. Uninstall any unexpected HCE app that registered a payment AID. For locked-down POS builds, disable HCE for all packages except the in-house POS app.",
+      "empty_is_safe": false
     }
   ]
 }

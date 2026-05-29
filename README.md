@@ -8,8 +8,8 @@
   <a href="https://pypi.org/project/hardax/">
     <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg" alt="Python 3.10 | 3.11 | 3.12">
   </a>
-  <img src="https://img.shields.io/badge/checks-728-orange.svg" alt="Checks">
-  <img src="https://img.shields.io/badge/categories-25-purple.svg" alt="Categories">
+  <img src="https://img.shields.io/badge/checks-750-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/categories-26-purple.svg" alt="Categories">
   <a href="https://github.com/V33RU/hardax/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
   </a>
@@ -34,7 +34,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **728 security checks** across **25 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **750 security checks** across **26 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -49,7 +49,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **728 Security Checks** | Comprehensive coverage across 25 security categories |
+| **750 Security Checks** | Comprehensive coverage across 26 security categories |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
 | **Malware & Hooking Detection** | 18 checks for rootkits, RATs, Frida, Xposed, keyloggers, memory scrapers |
 | **Certificate Audit** | CA certificate analysis with expiry/age calculation - 27 checks |
@@ -224,7 +224,7 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **728 checks** into **25 security categories**:
+HARDAX organizes **750 checks** into **26 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
@@ -249,10 +249,11 @@ HARDAX organizes **728 checks** into **25 security categories**:
 | **USB_SECURITY** | 16 | USB debugging, interfaces, serial ports, gadget mode |
 | **CVE_INDICATORS** | 33 | Dirty Pipe, Bad Binder, Dirty COW, MTK-su, Exynos baseband, Mali GPU, kernel CVE ranges, WebView debugging |
 | **DEVICE_MANAGEMENT** | 13 | MDM, accounts, developer options |
-| **INPUT** | 9 | Keyboards, accessibility, input methods |
-| **MEDICAL** | 7 | Medical device-specific checks |
-| **NFC_SECURITY** | 7 | NFC state, Android Beam, tap-to-pay, reader mode, secure element (eSE/UICC) |
-| **ADB_SECURITY** | 4 | ADB keys, network ADB, debugging |
+| **INPUT** | 12 | Keyboards, accessibility, input methods, IME INTERNET audit, kbd layout, clipboard auto-clear |
+| **MEDICAL** | 12 | Medical device-specific checks, IEEE 11073 PHD pairing, DICOM MWL, PACS C-STORE, insulin/cardiac telemetry |
+| **NFC_SECURITY** | 9 | NFC state, Android Beam, tap-to-pay, reader mode, secure element (eSE/UICC), tag write protection, HCE AID priority |
+| **ADB_SECURITY** | 8 | ADB keys, network ADB allowlist, debugging, shell privilege, USB-debug notify, adbd integrity hash |
+| **MODERN_ANDROID** | 8 | Android 13/14/15 surface: Photo Picker, READ_MEDIA_*, POST_NOTIFICATIONS, FGS type, Theft Detection Lock, Identity Check, Restricted Networking, Advanced Protection |
 
 ---
 
@@ -322,7 +323,7 @@ HARDAX/
     ├── __main__.py        # Enables 'python -m hardax'
     ├── templates/
     │   └── report.html    # Interactive HTML report template
-    └── commands/          # Security check definitions (728 checks, 25 categories)
+    └── commands/          # Security check definitions (750 checks, 26 categories)
         ├── system.json        #  87 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator, WebView
         ├── bluetooth.json     #  83 checks - BLE/Classic, pairing, all profiles
         ├── network.json       #  62 checks - Ports, WiFi, VPN, IoT protocols, Allow 2G, hotspot WPA
@@ -377,7 +378,7 @@ Grouped by theme. Order within a group is rough priority.
 
 #### Analysis features
 - [ ] Baseline capture and diff (compare two scans, surface regressions)
-- [ ] HARDAX Risk Score (0-100 composite across all 25 categories)
+- [ ] HARDAX Risk Score (0-100 composite across all 26 categories)
 - [ ] CVE correlation (map findings to relevant CVE IDs automatically)
 
 #### Additional security checks
