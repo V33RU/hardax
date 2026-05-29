@@ -6,7 +6,7 @@
       "command": "dumpsys appops | grep -E 'READ_EXTERNAL_STORAGE|ACCESS_FINE_LOCATION'",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Apps with access to external storage or fine location — evidence collector, review for suspicious entries.",
+      "description": "Apps with access to external storage or fine location - evidence collector, review for suspicious entries.",
       "remediation": "Revoke permissions for suspicious apps: appops set <package> <op> ignore",
       "empty_is_safe": true
     },

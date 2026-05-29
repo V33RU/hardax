@@ -5,7 +5,7 @@ Thanks for your interest in improving HARDAX.
 ## Workflow
 
 1. **All changes land via a Pull Request to `dev`.** Direct pushes to `main`
-   are blocked — `main` is reserved for releases.
+   are blocked - `main` is reserved for releases.
 2. Fork the repo (external contributors) or create a feature branch off
    `dev` (maintainers).
 3. Make focused changes. Keep PRs small.

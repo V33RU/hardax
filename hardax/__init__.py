@@ -1283,7 +1283,7 @@ def loadChecks(jsonPath: Optional[str], jsonDir: Optional[str]) -> List[Dict[str
 
     # Surface checks whose safe_pattern is not a valid regex. Such checks
     # silently degrade to substring matching at run time, which can flip
-    # SAFE/CRITICAL results — warn so authors can fix them.
+    # SAFE/CRITICAL results - warn so authors can fix them.
     patternIssues: List[str] = []
     for chk in merged:
         patternIssues.extend(validateCheckPattern(chk))
