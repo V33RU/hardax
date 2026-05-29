@@ -1,0 +1,95 @@
+{
+  "checks": [
+    {
+      "id": "MOD-A13-PHOTO-PICKER-001",
+      "category": "MODERN_ANDROID",
+      "label": "Photo Picker Enforcement (Android 13+)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 33 ] 2>/dev/null; then echo \"PRE_A13_SDK_$SDK\"; else pm list packages 2>/dev/null | grep -E 'com\\.google\\.android\\.providers\\.media\\.module|com\\.android\\.providers\\.media' | head -1; fi",
+      "safe_pattern": "^(PRE_A13_SDK_|package:)",
+      "level": "info",
+      "description": "Android 13 (API 33) introduced the system Photo Picker so apps can pick images/video without the full READ_MEDIA_IMAGES permission. The picker is delivered by the MediaProvider module; its presence is required for apps to use the privacy-preserving picker API. On A13+ this check confirms the provider exists. On pre-A13 builds it reports PRE_A13_SDK_<n> as informational.",
+      "remediation": "On Android 13+, ensure com.google.android.providers.media.module (Mainline) or com.android.providers.media is present and updated via Play system updates. Encourage in-house apps to use ACTION_PICK_IMAGES instead of requesting READ_MEDIA_*.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "MOD-A13-MEDIA-PERMS-001",
+      "category": "MODERN_ANDROID",
+      "label": "Granular Media Permissions Granted (READ_MEDIA_*)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 33 ] 2>/dev/null; then echo \"PRE_A13_SDK_$SDK\"; else pm list packages -3 2>/dev/null | sed 's/package://' | while read pkg; do for P in android.permission.READ_MEDIA_IMAGES android.permission.READ_MEDIA_VIDEO android.permission.READ_MEDIA_AUDIO; do if dumpsys package \"$pkg\" 2>/dev/null | grep -E \"granted=true\" | grep -q \"$P\"; then echo \"$pkg $P\"; fi; done; done | head -20; fi",
+      "safe_pattern": "^(PRE_A13_SDK_|$)",
+      "level": "warning",
+      "description": "On Android 13+ the legacy READ_EXTERNAL_STORAGE permission was split into READ_MEDIA_IMAGES, READ_MEDIA_VIDEO and READ_MEDIA_AUDIO. Enumerates every third-party app that has been granted any of these granular media permissions. On a kiosk, POS or medical device the result should usually be empty - the audit lets the operator confirm only intentional apps see the user media library.",
+      "remediation": "Revoke READ_MEDIA_IMAGES/VIDEO/AUDIO from apps that do not need direct gallery access: 'pm revoke <pkg> android.permission.READ_MEDIA_IMAGES'. Encourage apps to use the system Photo Picker instead.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MOD-A13-POST-NOTIF-001",
+      "category": "MODERN_ANDROID",
+      "label": "POST_NOTIFICATIONS Runtime Permission Audit",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 33 ] 2>/dev/null; then echo \"PRE_A13_SDK_$SDK\"; else pm list packages -3 2>/dev/null | sed 's/package://' | while read pkg; do if dumpsys package \"$pkg\" 2>/dev/null | grep -E \"granted=true\" | grep -q 'android.permission.POST_NOTIFICATIONS'; then echo \"$pkg\"; fi; done | head -20; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Android 13 turned POST_NOTIFICATIONS into a runtime permission. Lists every third-party app that currently holds it. Useful as an inventory check on locked-down deployments (kiosk, POS, medical) where the operator wants to confirm only approved apps can raise notifications, since notification listeners and the Identity Check flow both interact with this surface.",
+      "remediation": "Revoke POST_NOTIFICATIONS from apps that should not raise notifications: 'pm revoke <pkg> android.permission.POST_NOTIFICATIONS'. Review remaining grants against the approved app list.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "MOD-A14-FGS-TYPE-001",
+      "category": "MODERN_ANDROID",
+      "label": "Foreground Service Type Declared (Android 14+)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 34 ] 2>/dev/null; then echo \"PRE_A14_SDK_$SDK\"; else dumpsys activity services 2>/dev/null | grep -E 'ServiceRecord|foregroundServiceType' | grep -B1 'foregroundServiceType=0\\b' | grep ServiceRecord | head -10; fi",
+      "safe_pattern": "^(PRE_A14_SDK_|$)",
+      "level": "warning",
+      "description": "Android 14 (API 34) requires every foreground service to declare a foregroundServiceType (camera, microphone, location, dataSync, mediaPlayback, etc). A running FGS with type 0 on an A14+ build indicates either a legacy app targeting an old SDK that has been allowed to skip the requirement, or a service that worked around the new declaration rule. Either case is worth investigating because untyped FGS bypass the per-type runtime-permission gating Android 14 enforces.",
+      "remediation": "Identify the offending app (ServiceRecord shows package/class) and update it to target SDK 34+ and declare the correct foregroundServiceType in its manifest. Remove apps that cannot be updated and rely on untyped foreground services.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MOD-A15-THEFT-LOCK-001",
+      "category": "MODERN_ANDROID",
+      "label": "Theft Detection Lock Enabled (Android 15)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 35 ] 2>/dev/null; then echo \"PRE_A15_SDK_$SDK\"; else V=$(settings get secure theft_detection_lock_enabled 2>/dev/null); [ -z \"$V\" ] || [ \"$V\" = \"null\" ] && echo UNSET || echo \"$V\"; fi",
+      "safe_pattern": "^(PRE_A15_SDK_|1)$",
+      "level": "warning",
+      "description": "Android 15 ships Theft Detection Lock: the device uses on-device ML on accelerometer and connectivity signals to detect a snatch (sudden motion plus immediate disconnect from known networks) and auto-locks. On consumer phones used by field staff this is a meaningful loss-of-control mitigation. UNSET means the user has not opted in; 0 means it was actively disabled. Skipped automatically on pre-A15.",
+      "remediation": "Enable in Settings > Security and privacy > Device unlock > Theft protection > Theft Detection Lock, or push via DPC. For fleet deployments, enable this together with Offline Device Lock and Remote Lock.",
+      "empty_is_safe": false,
+      "null_is_safe": false
+    },
+    {
+      "id": "MOD-A15-IDENTITY-CHECK-001",
+      "category": "MODERN_ANDROID",
+      "label": "Identity Check Enabled (Android 15)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 35 ] 2>/dev/null; then echo \"PRE_A15_SDK_$SDK\"; else V=$(settings get secure identity_check_enabled 2>/dev/null); [ -z \"$V\" ] || [ \"$V\" = \"null\" ] && echo UNSET || echo \"$V\"; fi",
+      "safe_pattern": "^(PRE_A15_SDK_|1)$",
+      "level": "warning",
+      "description": "Android 15 Identity Check requires biometric authentication for sensitive settings changes (lockscreen credential changes, factory reset, password manager access, disabling Find My Device) when the device is outside a trusted location. Defeats the 'thief watches you type the PIN, then locks you out' attack pattern. UNSET means user has not opted in.",
+      "remediation": "Enable in Settings > Security and privacy > Device unlock > Identity Check. Requires Class 3 (Strong) biometric. Combine with Theft Detection Lock for full A15 anti-theft posture.",
+      "empty_is_safe": false,
+      "null_is_safe": false
+    },
+    {
+      "id": "MOD-A13-RESTRICTED-NET-001",
+      "category": "MODERN_ANDROID",
+      "label": "Restricted Networking Mode Active",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 33 ] 2>/dev/null; then echo \"PRE_A13_SDK_$SDK\"; else dumpsys netpolicy 2>/dev/null | grep -iE 'restrictBackground|restrictedMode|mRestricted' | head -5; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Reports the current state of Android's restricted networking / data saver policy from netpolicy. Restricted networking mode caps background data for non-allowlisted apps and is a useful indicator on locked-down POS, kiosk and field devices where only the operator app should reach the network. Pre-A13 builds are skipped.",
+      "remediation": "Enable Data Saver / Restricted Networking in Settings > Network and internet > Data Saver and add only the operator app to the unrestricted allowlist. For DPC-managed devices, push the policy via DevicePolicyManager.setNetworkLoggingEnabled() and per-app background data rules.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "MOD-A15-APP-001",
+      "category": "MODERN_ANDROID",
+      "label": "Advanced Protection Program (Android 15+)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 35 ] 2>/dev/null; then echo \"PRE_A15_SDK_$SDK\"; else V=$(settings get global advanced_protection_mode 2>/dev/null); [ -z \"$V\" ] || [ \"$V\" = \"null\" ] && echo UNSET || echo \"$V\"; fi",
+      "safe_pattern": "^(PRE_A15_SDK_|1)$",
+      "level": "info",
+      "description": "Android 15 ships an on-device Advanced Protection mode (the device-level counterpart to Google account Advanced Protection). When enabled it forces stricter defaults: MTE on supported chips, blocks 2G fallback, blocks USB data on lock, disables sideloading, hardens WebView SafeBrowsing. Recommended for journalists, executives, security staff and high-value POS/kiosk fleets. UNSET means user has not opted in.",
+      "remediation": "Enable in Settings > Security and privacy > Advanced Protection. Note this disables sideloading and some debugging features. For account-level Advanced Protection enrollment, see g.co/advancedprotection.",
+      "empty_is_safe": false,
+      "null_is_safe": false
+    }
+  ]
+}
