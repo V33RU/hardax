@@ -81,6 +81,40 @@
       "description": "Third-party keyboards can log keystrokes",
       "remediation": "Uninstall third-party keyboard apps via Settings > Apps or use adb uninstall <package-name>.",
       "empty_is_safe": true
+    },
+    {
+      "id": "INPUT-IME-INTERNET-001",
+      "category": "INPUT",
+      "label": "Enabled IMEs Holding INTERNET Permission",
+      "command": "IMES=$(settings get secure enabled_input_methods 2>/dev/null | tr ':' '\\n' | sed 's|/.*||' | sort -u | grep -v '^$'); HITS=''; for pkg in $IMES; do if dumpsys package \"$pkg\" 2>/dev/null | grep -q 'android.permission.INTERNET'; then HITS=\"$HITS $pkg\"; fi; done; echo $HITS | sed 's/^ //'",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Enumerates every enabled input method (IME) and reports the ones that hold android.permission.INTERNET. A keyboard with network access can exfiltrate keystrokes (passwords, PHI, card data). Pre-installed Google/Samsung IMEs typically hold INTERNET for cloud features, but on POS, kiosk and medical builds this check should return empty.",
+      "remediation": "Disable network-capable IMEs in Settings > System > Languages and input > On-screen keyboard, or uninstall them. For locked-down deployments use an offline-only keyboard with no INTERNET permission.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "INPUT-KBD-LAYOUT-001",
+      "category": "INPUT",
+      "label": "Physical Keyboard Layout Overrides",
+      "command": "settings get secure keyboard_layouts 2>/dev/null",
+      "safe_pattern": "^(|null)$",
+      "level": "info",
+      "description": "secure.keyboard_layouts records per-device keyboard layout overrides for attached USB/Bluetooth keyboards. On a kiosk or POS terminal with no physical keyboard this should be empty. A non-empty value means an external HID device was attached and remapped at some point, which is worth investigating on dedicated-function devices.",
+      "remediation": "If the device should not accept external keyboards, clear the override ('settings delete secure keyboard_layouts') and block USB HID via USB host policy or kiosk lockdown.",
+      "empty_is_safe": true,
+      "null_is_safe": true
+    },
+    {
+      "id": "INPUT-CLIP-AUTOCLEAR-001",
+      "category": "INPUT",
+      "label": "Clipboard Auto-Clear Timeout (Android 13+)",
+      "command": "T=$(settings get global clipboard_auto_clear_timeout 2>/dev/null); if [ -z \"$T\" ] || [ \"$T\" = \"null\" ]; then echo 'DEFAULT'; else echo \"$T\"; fi",
+      "safe_pattern": "^(DEFAULT|[1-9][0-9]{0,5})$",
+      "level": "info",
+      "description": "Android 13+ auto-clears the primary clipboard after roughly one hour on most OEM builds. Value reported in milliseconds when explicitly set. DEFAULT means the OEM default is in force. A value of 0 disables auto-clear entirely, leaving copied OTPs, passwords and card numbers in the clipboard until manually overwritten.",
+      "remediation": "Leave at the OEM default or set a short timeout. Avoid 0 (disabled). For PIN-pad terminals, also enable 'Clipboard Access Notification' under PRIVACY.",
+      "empty_is_safe": false
     }
   ]
 }

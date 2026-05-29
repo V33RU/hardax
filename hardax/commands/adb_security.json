@@ -38,6 +38,52 @@
       "level": "warning",
       "description": "Kernel debugfs enabled exposes sensitive kernel interfaces",
       "remediation": "Disable debugfs by setting CONFIG_DEBUG_FS=n in the kernel config and rebuilding the boot image."
+    },
+    {
+      "id": "ADB-SHELL-ROOT-001",
+      "category": "ADB_SECURITY",
+      "label": "ADB Shell Running As Root (service.adb.root)",
+      "command": "getprop service.adb.root 2>/dev/null",
+      "safe_pattern": "^(0|)$",
+      "level": "critical",
+      "description": "service.adb.root=1 means adbd is running as root and 'adb shell' returns uid=0. On production user builds this must be 0 or unset. Combined with ro.debuggable=0 and ro.adb.secure=1 this enforces shell-user-only ADB access.",
+      "remediation": "Set service.adb.root=0. Use a user build (ro.build.type=user) so adbd drops privileges. Run 'adb unroot' to demote a running adbd.",
+      "empty_is_safe": true,
+      "null_is_safe": true
+    },
+    {
+      "id": "ADB-NETWORK-ALLOWLIST-001",
+      "category": "ADB_SECURITY",
+      "label": "Network ADB Bound To Loopback Only",
+      "command": "P=$(getprop service.adb.tcp.port 2>/dev/null); if [ -z \"$P\" ] || [ \"$P\" = \"-1\" ] || [ \"$P\" = \"0\" ]; then echo 'DISABLED'; else (netstat -tlnp 2>/dev/null || ss -tlnp 2>/dev/null) | grep -E \":$P\\b\" | awk '{print $4}' | head -1; fi",
+      "safe_pattern": "^(DISABLED|127\\.0\\.0\\.1:|::1:)",
+      "level": "critical",
+      "description": "If network ADB is enabled (service.adb.tcp.port set), the adbd socket must bind to loopback only. A 0.0.0.0 bind exposes ADB to the LAN with no IP allowlist enforcement, which has been used in IoT and POS compromises.",
+      "remediation": "Disable network ADB ('setprop service.adb.tcp.port -1') or front it with an SSH tunnel. Android core does not provide a per-IP allowlist for adbd; gate access at the network layer (firewall, MAC filter, VLAN).",
+      "empty_is_safe": false
+    },
+    {
+      "id": "ADB-NOTIFY-001",
+      "category": "ADB_SECURITY",
+      "label": "USB Debugging User Notification (persist.adb.notify)",
+      "command": "getprop persist.adb.notify 2>/dev/null",
+      "safe_pattern": "^(1|)$",
+      "level": "warning",
+      "description": "persist.adb.notify controls the persistent 'USB debugging connected' status bar notification. A value of 0 hides the notification, which has been observed in malicious carrier customisations and tampered ROMs to keep ADB sessions invisible to the operator. Empty or 1 is safe.",
+      "remediation": "Set persist.adb.notify=1 or remove the override so Android shows the default debugging notification. Investigate any ROM that ships persist.adb.notify=0.",
+      "empty_is_safe": true,
+      "null_is_safe": true
+    },
+    {
+      "id": "ADB-BINARY-HASH-001",
+      "category": "ADB_SECURITY",
+      "label": "adbd Binary Integrity (SHA-256 Baseline)",
+      "command": "if [ -x /system/bin/adbd ]; then sha256sum /system/bin/adbd 2>/dev/null | awk '{print $1}'; else echo 'MISSING'; fi",
+      "safe_pattern": "^[a-f0-9]{64}$",
+      "level": "info",
+      "description": "Records the SHA-256 of /system/bin/adbd so the operator can diff it against a known-good per-build baseline. dm-verity should already catch tampering on locked devices; this check exposes drift on devices where verity is disabled or the system partition is remounted rw. MISSING means adbd is absent or not executable.",
+      "remediation": "Record this hash per firmware build. If the value changes between audits on the same build, treat as a system partition tamper indicator and reflash the stock system image.",
+      "empty_is_safe": false
     }
   ]
 }

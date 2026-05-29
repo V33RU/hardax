@@ -43,7 +43,7 @@ if sys.version_info < (3, 10):
 #  VERSION & CONSTANTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-__version__ = "5.7.1"
+__version__ = "5.8.0"
 
 REQUIRED_CHECK_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
 

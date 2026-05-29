@@ -65,6 +65,61 @@
       "description": "Sensitive files on unencrypted external storage - PHI exposure risk!",
       "remediation": "Move sensitive files off external storage to encrypted internal storage. Disable external storage access if not needed.",
       "empty_is_safe": true
+    },
+    {
+      "id": "MED-PHD-11073-001",
+      "category": "MEDICAL",
+      "label": "IEEE 11073 PHD Bluetooth Pairing Mode",
+      "command": "dumpsys bluetooth_manager 2>/dev/null | grep -iE 'profile.*hdp|health.*device|11073' | head -10",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "IEEE 11073 Personal Health Device (PHD) profile runs over Bluetooth HDP. Spec allows 'Just Works' pairing with no authentication, which exposes vital-sign telemetry (glucometer, BP cuff, pulse-ox) to passive sniffing and active spoofing. Any HDP/11073 profile present on a clinical device should require LE Secure Connections with numeric comparison, not Just Works.",
+      "remediation": "Disable the HDP profile when not in active use ('dumpsys bluetooth_manager' to confirm). For 11073 devices that must remain paired, enforce LE Secure Connections in the gateway app and reject Just Works bonds.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MED-DICOM-MWL-001",
+      "category": "MEDICAL",
+      "label": "DICOM Modality Worklist Anonymous Bind",
+      "command": "for P in 104 11112; do if (netstat -tlnp 2>/dev/null || ss -tlnp 2>/dev/null) | grep -qE \":$P\\b\"; then printf 'DCM:%s ' \"$P\"; fi; done; echo",
+      "safe_pattern": "^\\s*$",
+      "level": "warning",
+      "description": "DICOM Modality Worklist (MWL) C-FIND requests on port 104/11112 historically accept association requests with any Calling AE Title and no user identity negotiation, which lets an attacker on the LAN enumerate the daily patient schedule (PHI) without credentials. Any listening DICOM port on an Android-based imaging modality should be checked against the SCP config to confirm User Identity Negotiation (DICOM PS3.7 Annex D) is required.",
+      "remediation": "On the DICOM SCP, require User Identity Negotiation with username/password or SAML, restrict accepted Called AE Titles to an allowlist, and front the port with mutual TLS (DICOM TLS profile).",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MED-PACS-WRITE-001",
+      "category": "MEDICAL",
+      "label": "PACS C-STORE Write Endpoint Exposed",
+      "command": "(netstat -tlnp 2>/dev/null || ss -tlnp 2>/dev/null) | grep -E ':(104|11112|2762|2761)\\b' | awk '{print $4}'",
+      "safe_pattern": "^(|127\\.0\\.0\\.1:|::1:)",
+      "level": "critical",
+      "description": "DICOM C-STORE ports (104, 11112, 2762 secure, 2761) bound to a non-loopback address with no TLS expose the PACS to anonymous image upload. Attackers have used this to inject crafted DICOM files that pivot into the reading workstation (the DICOM-file-is-a-polyglot class of attack) and to overwrite legitimate studies. Safe outcome: no DICOM port listening, or bound to loopback only.",
+      "remediation": "Bind the C-STORE SCP to loopback and front it with a TLS-terminating reverse proxy that enforces certificate-based AE authentication. Require User Identity Negotiation and reject C-STORE from un-allowlisted Calling AE Titles.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MED-INSULIN-BLE-001",
+      "category": "MEDICAL",
+      "label": "Insulin Pump / CGM BLE Bonding Required",
+      "command": "pm list packages 2>/dev/null | grep -iE 'insulin|pump|cgm|dexcom|medtronic|tandem|omnipod|libre|glucose' | head -5",
+      "safe_pattern": "^$",
+      "level": "warning",
+      "description": "Detects companion apps for insulin pumps and CGMs (Dexcom, Medtronic, Tandem, Omnipod, Libre). Several historical exploits (e.g. CVE-2019-10964 Medtronic MiniMed, CVE-2023-43208 OneTouch) abused unauthenticated or replayable BLE bonds to deliver an insulin dose or spoof glucose readings. If a pump/CGM app is installed, the operator must confirm the companion device is bonded with LE Secure Connections and that the app rejects unbonded GATT writes.",
+      "remediation": "In the companion app, require LE Secure Connections bonding before any dosing or alarm-override command. Audit Bluetooth bond list (dumpsys bluetooth_manager) and remove unknown devices. Disable BLE when the pump is not in active use.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MED-CARDIAC-TELEMETRY-001",
+      "category": "MEDICAL",
+      "label": "Cardiac Implant / Pacemaker Telemetry App",
+      "command": "pm list packages 2>/dev/null | grep -iE 'pacemaker|icd|crt|cardiac|merlin|carelink|latitude|smartview|biotronik|abbott.*cardiac|medtronic.*cardiac' | head -5",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "Detects Android companion / programmer apps for cardiac implantable electronic devices (CIEDs): pacemakers, ICDs, CRT-D. The St Jude Merlin@home (CVE-2017-12712), Medtronic CareLink 2090 (CVE-2018-8870), and Abbott (CVE-2019-19550) cases all involved unencrypted or weakly-authenticated telemetry that allowed an attacker within RF range to read or alter pacing settings. If such an app is installed on the audited device, the operator must verify the radio link uses encrypted, authenticated programming.",
+      "remediation": "Confirm the implant firmware enforces encrypted, authenticated MICS/BLE telemetry and that the companion app rejects sessions over plaintext channels. Restrict the app to a managed work profile and require biometric/PIN before any reprogramming action.",
+      "empty_is_safe": true
     }
   ]
 }
