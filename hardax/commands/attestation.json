@@ -27,7 +27,7 @@
       "command": "getprop ro.boot.warranty_bit 2>/dev/null",
       "safe_pattern": "^0$|^$",
       "level": "critical",
-      "description": "Samsung Knox warranty bit — '1' means Knox has been permanently tripped (OEM unlock occurred), disabling Knox security features.",
+      "description": "Samsung Knox warranty bit - '1' means Knox has been permanently tripped (OEM unlock occurred), disabling Knox security features.",
       "remediation": "Knox warranty bit cannot be reset. Replace the device if Knox compliance is required.",
       "empty_is_safe": true
     },
@@ -124,7 +124,7 @@
       "command": "getprop persist.magisk.hide 2>/dev/null",
       "safe_pattern": "^$|^0$",
       "level": "critical",
-      "description": "Magisk Hide active — root is being concealed from SafetyNet/Play Integrity checks. Device is rooted but hiding it.",
+      "description": "Magisk Hide active - root is being concealed from SafetyNet/Play Integrity checks. Device is rooted but hiding it.",
       "remediation": "Device is rooted and actively bypassing integrity checks. Remove Magisk and restore the stock boot image.",
       "empty_is_safe": true
     },

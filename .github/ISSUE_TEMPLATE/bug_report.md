@@ -33,4 +33,4 @@ paste here
 </details>
 
 ## Additional context
-Anything else useful — screenshots, related issues, hardware notes.
+Anything else useful - screenshots, related issues, hardware notes.
