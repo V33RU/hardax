@@ -302,15 +302,6 @@
     },
     {
       "category": "PRIVACY",
-      "label": "Backup Allowed",
-      "command": "settings get global backup_enabled",
-      "safe_pattern": "^0$",
-      "level": "warning",
-      "description": "Auto-backup should be disabled for sensitive apps",
-      "remediation": "Disable auto-backup in Settings > System > Backup, or exclude sensitive apps."
-    },
-    {
-      "category": "PRIVACY",
       "label": "Fingerprint / Setup Complete",
       "command": "settings get secure user_setup_complete",
       "safe_pattern": "^1$",

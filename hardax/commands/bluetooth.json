@@ -274,27 +274,6 @@
       "severity": "LOW"
     },
     {
-      "id": "BT-016",
-      "category": "BLUETOOTH",
-      "label": "Bluetooth stack property",
-      "command": "getprop ro.bluetooth.stack",
-      "safe_pattern": ".*",
-      "level": "low",
-      "description": "Stack identifier supports triage (Fluoride/GD vs legacy).",
-      "remediation": "Record the stack value. If legacy (Bluedroid), update to a ROM with Fluoride/GD stack.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§3.2",
-      "why": "Stack identifier supports triage (Fluoride/GD vs legacy).",
-      "risk_if_fail": "Legacy stacks can have more historical CVE exposure.",
-      "tags": [
-        "inventory"
-      ],
-      "control_area": "BT-related system properties",
-      "expected_secure_state": "Record value",
-      "severity": "LOW"
-    },
-    {
       "id": "BT-018",
       "category": "BLUETOOTH",
       "label": "Android version (inventory)",

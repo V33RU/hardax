@@ -201,10 +201,10 @@
     {
       "category": "CERTIFICATE_AUDIT",
       "label": "VPN Lockdown Mode",
-      "command": "settings get global always_on_vpn_lockdown 2>/dev/null",
+      "command": "V=$(settings get global always_on_vpn_lockdown 2>/dev/null); [ -z \"$V\" ] || [ \"$V\" = \"null\" ] && V=$(settings get secure always_on_vpn_lockdown 2>/dev/null); echo \"$V\"",
       "safe_pattern": "^1$",
       "level": "info",
-      "description": "VPN lockdown mode must be enabled for strict network security (1 means enabled)",
+      "description": "VPN lockdown mode must be enabled for strict network security (1 means enabled). Probes both the global and secure namespaces because OEM builds differ on where this key lives.",
       "remediation": "Enable VPN lockdown via Settings > Network > VPN > Always-on VPN with lockdown toggle."
     },
     {

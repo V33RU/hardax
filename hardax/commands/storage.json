@@ -2,12 +2,12 @@
   "checks": [
     {
       "category": "STORAGE",
-      "label": "ADB Backup Enabled",
-      "command": "settings get secure backup_enabled",
+      "label": "Backup Enabled (Cloud / ADB)",
+      "command": "V=$(settings get secure backup_enabled 2>/dev/null); [ -z \"$V\" ] || [ \"$V\" = \"null\" ] && V=$(settings get global backup_enabled 2>/dev/null); echo \"$V\"",
       "safe_pattern": "^(0|null)$",
       "level": "warning",
-      "description": "ADB backup can extract sensitive data",
-      "remediation": "Disable ADB backup via 'settings put secure backup_enabled 0' or enforce a device policy blocking ADB backup."
+      "description": "Auto-backup (cloud and ADB) can extract sensitive app data. Should be disabled (0) or unset on devices handling sensitive data. Probes both the secure and global namespaces because OEM builds differ on where backup_enabled lives.",
+      "remediation": "Disable backup via 'settings put secure backup_enabled 0' or enforce a device policy blocking backup. Exclude sensitive apps from auto-backup in their manifest."
     },
     {
       "category": "STORAGE",
