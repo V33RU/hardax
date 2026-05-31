@@ -451,15 +451,6 @@
     },
     {
       "category": "NETWORK",
-      "label": "VPN Lockdown",
-      "command": "settings get secure always_on_vpn_lockdown",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "VPN lockdown mode prevents traffic without VPN",
-      "remediation": "Enable VPN lockdown: settings put secure always_on_vpn_lockdown 1 to block all traffic when VPN is disconnected."
-    },
-    {
-      "category": "NETWORK",
       "label": "Active VPN Connections",
       "command": "dumpsys connectivity 2>/dev/null | grep -i vpn | head -5",
       "safe_pattern": ".",

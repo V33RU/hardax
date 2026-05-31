@@ -245,15 +245,6 @@
     },
     {
       "category": "SYSTEM",
-      "label": "OTA Update Path",
-      "command": "getprop ro.build.version.incremental",
-      "safe_pattern": ".*",
-      "level": "info",
-      "description": "OTA incremental version for build tracking",
-      "remediation": "Informational. Record this value for build tracking and verify it matches expected OTA version."
-    },
-    {
-      "category": "SYSTEM",
       "label": "Writable Paths in $PATH",
       "command": "echo $PATH | tr ':' '\\n' | awk 'NF' | xargs -I{} sh -c '[ -w \"{}\" ] && echo \"{}\"'",
       "safe_pattern": "^$",

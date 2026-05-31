@@ -86,10 +86,10 @@
       "id": "INPUT-IME-INTERNET-001",
       "category": "INPUT",
       "label": "Enabled IMEs Holding INTERNET Permission",
-      "command": "IMES=$(settings get secure enabled_input_methods 2>/dev/null | tr ':' '\\n' | sed 's|/.*||' | sort -u | grep -v '^$'); HITS=''; for pkg in $IMES; do if dumpsys package \"$pkg\" 2>/dev/null | grep -q 'android.permission.INTERNET'; then HITS=\"$HITS $pkg\"; fi; done; echo $HITS | sed 's/^ //'",
+      "command": "IMES=$(settings get secure enabled_input_methods 2>/dev/null | tr ':' '\\n' | sed 's|/.*||' | sort -u | grep -v '^$' | grep -vE '^(com\\.google\\.android|com\\.android|com\\.samsung|com\\.sec\\.android)'); HITS=''; for pkg in $IMES; do if dumpsys package \"$pkg\" 2>/dev/null | grep -q 'android.permission.INTERNET'; then HITS=\"$HITS $pkg\"; fi; done; echo $HITS | sed 's/^ //'",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Enumerates every enabled input method (IME) and reports the ones that hold android.permission.INTERNET. A keyboard with network access can exfiltrate keystrokes (passwords, PHI, card data). Pre-installed Google/Samsung IMEs typically hold INTERNET for cloud features, but on POS, kiosk and medical builds this check should return empty.",
+      "description": "Enumerates enabled third-party input methods (IMEs) and reports the ones that declare android.permission.INTERNET. A keyboard with network access can exfiltrate keystrokes (passwords, PHI, card data). Pre-installed Google/Samsung/AOSP IMEs are excluded because they legitimately hold INTERNET for cloud features and would otherwise fire on every consumer device. A non-empty result means a sideloaded or third-party keyboard can reach the network - investigate it.",
       "remediation": "Disable network-capable IMEs in Settings > System > Languages and input > On-screen keyboard, or uninstall them. For locked-down deployments use an offline-only keyboard with no INTERNET permission.",
       "empty_is_safe": true
     },
