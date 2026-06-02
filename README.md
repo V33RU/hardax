@@ -50,6 +50,7 @@ HARDAX is designed for:
 | Feature | Description |
 |---------|-------------|
 | **745 Security Checks** | Comprehensive coverage across 26 security categories |
+| **Deterministic Analysis Engine** | Offline risk score (0-100), attack-chain correlation, prioritised remediation - reasons only over confirmed findings, no LLM, no network, no hallucination |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
 | **Malware & Hooking Detection** | 18 checks for rootkits, RATs, Frida, Xposed, keyloggers, memory scrapers |
 | **Certificate Audit** | CA certificate analysis with expiry/age calculation - 25 checks |
@@ -146,7 +147,31 @@ hardax --out ./my_reports
 
 # Skip certificate audit
 hardax --skip-certs
+
+# Analysis is on by default. Weight prioritisation for a device profile:
+hardax --profile pos        # or: medical, kiosk, automotive, iot, generic
+
+# Disable the analysis layer entirely
+hardax --no-analyze
 ```
+
+### Analysis Engine
+
+After the checks run, HARDAX adds a deterministic analysis layer that reasons
+**only over the findings it already confirmed** - it runs no extra commands,
+makes no network calls, and never invents a finding. It produces:
+
+- a **risk score (0-100)** and letter grade,
+- **attack chains** correlated from confirmed findings (a chain only appears
+  when every supporting finding is actually present),
+- a **prioritised "fix in this order"** list (chain members and
+  profile-relevant categories are weighted up),
+- a **VERIFY triage** grouping the manual-review items.
+
+It is fully offline and deterministic (no LLM), so it is safe to run against
+POS, medical, and other sensitive devices. The output appears in the terminal
+summary, the HTML report, the TXT report, and under the `analysis` key of the
+JSON report (`--json-out`).
 
 ### SSH Mode (Network)
 
@@ -321,6 +346,7 @@ HARDAX/
 └── hardax/                # The installable Python package
     ├── __init__.py        # Main engine (was hardax.py)
     ├── __main__.py        # Enables 'python -m hardax'
+    ├── analysis.py        # Deterministic risk engine (score, attack chains, prioritisation)
     ├── templates/
     │   └── report.html    # Interactive HTML report template
     └── commands/          # Security check definitions (745 checks, 26 categories)

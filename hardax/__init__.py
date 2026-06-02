@@ -31,6 +31,8 @@ from datetime import datetime
 from string import Template
 from typing import List, Dict, Any, Tuple, Optional
 
+from . import analysis as _analysis
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  PYTHON VERSION CHECK
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -43,7 +45,7 @@ if sys.version_info < (3, 10):
 #  VERSION & CONSTANTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-__version__ = "5.8.1"
+__version__ = "5.9.0"
 
 REQUIRED_CHECK_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
 
@@ -1804,9 +1806,12 @@ def auditCertificates(device: Device) -> List[Dict[str, Any]]:
 
 def writeTxtReport(path: str, deviceInfo: Dict[str, str],
                    rows: List[Dict[str, Any]], counts: Dict[str, int],
-                   certs: List[Dict[str, Any]], deviceIdStr: str) -> None:
+                   certs: List[Dict[str, Any]], deviceIdStr: str,
+                   analysis: Optional[Dict[str, Any]] = None) -> None:
     with open(path, "w", encoding="utf-8") as f:
         f.write(f"HARDAX - Hardening Audit eXaminer Report\nGenerated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        if analysis:
+            f.write(_analysis.render_text(analysis) + "\n\n")
         f.write("Device Information\n" + "=" * 40 + "\n")
         for k in ["model", "brand", "manufacturer", "name", "soc_manufacturer", "soc_model",
                    "android_version", "sdk_level", "build_id", "fingerprint", "serialno", "timezone"]:
@@ -1860,7 +1865,8 @@ def writeCsvReport(path: str, rows: List[Dict[str, Any]]) -> None:
 def writeJsonReport(path: str, deviceInfo: Dict[str, str],
                     rows: List[Dict[str, Any]], counts: Dict[str, int],
                     certs: Optional[List[Dict[str, Any]]],
-                    target: str) -> None:
+                    target: str,
+                    analysis: Optional[Dict[str, Any]] = None) -> None:
     """Write a machine-readable JSON report for CI / tooling consumption."""
     payload = {
         "version": __version__,
@@ -1868,6 +1874,7 @@ def writeJsonReport(path: str, deviceInfo: Dict[str, str],
         "target": target,
         "device": deviceInfo or {},
         "counts": counts,
+        "analysis": analysis or {},
         "checks": rows,
         "certificates": certs or [],
     }
@@ -1881,7 +1888,8 @@ def writeJsonReport(path: str, deviceInfo: Dict[str, str],
 
 def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
                     rows: List[Dict[str, Any]], counts: Dict[str, int],
-                    certs: Optional[List[Dict[str, Any]]] = None) -> None:
+                    certs: Optional[List[Dict[str, Any]]] = None,
+                    analysis: Optional[Dict[str, Any]] = None) -> None:
     """Generate an interactive HTML report with hacker aesthetic and severity toggles."""
 
     # Certificate section
@@ -2041,6 +2049,8 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
     with open(_tmplPath, "r", encoding="utf-8") as _f:
         _tmpl = Template(_f.read())
 
+    analysisHtml = _analysis.render_html(analysis) if analysis else ""
+
     doc = _tmpl.safe_substitute(
         VERSION=__version__,
         COUNT_CRITICAL=counts.get("critical", 0),
@@ -2050,6 +2060,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
         COUNT_INFO=counts.get("info", 0),
         COUNT_SKIPPED=counts.get("skipped", 0),
         TOTAL_CHECKS=totalChecks,
+        ANALYSIS_HTML=analysisHtml,
         DEVICE_HTML=deviceHtml,
         CERT_TABLE_HTML=certTableHtml,
         CATEGORIES_HTML=categoriesHtml,
@@ -2129,6 +2140,12 @@ Examples:
                     help="Also write a machine-readable JSON report alongside TXT/CSV/HTML")
     ap.add_argument("--exit-code", action="store_true",
                     help="Set process exit code by findings: 0=clean, 1=warning, 2=critical")
+    ap.add_argument("--no-analyze", action="store_true",
+                    help="Disable the deterministic analysis layer (risk score, "
+                         "attack chains, prioritised remediation). Analysis is on by default.")
+    ap.add_argument("--profile", default="generic",
+                    choices=["generic", "pos", "medical", "kiosk", "automotive", "iot"],
+                    help="Device profile used to weight analysis prioritisation (default: generic)")
 
     args = ap.parse_args()
 
@@ -2372,12 +2389,19 @@ Examples:
     if not args.skip_certs:
         certs = auditCertificates(device)
 
+    # Deterministic analysis layer: operates only on the confirmed findings
+    # above (no device commands, no network). On by default; --no-analyze skips.
+    analysis = None
+    if not args.no_analyze:
+        analysis = _analysis.analyze_findings(
+            rows, counts, deviceInfo, certs, profile=args.profile)
+
     # Generate reports
-    writeTxtReport(txtFile, deviceInfo, rows, counts, certs, device.idString())
+    writeTxtReport(txtFile, deviceInfo, rows, counts, certs, device.idString(), analysis)
     writeCsvReport(csvFile, rows)
-    writeHtmlReport(htmlFile, deviceInfo, rows, counts, certs)
+    writeHtmlReport(htmlFile, deviceInfo, rows, counts, certs, analysis)
     if jsonFile:
-        writeJsonReport(jsonFile, deviceInfo, rows, counts, certs, device.idString())
+        writeJsonReport(jsonFile, deviceInfo, rows, counts, certs, device.idString(), analysis)
 
     # Close SSH / UART if used
     if isinstance(device, (SshDevice, UartDevice)):
@@ -2472,6 +2496,37 @@ Examples:
         _box_line(f"  {D}JSON{R}  {D}{jsonFile}{R}")
 
     _box_bottom()
+
+    # ── Analysis panel (deterministic risk engine) ──────────────────────
+    if analysis:
+        gradeColors = {
+            "A": Colors.GREEN, "B": Colors.GREEN, "C": Colors.YELLOW,
+            "D": Colors.BRIGHT_RED, "F": Colors.BRIGHT_RED,
+        }
+        gc = gradeColors.get(analysis["grade"], Colors.CYAN)
+        _box_top()
+        head_left = f"  {B}{Colors.BRIGHT_WHITE}HARDAX ANALYSIS{R}"
+        head_right = f"{gc}{B}{analysis['risk_score']}/100  grade {analysis['grade']}{R}"
+        used2 = _vlen(head_left) + _vlen(head_right)
+        _box_line(head_left + (" " * max(0, INNER_WIDTH - used2)) + head_right)
+        _box_line(f"  {D}{analysis['posture']}{R}")
+        _box_line(f"  {D}profile {analysis['profile']}{R}")
+
+        if analysis["attack_chains"]:
+            _box_sep()
+            _box_line(f"  {B}{Colors.BRIGHT_RED}ATTACK CHAINS{R}")
+            for ch in analysis["attack_chains"][:4]:
+                cc = Colors.BRIGHT_RED if ch["severity"] == "critical" else Colors.YELLOW
+                _box_line(f"  {cc}▸{R} {ch['name'][:60]}")
+
+        if analysis["priorities"]:
+            _box_sep()
+            _box_line(f"  {B}{Colors.BRIGHT_WHITE}FIX IN THIS ORDER{R}")
+            for p in analysis["priorities"][:5]:
+                pc = Colors.BRIGHT_RED if p["status"] == "CRITICAL" else Colors.YELLOW
+                tag = f" {Colors.BRIGHT_RED}[chain]{R}" if p["in_attack_chain"] else ""
+                _box_line(f"  {pc}{p['rank']}.{R} {p['label'][:48]}{tag}")
+        _box_bottom()
 
     # Opt-in: map findings to process exit code for CI integration.
     # 0 = clean (no critical, no warning), 1 = warnings only, 2 = critical present.
