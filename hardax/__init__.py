@@ -32,6 +32,7 @@ from string import Template
 from typing import List, Dict, Any, Tuple, Optional
 
 from . import analysis as _analysis
+from . import ai as _ai
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  PYTHON VERSION CHECK
@@ -45,7 +46,7 @@ if sys.version_info < (3, 10):
 #  VERSION & CONSTANTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-__version__ = "5.9.0"
+__version__ = "5.10.0"
 
 REQUIRED_CHECK_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
 
@@ -1812,6 +1813,8 @@ def writeTxtReport(path: str, deviceInfo: Dict[str, str],
         f.write(f"HARDAX - Hardening Audit eXaminer Report\nGenerated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
         if analysis:
             f.write(_analysis.render_text(analysis) + "\n\n")
+            if analysis.get("ai_narrative"):
+                f.write(_ai.render_text(analysis["ai_narrative"]) + "\n\n")
         f.write("Device Information\n" + "=" * 40 + "\n")
         for k in ["model", "brand", "manufacturer", "name", "soc_manufacturer", "soc_model",
                    "android_version", "sdk_level", "build_id", "fingerprint", "serialno", "timezone"]:
@@ -2050,6 +2053,8 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
         _tmpl = Template(_f.read())
 
     analysisHtml = _analysis.render_html(analysis) if analysis else ""
+    if analysis and analysis.get("ai_narrative"):
+        analysisHtml += _ai.render_html(analysis["ai_narrative"])
 
     doc = _tmpl.safe_substitute(
         VERSION=__version__,
@@ -2146,6 +2151,24 @@ Examples:
     ap.add_argument("--profile", default="generic",
                     choices=["generic", "pos", "medical", "kiosk", "automotive", "iot"],
                     help="Device profile used to weight analysis prioritisation (default: generic)")
+    ap.add_argument("--ai", action="store_true",
+                    help="Add an optional LLM narrative on top of the deterministic "
+                         "analysis. Off by default. Sends only the redacted analysis "
+                         "summary (never raw device output) to the chosen provider.")
+    ap.add_argument("--ai-provider", default="ollama",
+                    choices=["ollama", "anthropic", "openai"],
+                    help="LLM backend for --ai (default: ollama, fully local/offline)")
+    ap.add_argument("--ai-model", default="",
+                    help="Model name override (default per provider, e.g. llama3, "
+                         "claude-3-5-haiku-latest, gpt-4o-mini)")
+    ap.add_argument("--ai-key", default="",
+                    help="API key for cloud providers (else read from ANTHROPIC_API_KEY "
+                         "/ OPENAI_API_KEY env var). Never stored or logged.")
+    ap.add_argument("--ai-base-url", default="",
+                    help="Override the Ollama base URL (default http://localhost:11434)")
+    ap.add_argument("--ai-yes", action="store_true",
+                    help="Skip the cloud data-egress consent prompt (for CI). Implies "
+                         "you accept sending the redacted summary to the cloud provider.")
 
     args = ap.parse_args()
 
@@ -2396,6 +2419,23 @@ Examples:
         analysis = _analysis.analyze_findings(
             rows, counts, deviceInfo, certs, profile=args.profile)
 
+        # Optional LLM narrative layer (opt-in via --ai). Operates only on the
+        # structured analysis above; raw device output is never sent. Any
+        # failure leaves the deterministic analysis intact.
+        if args.ai:
+            key = _ai.resolve_key(args.ai_provider, args.ai_key or None)
+            if _ai.egress_consent(args.ai_provider, args.ai_yes):
+                print(f"{Colors.DIM}[ai] querying {args.ai_provider}...{Colors.RESET}")
+                narrative = _ai.llm_narrative(
+                    analysis,
+                    provider=args.ai_provider,
+                    model=args.ai_model or None,
+                    api_key=key,
+                    base_url=args.ai_base_url or None,
+                )
+                if narrative:
+                    analysis["ai_narrative"] = narrative
+
     # Generate reports
     writeTxtReport(txtFile, deviceInfo, rows, counts, certs, device.idString(), analysis)
     writeCsvReport(csvFile, rows)
@@ -2527,6 +2567,17 @@ Examples:
                 tag = f" {Colors.BRIGHT_RED}[chain]{R}" if p["in_attack_chain"] else ""
                 _box_line(f"  {pc}{p['rank']}.{R} {p['label'][:48]}{tag}")
         _box_bottom()
+
+        # AI narrative (only if --ai produced one)
+        nar = analysis.get("ai_narrative")
+        if nar:
+            print(f"  {Colors.BRIGHT_MAGENTA}{B}AI NARRATIVE{R} "
+                  f"{D}({nar.get('provider')}/{nar.get('model')}){R}\n")
+            import textwrap as _tw
+            for para in nar.get("text", "").split("\n"):
+                for line in _tw.wrap(para, width=72) or [""]:
+                    print(f"  {line}")
+            print(f"\n  {D}{nar.get('disclaimer', '')}{R}\n")
 
     # Opt-in: map findings to process exit code for CI integration.
     # 0 = clean (no critical, no warning), 1 = warnings only, 2 = critical present.
