@@ -50,6 +50,8 @@ HARDAX is designed for:
 | Feature | Description |
 |---------|-------------|
 | **745 Security Checks** | Comprehensive coverage across 26 security categories |
+| **Deterministic Analysis Engine** | Offline risk score (0-100), attack-chain correlation, prioritised remediation - reasons only over confirmed findings, no LLM, no network, no hallucination |
+| **Optional AI Narrative** | Opt-in `--ai` LLM summary on top of the deterministic engine (local Ollama, or Anthropic/OpenAI with your own key). Sends only the redacted analysis summary, never raw device output. Off by default |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
 | **Malware & Hooking Detection** | 18 checks for rootkits, RATs, Frida, Xposed, keyloggers, memory scrapers |
 | **Certificate Audit** | CA certificate analysis with expiry/age calculation - 25 checks |
@@ -146,7 +148,68 @@ hardax --out ./my_reports
 
 # Skip certificate audit
 hardax --skip-certs
+
+# Analysis is on by default. Weight prioritisation for a device profile:
+hardax --profile pos        # or: medical, kiosk, automotive, iot, generic
+
+# Disable the analysis layer entirely
+hardax --no-analyze
 ```
+
+### Analysis Engine
+
+After the checks run, HARDAX adds a deterministic analysis layer that reasons
+**only over the findings it already confirmed** - it runs no extra commands,
+makes no network calls, and never invents a finding. It produces:
+
+- a **risk score (0-100)** and letter grade,
+- **attack chains** correlated from confirmed findings (a chain only appears
+  when every supporting finding is actually present),
+- a **prioritised "fix in this order"** list (chain members and
+  profile-relevant categories are weighted up),
+- a **VERIFY triage** grouping the manual-review items.
+
+It is fully offline and deterministic (no LLM), so it is safe to run against
+POS, medical, and other sensitive devices. The output appears in the terminal
+summary, the HTML report, the TXT report, and under the `analysis` key of the
+JSON report (`--json-out`).
+
+### Optional AI Narrative (`--ai`)
+
+On top of the deterministic engine you can add an **opt-in** LLM narrative that
+explains the findings in plain language. It is off by default and never
+replaces the deterministic analysis - it only re-phrases and connects the
+findings the engine already confirmed, and is instructed never to introduce a
+vulnerability that was not in the data.
+
+```bash
+# Local, fully offline (recommended for sensitive devices) - needs Ollama running
+hardax --ai --ai-provider ollama --ai-model llama3
+
+# Anthropic (key from ANTHROPIC_API_KEY env var, or --ai-key)
+hardax --ai --ai-provider anthropic
+
+# OpenAI
+hardax --ai --ai-provider openai --ai-model gpt-4o-mini
+```
+
+Privacy model:
+
+- Only the **redacted structured analysis** is sent (risk score, finding
+  labels, categories, statuses, remediation text). The **raw output of each
+  check is never sent** - so serials, PHI strings, IPs and ports do not leave
+  the machine. A redaction backstop also scrubs IP/MAC/hex tokens.
+- **Ollama runs locally** and sends nothing off-machine.
+- Cloud providers (Anthropic/OpenAI) print a one-time data-egress warning and
+  require consent (interactive, or `--ai-yes` for CI).
+- API keys are read from env vars or `--ai-key` and are never stored, logged,
+  or written to the report.
+- If the model is unavailable or errors, the audit still completes on the
+  deterministic engine alone.
+
+The narrative appears as a clearly-labelled, visually distinct block in the
+CLI, HTML and TXT reports, and under `analysis.ai_narrative` in JSON. It is not
+a HARDAX finding and is marked as such.
 
 ### SSH Mode (Network)
 
@@ -321,6 +384,8 @@ HARDAX/
 └── hardax/                # The installable Python package
     ├── __init__.py        # Main engine (was hardax.py)
     ├── __main__.py        # Enables 'python -m hardax'
+    ├── analysis.py        # Deterministic risk engine (score, attack chains, prioritisation)
+    ├── ai.py              # Optional opt-in LLM narrative (Ollama/Anthropic/OpenAI, stdlib only)
     ├── templates/
     │   └── report.html    # Interactive HTML report template
     └── commands/          # Security check definitions (745 checks, 26 categories)
