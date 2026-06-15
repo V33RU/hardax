@@ -191,10 +191,10 @@
     {
       "category": "PARTITION",
       "label": "Block Devices World-Readable",
-      "command": "find /dev/block -maxdepth 3 -perm -o+r 2>/dev/null | grep -v 'by-name\\|by-num\\|by-partname\\|by-id\\|bootdevice' | wc -l",
+      "command": "find /dev/block -maxdepth 3 -type b -perm -o+r 2>/dev/null | wc -l",
       "safe_pattern": "^0$",
       "level": "critical",
-      "description": "Block devices readable by all users allow unprivileged processes to read raw partition data including encryption keys and user data.",
+      "description": "Block-device NODES readable by all users allow unprivileged processes to read raw partition data including encryption keys and user data. Restricted with -type b so it counts actual block special files only - the previous command counted the o+r symlinks and directories under /dev/block (by-name, mapper, param, persistent ...), which are harmless and produced a large false count.",
       "remediation": "Remove world-read from block devices: 'chmod o-r /dev/block/<device>'. Enforce via ueventd.rc rules.",
       "empty_is_safe": true
     },

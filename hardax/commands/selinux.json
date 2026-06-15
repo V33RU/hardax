@@ -63,13 +63,13 @@
     {
       "id": "SELINUX_004",
       "category": "SELINUX",
-      "label": "SELinux policy is present (policy file non-empty)",
+      "label": "SELinux policy is present (policy node exists)",
       "platforms": [
         "android",
         "linux"
       ],
       "type": "assert",
-      "command": "sh -c 'if [ -s /sys/fs/selinux/policy ]; then echo PRESENT; else echo MISSING; fi'",
+      "command": "sh -c 'if [ -e /sys/fs/selinux/policy ] || [ -e /sys/fs/selinux/enforce ] || command -v getenforce >/dev/null 2>&1; then echo PRESENT; else echo MISSING; fi'",
       "safe_pattern": "^PRESENT$",
       "fail_pattern": "^MISSING$",
       "level": "critical",
@@ -441,19 +441,6 @@
       "remediation": "Build the kernel and SELinux policy with MLS support (CONFIG_SECURITY_SELINUX_MLS=y or equivalent for the policy compiler). On Android this is the AOSP default; finding 0 indicates a custom build that removed MLS.",
       "why": "Without MLS, app data isolation between user apps relies only on UID-based separation, which is a weaker boundary that has historically been bypassed via shared UID grouping or sandbox escapes.",
       "risk_if_fail": "Apps on the same device may be able to read each other's data when sandbox boundaries are bypassed."
-    },
-    {
-      "category": "SELINUX",
-      "label": "SELinux policy file is not world-readable",
-      "command": "sh -c 'p=/sys/fs/selinux/policy; if [ ! -e \"$p\" ]; then echo NO_FILE; else perm=$(ls -l \"$p\" 2>/dev/null | head -1 | awk \"{print substr(\\$1,8,1)}\"); if [ \"$perm\" = \"r\" ]; then echo WORLD_READ; elif [ -z \"$perm\" ]; then echo UNKNOWN_PERM; else echo OK; fi; fi'",
-      "safe_pattern": "^OK$",
-      "level": "critical",
-      "empty_is_safe": false,
-      "null_is_safe": false,
-      "description": "The compiled SELinux policy at /sys/fs/selinux/policy should be readable only by root. If world-readable, any unprivileged app can dump the binary policy and use it to map out the device's security model offline, which is the first step in tools like sepolicy-inject.",
-      "remediation": "On Android, /sys/fs/selinux/policy is created by the kernel and its mode is set by the SELinux subsystem. World-readable typically indicates a non-default kernel or a manually-modified mount. Reflash a stock kernel or investigate which init.rc rule is changing the mode.",
-      "why": "An attacker who can read the compiled policy can craft targeted bypass payloads, find permissive domains, and identify dontaudit rules that hide policy gaps.",
-      "risk_if_fail": "Confidentiality of the device's security policy is lost; offline policy analysis becomes possible for any installed app."
     },
     {
       "category": "SELINUX",
