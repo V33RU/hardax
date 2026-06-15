@@ -46,7 +46,7 @@ if sys.version_info < (3, 10):
 #  VERSION & CONSTANTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-__version__ = "5.11.0"
+__version__ = "5.11.1"
 
 REQUIRED_CHECK_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
 
@@ -263,6 +263,18 @@ class HUDDashboard:
         W = self.LW + 1 + self.RW  # full inner width (between outer │ │)
         self._W = W
 
+    def fitsTerminal(self) -> bool:
+        """The live panel can only redraw in place if it is shorter than the
+        terminal. If the panel is taller than the screen, in-place redraw is
+        impossible (you cannot move the cursor above the top visible row) and
+        each refresh would stack a fresh copy of the table. In that case the
+        caller should fall back to the compact single-line progress bar."""
+        _cols, rows = Terminal.getSize()
+        return self.panelHeight + 1 <= rows
+
+    def start(self):
+        """Hide the cursor and draw the panel for the first time. Call only
+        after confirming fitsTerminal()."""
         Terminal.hideCursor()
         self._render(first=True)
 
@@ -427,11 +439,19 @@ class HUDDashboard:
         return "\n".join(lines)
 
     def _render(self, first: bool = False):
-        if first:
-            sys.stdout.write("\033[s")   # save cursor position before first draw
-        else:
-            sys.stdout.write("\033[u")   # restore to saved position before redraw
-        print(self._buildFrame())
+        # Redraw in place using RELATIVE cursor movement (not save/restore).
+        # Absolute save/restore (\033[s / \033[u) breaks the moment the terminal
+        # scrolls, which made the panel reprint and stack down the screen. After
+        # the first draw we move the cursor up by exactly panelHeight lines and
+        # rewrite each line (clearing it first), so the same table updates in
+        # place. The caller guarantees the panel fits the terminal height.
+        lines = self._buildFrame().split("\n")
+        if not first:
+            sys.stdout.write(f"\033[{self.panelHeight}A")  # up to panel top
+        out = []
+        for ln in lines:
+            out.append("\033[2K" + ln)   # clear line, then content
+        sys.stdout.write("\r" + "\n".join(out) + "\n")
         sys.stdout.flush()
 
     # ── public API ──────────────────────────────────────────
@@ -2383,10 +2403,18 @@ Examples:
     useShowCommands = args.show_commands
 
     if not useShowCommands and sys.stdout.isatty():
-        # HUD Tactical dashboard mode
-        signal.signal(signal.SIGINT, _signalHandler)
-        _hud = HUDDashboard(checks, deviceInfo=device.idString())
-        _active_dashboard = _hud
+        # HUD Tactical dashboard mode - but only if the panel fits the terminal
+        # height. If it is taller than the screen, in-place redraw is impossible
+        # and the table would stack on every refresh, so fall back to the
+        # compact single-line progress bar (handled in runChecks when _hud=None).
+        _candidate = HUDDashboard(checks, deviceInfo=device.idString())
+        if _candidate.fitsTerminal():
+            signal.signal(signal.SIGINT, _signalHandler)
+            _hud = _candidate
+            _active_dashboard = _hud
+            _hud.start()
+        else:
+            _hud = None
 
     # Run all checks
     rows, counts = runChecks(
