@@ -134,12 +134,12 @@
     },
     {
       "category": "POS_SECURITY",
-      "label": "Screen Capture Disabled",
-      "command": "settings get secure screencapture_disabled 2>/dev/null",
-      "safe_pattern": "^1$",
-      "level": "warning",
-      "description": "Screen capture should be disabled to protect card data display",
-      "remediation": "Set screencapture_disabled to 1 via DevicePolicyManager or settings put secure screencapture_disabled 1."
+      "label": "Screen Capture Disabled (Policy)",
+      "command": "dumpsys device_policy 2>/dev/null | grep -iE 'screen capture|screencapture|disablescreencapture|mscreencapturedisabled' | head -4",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Screen capture disable is a DevicePolicyManager-only policy (setScreenCaptureDisabled) - there is no settings.secure key for it, so it is read from dumpsys device_policy. On a payment terminal, screen capture should be disabled to protect card data on display. Evidence collector; empty on unmanaged devices.",
+      "remediation": "Disable screen capture via the DPC (setScreenCaptureDisabled(true)). The previous settings.secure 'screencapture_disabled' key does not exist and always returned null."
     },
     {
       "category": "POS_SECURITY",
