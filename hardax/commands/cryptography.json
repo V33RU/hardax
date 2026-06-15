@@ -113,10 +113,10 @@
     {
       "category": "CRYPTOGRAPHY",
       "label": "Private Keys Exposed",
-      "command": "find /system /vendor /data /sdcard -type f \\( -name '*.pem' -o -name '*.key' -o -name '*.p12' -o -name '*.pfx' \\) 2>/dev/null | head -10",
+      "command": "find /system /vendor /data /sdcard -type f \\( -name '*.pem' -o -name '*.key' \\) 2>/dev/null | head -40 | while read f; do grep -lqE 'BEGIN (RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY' \"$f\" 2>/dev/null && echo \"$f\"; done | head -10; find /system /vendor /data /sdcard -type f \\( -name '*.p12' -o -name '*.pfx' \\) 2>/dev/null | head -10",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "Private key files found - should be protected",
+      "description": "Files containing actual private-key material (PEM private-key headers, or .p12/.pfx keystores). Public .pem certificates shipped in the system image are NOT flagged - the check greps file contents for a PRIVATE KEY header rather than matching on the .pem name, which previously false-flagged public CA certs.",
       "remediation": "Delete unnecessary private key files. Move required keys to hardware-backed storage with strict permissions.",
       "empty_is_safe": true
     },
@@ -132,21 +132,21 @@
     },
     {
       "category": "CRYPTOGRAPHY",
+      "command": "find /system /vendor -type f \\( -name 'shadow' -o -name 'credentials*' \\) 2>/dev/null; find /system /vendor -type f -name 'passwd' 2>/dev/null | while read f; do grep -Eq ':\\$[0-9a-z]+\\$' \"$f\" 2>/dev/null && echo \"$f\"; done",
       "label": "Default Credential Files",
-      "command": "find /system /vendor -type f \\( -name 'passwd' -o -name 'shadow' -o -name 'credentials*' \\) 2>/dev/null",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "Credential files in system - check permissions",
+      "description": "Credential files with real secrets: a 'shadow' file, a 'credentials*' file, or a 'passwd' file that actually contains a hashed password ($1$/$5$/$6$). Android's standard /system/etc/passwd is an AID-to-name map with no hashes and is present on every device, so it is no longer flagged on its name alone (previous false positive).",
       "remediation": "Remove default credential files from /system and /vendor. Use Android Keystore for credential management.",
       "empty_is_safe": true
     },
     {
       "category": "CRYPTOGRAPHY",
       "label": "Hardcoded URLs with Credentials",
-      "command": "find /system /vendor /data -type f \\( -name '*.conf' -o -name '*.json' -o -name '*.xml' \\) -exec grep -l -E 'https?://[^:]+:[^@]+@' {} \\; 2>/dev/null | head -5",
+      "command": "find /system /vendor /data -type f \\( -name '*.conf' -o -name '*.json' -o -name '*.xml' \\) -exec grep -lE 'https?://[A-Za-z0-9._~%-]+:[A-Za-z0-9._~%-]+@[A-Za-z0-9.-]' {} \\; 2>/dev/null | head -5",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "URLs with embedded credentials found",
+      "description": "URLs with embedded user:password@host credentials. The userinfo and host are restricted to URL-safe characters (no spaces, quotes or angle brackets) so the regex no longer spans across XML/doc text - the previous loose pattern false-matched 'https://developer.android.com/... @UserHandleAware' in framework config files.",
       "remediation": "Replace embedded credentials in URLs with token-based auth or secure credential storage.",
       "empty_is_safe": true
     },
