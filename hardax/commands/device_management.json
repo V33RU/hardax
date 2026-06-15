@@ -111,11 +111,11 @@
     },
     {
       "category": "DEVICE_MANAGEMENT",
-      "label": "Accessibility Services Enabled",
+      "label": "Accessibility Master Flag Enabled",
       "command": "settings get secure accessibility_enabled 2>/dev/null",
       "safe_pattern": "^0$",
       "level": "warning",
-      "description": "Accessibility services enabled on kiosk or POS devices can be abused to bypass lock task mode, simulate user input, or exfiltrate screen content.",
+      "description": "The global accessibility_enabled master flag (distinct from the INPUT category 'Accessibility Services Enabled' check, which lists the specific enabled services). Accessibility on kiosk or POS devices can be abused to bypass lock task mode, simulate user input, or exfiltrate screen content.",
       "remediation": "Disable accessibility services via 'settings put secure accessibility_enabled 0' or block them via MDM policy."
     }
   ]
