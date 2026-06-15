@@ -8,8 +8,8 @@
   <a href="https://pypi.org/project/hardax/">
     <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg" alt="Python 3.10 | 3.11 | 3.12">
   </a>
-  <img src="https://img.shields.io/badge/checks-745-orange.svg" alt="Checks">
-  <img src="https://img.shields.io/badge/categories-26-purple.svg" alt="Categories">
+  <img src="https://img.shields.io/badge/checks-760-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/categories-27-purple.svg" alt="Categories">
   <a href="https://github.com/V33RU/hardax/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
   </a>
@@ -34,7 +34,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **745 security checks** across **26 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **760 security checks** across **27 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -49,7 +49,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **745 Security Checks** | Comprehensive coverage across 26 security categories |
+| **760 Security Checks** | Comprehensive coverage across 27 security categories |
 | **Deterministic Analysis Engine** | Offline risk score (0-100), attack-chain correlation, prioritised remediation - reasons only over confirmed findings, no LLM, no network, no hallucination |
 | **Optional AI Narrative** | Opt-in `--ai` LLM summary on top of the deterministic engine (local Ollama, or Anthropic/OpenAI with your own key). Sends only the redacted analysis summary, never raw device output. Off by default |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
@@ -287,7 +287,7 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **745 checks** into **26 security categories**:
+HARDAX organizes **760 checks** into **27 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
@@ -317,6 +317,7 @@ HARDAX organizes **745 checks** into **26 security categories**:
 | **NFC_SECURITY** | 9 | NFC state, Android Beam, tap-to-pay, reader mode, secure element (eSE/UICC), tag write protection, HCE AID priority |
 | **ADB_SECURITY** | 8 | ADB keys, network ADB allowlist, debugging, shell privilege, USB-debug notify, adbd integrity hash |
 | **MODERN_ANDROID** | 8 | Android 13/14/15/16 surface: Photo Picker, READ_MEDIA_*, POST_NOTIFICATIONS, FGS type, Theft Detection Lock, Identity Check, Restricted Networking, Advanced Protection |
+| **MDM_POLICY** | 15 | DevicePolicyManager state via dumpsys device_policy: management state, keyguard/camera policy, lock/wipe, password, audit logging, USB signaling, Common Criteria, MTE, app control, permission policy, Wi-Fi lockdown, A15 privacy, system update, permitted accessibility/input |
 
 ---
 
@@ -388,7 +389,7 @@ HARDAX/
     ├── ai.py              # Optional opt-in LLM narrative (Ollama/Anthropic/OpenAI, stdlib only)
     ├── templates/
     │   └── report.html    # Interactive HTML report template
-    └── commands/          # Security check definitions (745 checks, 26 categories)
+    └── commands/          # Security check definitions (760 checks, 27 categories)
         ├── system.json        #  86 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator, WebView
         ├── bluetooth.json     #  82 checks - BLE/Classic, pairing, all profiles
         ├── network.json       #  61 checks - Ports, WiFi, VPN, IoT protocols, Allow 2G, hotspot WPA
@@ -414,7 +415,8 @@ HARDAX/
         ├── medical.json       #  11 checks - Medical apps, IEEE 11073 PHD, PACS C-STORE, insulin/cardiac telemetry
         ├── nfc_security.json  #   9 checks - NFC, reader mode, secure element, tag write protection, HCE AID priority
         ├── adb_security.json  #   8 checks - ADB keys, network ADB allowlist, shell privilege, USB-debug notify, adbd integrity
-        └── modern_android.json #  8 checks - A13/A14/A15/16: Photo Picker, READ_MEDIA_*, POST_NOTIFICATIONS, FGS type, Theft Detection Lock, Identity Check, Restricted Networking, Advanced Protection
+        ├── modern_android.json #  8 checks - A13/A14/A15/16: Photo Picker, READ_MEDIA_*, POST_NOTIFICATIONS, FGS type, Theft Detection Lock, Identity Check, Restricted Networking, Advanced Protection
+        └── mdm_policy.json    #  15 checks - DevicePolicyManager state (dumpsys device_policy): keyguard, camera, lock/wipe, logging, USB signaling, MTE, Wi-Fi lockdown, etc.
 ```
 
 ---
@@ -444,7 +446,7 @@ Grouped by theme. Order within a group is rough priority.
 
 #### Analysis features
 - [ ] Baseline capture and diff (compare two scans, surface regressions)
-- [ ] HARDAX Risk Score (0-100 composite across all 26 categories)
+- [ ] HARDAX Risk Score (0-100 composite across all 27 categories)
 - [ ] CVE correlation (map findings to relevant CVE IDs automatically)
 
 #### Additional security checks

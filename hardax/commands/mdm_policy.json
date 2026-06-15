@@ -1,0 +1,169 @@
+{
+  "checks": [
+    {
+      "id": "MDM-STATE-001",
+      "category": "MDM_POLICY",
+      "label": "Managed Device State (Device/Profile Owner)",
+      "command": "D=$(dumpsys device_policy 2>/dev/null); DO=$(printf '%s' \"$D\" | grep -iA1 'Device Owner' | grep -iE 'ComponentInfo|admin='); PO=$(printf '%s' \"$D\" | grep -iA1 'Profile Owner' | grep -iE 'ComponentInfo|admin='); if [ -n \"$DO\" ]; then echo MANAGED_DEVICE_OWNER; elif [ -n \"$PO\" ]; then echo MANAGED_PROFILE_OWNER; else echo UNMANAGED; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Reports whether the device is under enterprise management: a Device Owner (fully managed), a Profile Owner (work profile), or UNMANAGED. The DevicePolicyManager policies below only apply on managed devices; on an UNMANAGED device they are absent and reported empty, which is expected, not a finding.",
+      "remediation": "Informational. For POS/kiosk/medical fleets the device should be a Device Owner managed device. If UNMANAGED unexpectedly, the management profile may have been removed.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "MDM-KEYGUARD-001",
+      "category": "MDM_POLICY",
+      "label": "Keyguard Disabled Features (Policy)",
+      "command": "dumpsys device_policy 2>/dev/null | grep -iE 'keyguard|disabled features|disablekeyguard' | head -6",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Surfaces DevicePolicyManager.getKeyguardDisabledFeatures state - which lockscreen features an admin disabled (secure camera, secure notifications, trust agents, biometrics, widgets). Evidence collector for managed devices; empty on unmanaged devices. Field names vary by Android version so this matches several variants.",
+      "remediation": "On a kiosk/POS device, review which keyguard features the DPC disabled. Disabling secure-camera and unredacted-notifications on the lock screen reduces data exposure.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MDM-CAMERA-001",
+      "category": "MDM_POLICY",
+      "label": "Camera Disabled By Policy",
+      "command": "dumpsys device_policy 2>/dev/null | grep -iE 'camera.?disabled|disablecamera|mcamera' | head -4",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Surfaces DevicePolicyManager.getCameraDisabled policy state (distinct from the /dev/video* device-node check in USB_SECURITY). On managed POS/kiosk devices the camera is often disabled by policy. Empty on unmanaged devices.",
+      "remediation": "If the device should not use the camera (payment terminal, kiosk), confirm the DPC has set setCameraDisabled(true).",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MDM-LOCKWIPE-001",
+      "category": "MDM_POLICY",
+      "label": "Lock & Wipe Policy (Max Time To Lock / Failed-Password Wipe)",
+      "command": "dumpsys device_policy 2>/dev/null | grep -iE 'maximum.?time.?to.?lock|maxtimetolock|maximum.?failed|maxfailedpasswords|failedpasswordsforwipe|maximumfailedpasswordsforwipe' | head -6",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Surfaces DevicePolicyManager getMaximumTimeToLock and getMaximumFailedPasswordsForWipe. A short max-time-to-lock and a failed-password wipe threshold are key anti-theft controls for fleet devices. Evidence collector; empty on unmanaged devices.",
+      "remediation": "For lost/stolen device resilience, set a short maximum time to lock and a sane failed-password wipe threshold via the DPC.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MDM-PWPOLICY-001",
+      "category": "MDM_POLICY",
+      "label": "Password Policy (Complexity / Expiration / History / Strong-Auth)",
+      "command": "dumpsys device_policy 2>/dev/null | grep -iE 'password complexity|passwordcomplexity|requiredpasswordcomplexity|password expiration|expiredate|password history|history length|strong auth|strongauthunlocktimeout|requiredstrongauth|password quality|passwordquality' | head -10",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Surfaces the admin-imposed screen-lock password policy: required complexity, expiration timeout, history length and required strong-auth timeout. Evidence collector for managed devices; empty on unmanaged. Note: getPasswordComplexity itself is preferred over the deprecated password-quality getters.",
+      "remediation": "Review the password policy against your deployment standard (e.g. PASSWORD_COMPLEXITY_HIGH for devices handling card or patient data).",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MDM-AUDITLOG-001",
+      "category": "MDM_POLICY",
+      "label": "Audit Logging (Security / Network Logging)",
+      "command": "dumpsys device_policy 2>/dev/null | grep -iE 'security logging|securitylogging|msecurityloggingenabled|network logging|networklogging|mnetworkloggingenabled' | head -6",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Surfaces DevicePolicyManager isSecurityLoggingEnabled and isNetworkLoggingEnabled. Security and network logging are central forensic controls for managed fleets. Evidence collector; empty on unmanaged devices.",
+      "remediation": "For regulated deployments, enable security logging (and network logging where permitted) via the DPC so incidents are auditable.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MDM-USBSIGNAL-001",
+      "category": "MDM_POLICY",
+      "label": "USB Data Signaling Policy",
+      "command": "dumpsys device_policy 2>/dev/null | grep -iE 'usb data signaling|usbdatasignaling|usb signaling|musbdatasignaling' | head -4",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Surfaces DevicePolicyManager isUsbDataSignalingEnabled policy state. Disabling USB data signaling (charging only) hardens POS and kiosk devices against juice-jacking and USB-based attacks. Evidence collector; empty on unmanaged or unsupported devices.",
+      "remediation": "On dedicated-function devices, disable USB data signaling via the DPC (setUsbDataSignalingEnabled(false)) where the hardware supports it.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MDM-CC-001",
+      "category": "MDM_POLICY",
+      "label": "Common Criteria Mode",
+      "command": "dumpsys device_policy 2>/dev/null | grep -iE 'common criteria|commoncriteria|mcommoncriteriamode' | head -3",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Surfaces DevicePolicyManager isCommonCriteriaModeEnabled. Common Criteria mode tightens Bluetooth long-term-key and Wi-Fi config integrity protection (AES-GCM) to meet CC certification. Evidence collector; empty on unmanaged devices.",
+      "remediation": "For deployments requiring Common Criteria assurance, enable it via setCommonCriteriaModeEnabled(true). Note enabling it can drop existing Wi-Fi configurations.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MDM-MTE-001",
+      "category": "MDM_POLICY",
+      "label": "Runtime Memory Tagging (MTE) Mode",
+      "command": "M=$(getprop arm64.memtag.bootctl 2>/dev/null); [ -z \"$M\" ] && M=$(getprop persist.arm64.memtag.default 2>/dev/null); [ -n \"$M\" ] && echo \"$M\" || echo NONE",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Reports the runtime MTE (Memory Tagging Extension) boot control mode via getprop, complementing the kernel-config check (CONFIG_ARM64_MTE) in SYSTEM. 'memtag' / 'memtag-once' means MTE is active at runtime; NONE means off. DevicePolicyManager.getMtePolicy can enforce this on managed devices. MTE off is common for performance reasons, so this is informational posture.",
+      "remediation": "For high-value targets, enable MTE via the DPC (setMtePolicy(MTE_ENABLED)) on ARMv8.5+ hardware. Reboot required for changes to take effect.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "MDM-APPCTRL-001",
+      "category": "MDM_POLICY",
+      "label": "App Control Policy (User-Control-Disabled / Personal Apps Suspended)",
+      "command": "dumpsys device_policy 2>/dev/null | grep -iE 'user control disabled|usercontroldisabled|protectedpackages|personal apps suspended|personalappssuspended|suspendpersonalapps' | head -6",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Surfaces getUserControlDisabledPackages (apps the user cannot force-stop or clear) and getPersonalAppsSuspendedReasons. Evidence collector for managed devices; empty on unmanaged. On a kiosk, the operator app is typically user-control-disabled so it cannot be killed.",
+      "remediation": "On dedicated devices, confirm the operator/kiosk app is in the user-control-disabled list so users cannot force-stop it.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MDM-PERMPOLICY-001",
+      "category": "MDM_POLICY",
+      "label": "Runtime Permission Grant Policy",
+      "command": "dumpsys device_policy 2>/dev/null | grep -iE 'permission policy|permissionpolicy|mpermissionpolicy|auto.?grant|auto.?deny' | head -4",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Surfaces DevicePolicyManager.getPermissionPolicy - whether the admin auto-grants, auto-denies, or prompts for runtime permission requests. Auto-grant on a managed device is worth reviewing because it removes the user from sensitive-permission decisions. Evidence collector; empty on unmanaged devices.",
+      "remediation": "Review the permission grant policy. Auto-granting sensor permissions (location, camera, mic) device-wide should be justified by the deployment.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MDM-WIFILOCK-001",
+      "category": "MDM_POLICY",
+      "label": "Admin Wi-Fi Configuration Lockdown",
+      "command": "L=$(settings get global wifi_device_owner_configs_lockdown 2>/dev/null); P=$(dumpsys device_policy 2>/dev/null | grep -iE 'wifi ssid policy|wifissidpolicy|ssidallowlist|ssiddenylist|minimum.*wifi.*security|minimumrequiredwifisecurity' | head -4); echo \"lockdown=$L\"; [ -n \"$P\" ] && printf '%s\\n' \"$P\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Surfaces hasLockdownAdminConfiguredNetworks (global wifi_device_owner_configs_lockdown) plus any Wi-Fi SSID allow/deny policy and minimum Wi-Fi security level set by the admin. lockdown=1 means the user cannot modify admin-configured networks. Evidence collector.",
+      "remediation": "On managed fleets, lock down admin-configured Wi-Fi (setConfiguredNetworksLockdownState(true)) and set a minimum Wi-Fi security level so devices cannot join open networks.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "MDM-A15PRIV-001",
+      "category": "MDM_POLICY",
+      "label": "A15 Privacy Policies (Content Protection / Nearby Streaming)",
+      "command": "dumpsys device_policy 2>/dev/null | grep -iE 'content protection|contentprotection|nearby.*streaming|nearbystreaming|app streaming' | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Surfaces Android 15 era DevicePolicyManager privacy policies: getContentProtectionPolicy (scanning for deceptive apps) and the nearby app/notification streaming policies. Evidence collector for managed devices; empty on unmanaged or pre-A15.",
+      "remediation": "Review content protection and nearby-streaming policies for deployments where screen/notification content is sensitive.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MDM-SYSUPDATE-001",
+      "category": "MDM_POLICY",
+      "label": "System Update Policy",
+      "command": "dumpsys device_policy 2>/dev/null | grep -iE 'system update policy|systemupdatepolicy|freezeperiod|install.*automatic|update.*window' | head -5",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Surfaces DevicePolicyManager.getSystemUpdatePolicy - whether the admin defers, windows, or auto-installs OTA updates, and any configured freeze periods. Evidence collector for managed devices. Complements the SPL-currency check in SYSTEM/CVE_INDICATORS.",
+      "remediation": "Confirm the system update policy keeps devices patched. Long freeze periods or indefinite deferral conflict with a current security patch level.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "MDM-PERMITTED-001",
+      "category": "MDM_POLICY",
+      "label": "Permitted Accessibility / Input Methods (Admin Allowlist)",
+      "command": "dumpsys device_policy 2>/dev/null | grep -iE 'permitted accessibility|permittedaccessibility|permitted input|permittedinputmethods|permitted_input' | head -6",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Surfaces the DPM admin allowlists getPermittedAccessibilityServices and getPermittedInputMethods. These are distinct from the INPUT category checks, which read the settings.secure enabled lists - here we show the admin-enforced allowlist. An empty allowlist (when set) means only system services are permitted, which is the locked-down state.",
+      "remediation": "On locked-down devices, restrict accessibility services and input methods to an explicit allowlist (or system-only) via the DPC to block keyloggers and screen scrapers.",
+      "empty_is_safe": true
+    }
+  ]
+}
