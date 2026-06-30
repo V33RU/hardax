@@ -64,6 +64,7 @@ HARDAX is designed for:
 | **3 Report Formats** | TXT, CSV, HTML with interactive dashboard |
 | **Smart False Positive Prevention** | Catches empty output, service unavailability, and transport errors - marks as SKIPPED not CRITICAL |
 | **Extensible JSON Checks** | Easy to add custom security checks - drop JSON, run |
+| **Baseline Tamper Detection** | `--save-baseline` captures integrity values (VBMeta digest/size, adbd SHA-256); `--baseline` compares later audits and flags any change CRITICAL |
 | **Beautiful CLI Output** | Color-coded real-time progress display |
 | **Device Info Collection** | Automatic device fingerprinting |
 | **Shell Environment Probe** | SSH mode probes busybox, toybox, getprop, bash availability on connect |
@@ -251,6 +252,33 @@ adb connect 192.168.1.100:5555
 hardax --json-dir commands
 ```
 
+### Baseline / Tamper Detection
+
+Integrity values such as the AVB **VBMeta digest**, **VBMeta size**, and the
+**adbd SHA-256** are device- and build-specific, so there is no universal
+"safe" value to hard-code. Instead, capture a known-good baseline on a trusted
+device and compare future audits against it. Any check carrying a
+`baseline_key` participates automatically.
+
+```bash
+# 1. Capture a known-good baseline on a trusted, freshly-flashed device
+hardax --save-baseline baseline.json
+
+# 2. On later audits, compare against it. A changed value is reported CRITICAL (tamper)
+hardax --baseline baseline.json
+
+# Gate CI on tampering (exit 2 when any baseline value changed)
+hardax --baseline baseline.json --exit-code
+```
+
+The baseline file records the device fingerprint, so HARDAX warns if you compare
+against a baseline captured on a different build (where the values legitimately
+differ). Connection/transport errors mark a check SKIPPED, and a key absent from
+the baseline is reported VERIFY (nothing to compare). But a value that the
+baseline recorded yet the device fails to return on the same build is treated as
+a CRITICAL tamper/evasion indicator (fail closed), so an attacker cannot silence
+the check by making it return nothing.
+
 ### All Options
 
 ```
@@ -275,6 +303,10 @@ Options:
   --progress-numbers    Show numeric progress counter
   --show-commands       Display each command being executed
   --skip-certs          Skip certificate audit
+  --save-baseline FILE  Capture a known-good baseline of integrity values
+                        (checks with a baseline_key) for later comparison
+  --baseline FILE       Compare integrity values against a saved baseline;
+                        a changed value is reported CRITICAL (tamper)
 
 Hidden debug flags (prefix before other args):
   --net-debug           Verbose network check output
@@ -372,6 +404,7 @@ Create or modify JSON files in the `commands/` directory:
 | `risk_if_fail` | No | What risk the failure represents |
 | `nist_800_53` | No | Relevant NIST 800-53 control IDs |
 | `id` | No | Unique check identifier (e.g. BT-001) |
+| `baseline_key` | No | Opt the check into `--save-baseline` / `--baseline` tamper detection under this key (e.g. `vbmeta_digest`) |
 
 ---
 
@@ -441,13 +474,14 @@ HARDAX/
 - [x] Safe SSH host-key default restored, `--ssh-tofu` opt-in for CI / lab convenience (v5.3.3)
 - [x] 6 AVB metadata-integrity checks - VBMeta digest, hash algorithm, size, required libavb version, managed dm-verity error-mode policy, and CONFIG_DM_VERITY_AVB kernel support (v5.12.0)
 - [x] dm-verity `eio`/`panicking` false-positive fix: the AVB-recommended MANAGED_RESTART_AND_EIO mode is no longer flagged CRITICAL (v5.12.0)
+- [x] Baseline tamper detection: `--save-baseline` / `--baseline` compare integrity values (VBMeta digest/size, adbd SHA-256) and flag any change CRITICAL (v5.13.0)
 
 ### Open
 
 Grouped by theme. Order within a group is rough priority.
 
 #### Analysis features
-- [ ] Baseline capture and diff (compare two scans, surface regressions)
+- [ ] Full scan-to-scan diff (compare two complete audits, surface all finding regressions; integrity-value baselines already shipped via `--baseline` in v5.13.0)
 - [ ] HARDAX Risk Score (0-100 composite across all 27 categories)
 - [ ] CVE correlation (map findings to relevant CVE IDs automatically)
 
