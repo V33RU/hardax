@@ -182,7 +182,7 @@
       "remediation": "Disable WebView debugging in production builds. Remove WebView.setWebContentsDebuggingEnabled(true) from app code, and ensure debug.webview.debug is not set."
     },
     {
-      "id": "CVE-016",
+      "id": "CVE-034",
       "category": "CVE_INDICATORS",
       "label": "Copy Fail (CVE-2026-31431) algif_aead page-cache write",
       "command": "sh -c 'v=$(uname -r 2>/dev/null | awk -F\"[.-]\" \"{printf \\\"%d.%d.%d\\\", \\$1, \\$2, \\$3}\"); ka=$(echo \"$v\" | cut -d. -f1); kb=$(echo \"$v\" | cut -d. -f2); kc=$(echo \"$v\" | cut -d. -f3); vuln=0; case \"${ka}.${kb}\" in 4.*) vuln=1 ;; 5.10) [ \"$kc\" -lt 254 ] && vuln=1 ;; 5.15) [ \"$kc\" -lt 204 ] && vuln=1 ;; 6.1)  [ \"$kc\" -lt 170 ] && vuln=1 ;; 6.6)  [ \"$kc\" -lt 137 ] && vuln=1 ;; 6.12) [ \"$kc\" -lt 85 ]  && vuln=1 ;; 6.18) [ \"$kc\" -lt 22 ]  && vuln=1 ;; 6.19) [ \"$kc\" -lt 12 ]  && vuln=1 ;; 5.*|6.*) vuln=1 ;; esac; [ \"$vuln\" = \"1\" ] && echo \"POTENTIALLY_VULNERABLE kernel $v\" || echo \"LIKELY_PATCHED kernel $v\"'",
