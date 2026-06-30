@@ -82,7 +82,8 @@
       "safe_pattern": "^[a-f0-9]{64}$",
       "level": "info",
       "description": "Records the SHA-256 of /system/bin/adbd so the operator can diff it against a known-good per-build baseline. dm-verity should already catch tampering on locked devices; this check exposes drift on devices where verity is disabled or the system partition is remounted rw. MISSING means adbd is absent or not executable.",
-      "remediation": "Record this hash per firmware build. If the value changes between audits on the same build, treat as a system partition tamper indicator and reflash the stock system image.",
+      "remediation": "Record this hash per firmware build. If the value changes between audits on the same build, treat as a system partition tamper indicator and reflash the stock system image. With --save-baseline / --baseline this comparison is automatic.",
+      "baseline_key": "adbd_sha256",
       "empty_is_safe": false
     }
   ]

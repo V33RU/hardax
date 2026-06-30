@@ -46,7 +46,7 @@ if sys.version_info < (3, 10):
 #  VERSION & CONSTANTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-__version__ = "5.12.0"
+__version__ = "5.13.0"
 
 REQUIRED_CHECK_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
 
@@ -1371,13 +1371,21 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
               onProgress=None, showCommands: bool = False,
               isRooted: bool = False,
               rootMethod: str = "none",
-              dashboard: Optional['HUDDashboard'] = None) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
+              dashboard: Optional['HUDDashboard'] = None,
+              baseline_mode: Optional[str] = None,
+              baseline_values: Optional[Dict[str, str]] = None) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
     """
     Execute every check against the device and classify the result.
     Returns (rows, counts) where rows is the full audit data.
+
+    baseline_mode: None | "save" | "compare". When set, checks carrying a
+    "baseline_key" capture their value into baseline_values ("save") or compare
+    against it ("compare", mismatch -> CRITICAL). baseline_values is mutated in
+    place so the caller can persist it after a "save" run.
     """
     rows: List[Dict[str, Any]] = []
     counts = {"safe": 0, "warning": 0, "critical": 0, "info": 0, "verify": 0, "skipped": 0}
+    baseline_values = baseline_values if baseline_values is not None else {}
     total = len(checks)
     startTime = time.time()
     consecutiveAdbErrors = 0
@@ -1393,6 +1401,10 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
         emptyIsSafe = chk.get("empty_is_safe", False)
         requiresOutput = chk.get("requires_output", True)
         nullIsSafe = chk.get("null_is_safe", False)
+        baselineKey = chk.get("baseline_key", "")
+        baselineNote = ""
+        baselineResult = None
+        baselineState = ""
 
         raw = executeWithFallback(device, command, showCommands, isRooted=isRooted, rootMethod=rootMethod) if command else ""
 
@@ -1502,6 +1514,55 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                     status = "INFO"
                     counts["info"] += 1
 
+            # Baseline capture / comparison (tamper detection). When a check
+            # carries a "baseline_key" and the engine runs in baseline mode,
+            # the captured value is either recorded (--save-baseline) or
+            # compared against a known-good baseline (--baseline). A changed
+            # value is a CRITICAL tamper indicator and overrides the generic
+            # safe_pattern classification above.
+            if baselineKey and baseline_mode:
+                _bval = normalized
+                _unavail = (not _bval) or outputEmpty or outputIsNull
+                counts[status.lower()] = counts.get(status.lower(), 0) - 1
+                if baseline_mode == "save":
+                    if _unavail:
+                        status = "INFO"; baselineState = "no-value"
+                        baselineNote = "no value to record"
+                    else:
+                        baseline_values[baselineKey] = _bval
+                        status = "SAFE"; baselineState = "recorded"
+                        baselineNote = "value recorded to baseline"
+                        baselineResult = _bval
+                else:  # compare
+                    if baselineKey not in baseline_values:
+                        status = "VERIFY"; needsVerification = True
+                        baselineState = "missing"
+                        baselineNote = "no baseline entry (run --save-baseline first)"
+                    elif _unavail:
+                        # The baseline recorded a value for this key, but the
+                        # device returned none this run. Transport/service errors
+                        # are already SKIPPED upstream, so on the same build a
+                        # value that was readable at capture time going missing
+                        # is a tamper / evasion indicator - fail closed rather
+                        # than letting an attacker silence the check by emitting
+                        # nothing.
+                        status = "CRITICAL"; baselineState = "unreadable"
+                        needsVerification = False
+                        baselineNote = ("TAMPER/evasion: baseline has a value but the "
+                                        "device returned none this run")
+                        baselineResult = (f"BASELINE VALUE UNREADABLE | baseline={baseline_values[baselineKey]} "
+                                          f"| current=(empty/error)")
+                    elif _bval == baseline_values[baselineKey]:
+                        status = "SAFE"; baselineState = "match"
+                        baselineNote = "matches known-good baseline"
+                        baselineResult = _bval
+                    else:
+                        status = "CRITICAL"; baselineState = "mismatch"
+                        baselineNote = "TAMPER: value differs from baseline"
+                        baselineResult = (f"BASELINE MISMATCH | baseline={baseline_values[baselineKey]} "
+                                          f"| current={_bval}")
+                counts[status.lower()] = counts.get(status.lower(), 0) + 1
+
         # Live output
         try:
             elapsed = time.time() - startTime
@@ -1580,7 +1641,7 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
         # Build row
         displayDesc = desc
         displayResult = raw
-        if needsVerification:
+        if needsVerification and not baselineNote:
             if outputIsNull:
                 displayDesc = desc + " [⚠ Manual verification required - value is NULL]"
                 displayResult = "null (Setting may not exist or is not configured)"
@@ -1588,6 +1649,10 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                 displayDesc = desc + " [⚠ Manual verification required - empty/unsupported output]"
                 if not raw.strip():
                     displayResult = "(No output - command may not be supported on this device)"
+        if baselineNote:
+            displayDesc = desc + f" [baseline {baseline_mode}: {baselineNote}]"
+            if baselineResult is not None:
+                displayResult = baselineResult
 
         rows.append({
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -1601,6 +1666,7 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
             "result": displayResult,
             "description": displayDesc,
             "needs_verification": needsVerification,
+            "baseline": baselineState,
             "remediation": chk.get("remediation", ""),
         })
 
@@ -1877,7 +1943,7 @@ def writeTxtReport(path: str, deviceInfo: Dict[str, str],
 
 def writeCsvReport(path: str, rows: List[Dict[str, Any]]) -> None:
     fieldnames = ["timestamp", "category", "label", "level", "bucket", "status",
-                  "matched", "command", "result", "description", "remediation"]
+                  "matched", "command", "result", "description", "baseline", "remediation"]
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
@@ -1903,6 +1969,44 @@ def writeJsonReport(path: str, deviceInfo: Dict[str, str],
     }
     with open(path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, default=str)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  BASELINE (TAMPER-DETECTION) FILE I/O
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def _saveBaseline(path: str, device_info: Dict[str, str], values: Dict[str, str]) -> None:
+    """Write a known-good baseline file capturing per-build integrity values
+    (VBMeta digest/size, adbd SHA-256, ...) for later tamper comparison."""
+    payload = {
+        "hardax_baseline": "1",
+        "version": __version__,
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "device": {k: (device_info or {}).get(k, "") for k in
+                   ("model", "build_id", "fingerprint", "serialno")},
+        "values": values or {},
+    }
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+
+
+def _loadBaseline(path: str) -> Dict[str, Any]:
+    """Load a baseline written by --save-baseline. Exits with a clear error on a
+    missing or malformed file."""
+    if not os.path.isfile(path):
+        print(f"ERROR: baseline file not found: {path}", file=sys.stderr)
+        sys.exit(1)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        print(f"ERROR: could not parse baseline file {path}: {e}", file=sys.stderr)
+        sys.exit(1)
+    if not isinstance(data, dict) or not isinstance(data.get("values"), dict):
+        print(f"ERROR: {path} is not a valid HARDAX baseline (missing 'values' object).",
+              file=sys.stderr)
+        sys.exit(1)
+    return data
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2157,6 +2261,14 @@ Examples:
     ap.add_argument("--progress-numbers", action="store_true", help="Show numeric progress counter")
     ap.add_argument("--show-commands", action="store_true", help="Print each command as it runs")
     ap.add_argument("--skip-certs", action="store_true", help="Skip certificate audit")
+    ap.add_argument("--save-baseline", metavar="FILE", default="",
+                    help="Capture a known-good baseline of integrity values (every check with a "
+                         "'baseline_key': VBMeta digest/size, adbd SHA-256) to FILE for later "
+                         "tamper comparison.")
+    ap.add_argument("--baseline", metavar="FILE", default="",
+                    help="Compare integrity values against a baseline saved with --save-baseline. "
+                         "A changed value is reported CRITICAL (tamper). Mutually exclusive with "
+                         "--save-baseline.")
     ap.add_argument("--category", default="",
                     help="Comma-separated category names to include (case-insensitive, e.g. SYSTEM,NETWORK)")
     ap.add_argument("--severity", default="",
@@ -2216,6 +2328,24 @@ Examples:
     if not checks:
         print("ERROR: No checks remain after filtering.", file=sys.stderr)
         sys.exit(1)
+
+    # Baseline (tamper-detection) mode setup
+    if args.baseline and args.save_baseline:
+        print("ERROR: --baseline and --save-baseline are mutually exclusive.", file=sys.stderr)
+        sys.exit(1)
+    baseline_mode: Optional[str] = None
+    baseline_values: Dict[str, str] = {}
+    baseline_doc: Optional[Dict[str, Any]] = None
+    if args.save_baseline:
+        baseline_mode = "save"
+    elif args.baseline:
+        baseline_mode = "compare"
+        baseline_doc = _loadBaseline(args.baseline)
+        # Coerce to strings so a hand-edited baseline (e.g. a numeric size) does
+        # not produce a spurious type-mismatch CRITICAL against the device's
+        # string output.
+        baseline_values = {str(k): ("" if v is None else str(v))
+                           for k, v in (baseline_doc.get("values", {}) or {}).items()}
 
     # Build device connection
     device: Device
@@ -2297,6 +2427,19 @@ Examples:
 
     # Device info
     deviceInfo = collectDeviceInfo(device)
+
+    # Baseline mode banner + cross-build sanity warning
+    if baseline_mode == "compare":
+        print(f"{Colors.BRIGHT_CYAN}⟳ Baseline compare: {len(baseline_values)} value(s) from {args.baseline}{Colors.RESET}")
+        _bdev = (baseline_doc or {}).get("device", {}) or {}
+        _baseFp = _bdev.get("fingerprint", "")
+        _curFp = deviceInfo.get("fingerprint", "")
+        if _baseFp and _curFp and _baseFp != _curFp:
+            print(f"{Colors.YELLOW}  ⚠ baseline build differs from this device "
+                  f"(baseline={_baseFp} vs current={_curFp}); integrity values may "
+                  f"legitimately differ across builds.{Colors.RESET}")
+    elif baseline_mode == "save":
+        print(f"{Colors.BRIGHT_CYAN}⟳ Baseline capture: recording integrity values to {args.save_baseline}{Colors.RESET}")
 
     # ADB pre-flight
     if isinstance(device, AdbDevice):
@@ -2424,11 +2567,30 @@ Examples:
         isRooted=isRooted,
         rootMethod=rootMethod,
         dashboard=_hud,
+        baseline_mode=baseline_mode,
+        baseline_values=baseline_values,
     )
 
     if _hud:
         _hud.finish()
         _active_dashboard = None
+
+    # Baseline capture / compare summary
+    if baseline_mode == "save":
+        try:
+            _saveBaseline(args.save_baseline, deviceInfo, baseline_values)
+            print(f"{Colors.GREEN}✓ Baseline saved: {len(baseline_values)} value(s) -> {args.save_baseline}{Colors.RESET}")
+        except Exception as e:
+            print(f"{Colors.BRIGHT_RED}✗ Could not write baseline {args.save_baseline}: {e}{Colors.RESET}", file=sys.stderr)
+    elif baseline_mode == "compare":
+        _bkeyLabels = {c.get("label") for c in checks if c.get("baseline_key")}
+        _bMatch = sum(1 for r in rows if r.get("baseline") == "match")
+        _bTamper = sum(1 for r in rows if r.get("baseline") in ("mismatch", "unreadable"))
+        _bMissing = sum(1 for r in rows if r.get("baseline") == "missing")
+        _bSkip = sum(1 for r in rows if r.get("label") in _bkeyLabels and r.get("status") == "SKIPPED")
+        _bCol = Colors.BRIGHT_RED if _bTamper else Colors.GREEN
+        print(f"{_bCol}● Baseline: {_bMatch} matched, {_bTamper} tampered, "
+              f"{_bMissing} no-baseline, {_bSkip} skipped{Colors.RESET}")
 
     if args.progress_numbers:
         print()

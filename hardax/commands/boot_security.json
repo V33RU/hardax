@@ -188,7 +188,8 @@
       "safe_pattern": "^([a-f0-9]{64}|[a-f0-9]{128})$",
       "level": "info",
       "description": "AVB VBMeta digest - a SHA-256/512 hash over all vbmeta structs (including chained partitions). It is the runtime fingerprint of the entire verified-boot metadata and the value used in hardware-backed attestation. Record it per firmware build and diff across audits to detect vbmeta tampering. Empty means the bootloader did not export it (non-AVB or older device).",
-      "remediation": "Record this digest per firmware build as a known-good baseline. A change on the same build indicates vbmeta was modified - reflash stock vbmeta with 'fastboot flash vbmeta vbmeta.img'.",
+      "remediation": "Record this digest per firmware build as a known-good baseline. A change on the same build indicates vbmeta was modified - reflash stock vbmeta with 'fastboot flash vbmeta vbmeta.img'. With --save-baseline / --baseline this comparison is automatic.",
+      "baseline_key": "vbmeta_digest",
       "empty_is_safe": false
     },
     {
@@ -232,7 +233,8 @@
       "safe_pattern": "^[0-9]+$",
       "level": "info",
       "description": "Size in bytes of the verified vbmeta blob, exported by the bootloader. Record alongside the VBMeta digest as a known-good baseline; an unexpected change on the same firmware build is a tamper indicator. Empty on devices that do not export it.",
-      "remediation": "Informational baseline. Capture per firmware build and compare across audits.",
+      "remediation": "Informational baseline. Capture per firmware build and compare across audits (use --save-baseline / --baseline).",
+      "baseline_key": "vbmeta_size",
       "empty_is_safe": false
     },
     {
