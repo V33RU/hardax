@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hardax"
-version = "5.11.3"
+version = "5.12.0"
 description = "Hardening Audit eXaminer: security configuration auditor for Android-based devices (POS, IoT, automotive, medical, kiosk)"
 readme = "README.md"
 requires-python = ">=3.10"

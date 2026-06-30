@@ -130,10 +130,10 @@
       "category": "BOOT_SECURITY",
       "label": "Verity Mode (cmdline)",
       "command": "grep -o 'androidboot.veritymode=[^ ]*' /proc/cmdline | cut -d= -f2",
-      "safe_pattern": "^enforcing$",
+      "safe_pattern": "^(enforcing|eio|panicking)$",
       "level": "critical",
-      "description": "dm-verity should be enforcing",
-      "remediation": "Flash stock vbmeta without the --disable-verity flag to re-enable dm-verity enforcement."
+      "description": "dm-verity must fail closed. Secure runtime modes are 'enforcing', 'eio' (the AVB-recommended MANAGED_RESTART_AND_EIO) and 'panicking'. Insecure values are 'ignore_corruption'/'logging' (corrupt data may be returned) and 'disabled' (no verity).",
+      "remediation": "Flash stock vbmeta without the --disable-verity flag. Avoid ignore_corruption/logging error modes; use AVB_HASHTREE_ERROR_MODE_MANAGED_RESTART_AND_EIO."
     },
     {
       "category": "BOOT_SECURITY",
@@ -179,6 +179,72 @@
       "level": "info",
       "description": "Informational snapshot of lsattr output on app_process* binaries (which are the Zygote entry points). Note: this does NOT detect tampering by itself; it captures filesystem extended attributes (e.g. immutable bit) for post-audit review.",
       "remediation": "Reflash the stock system image if unexpected attributes are found on app_process binaries."
+    },
+    {
+      "id": "BOOT-VBMETA-DIGEST-001",
+      "category": "BOOT_SECURITY",
+      "label": "VBMeta Digest (verified-boot fingerprint)",
+      "command": "D=$(getprop ro.boot.vbmeta.digest 2>/dev/null); if [ -z \"$D\" ]; then D=$(grep -o 'androidboot.vbmeta.digest=[^ ]*' /proc/cmdline 2>/dev/null | cut -d= -f2); fi; echo \"$D\"",
+      "safe_pattern": "^([a-f0-9]{64}|[a-f0-9]{128})$",
+      "level": "info",
+      "description": "AVB VBMeta digest - a SHA-256/512 hash over all vbmeta structs (including chained partitions). It is the runtime fingerprint of the entire verified-boot metadata and the value used in hardware-backed attestation. Record it per firmware build and diff across audits to detect vbmeta tampering. Empty means the bootloader did not export it (non-AVB or older device).",
+      "remediation": "Record this digest per firmware build as a known-good baseline. A change on the same build indicates vbmeta was modified - reflash stock vbmeta with 'fastboot flash vbmeta vbmeta.img'.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "BOOT-VERITY-MANAGED-001",
+      "category": "BOOT_SECURITY",
+      "label": "dm-verity Managed Error-Mode Policy",
+      "command": "M=$(grep -o 'androidboot.veritymode.managed=[^ ]*' /proc/cmdline 2>/dev/null | cut -d= -f2); I=$(grep -o 'androidboot.vbmeta.invalidate_on_error=[^ ]*' /proc/cmdline 2>/dev/null | cut -d= -f2); echo \"managed=${M:-unset} invalidate_on_error=${I:-unset}\"",
+      "safe_pattern": ".*",
+      "level": "info",
+      "description": "Records the AVB hashtree error-handling policy (androidboot.veritymode.managed and androidboot.vbmeta.invalidate_on_error). 'managed=yes' is the recommended AVB_HASHTREE_ERROR_MODE_MANAGED_RESTART_AND_EIO state machine for Android; 'invalidate_on_error=yes' corresponds to RESTART_AND_INVALIDATE. Informational - pair with the 'Verity Mode' checks to confirm verity fails closed.",
+      "remediation": "For Android devices use AVB_HASHTREE_ERROR_MODE_MANAGED_RESTART_AND_EIO so corruption triggers a managed restart/EIO rather than serving corrupt data."
+    },
+    {
+      "id": "BOOT-VBMETA-HASHALG-001",
+      "category": "BOOT_SECURITY",
+      "label": "VBMeta Hash Algorithm Not Weak",
+      "command": "getprop ro.boot.vbmeta.hash_alg 2>/dev/null",
+      "safe_pattern": "^sha(256|512)$",
+      "level": "warning",
+      "description": "Hash algorithm protecting the top-level vbmeta struct. sha1 is cryptographically weak for verified boot; modern devices use sha256 or sha512. Empty/unset on devices that do not export the property.",
+      "remediation": "Rebuild and flash vbmeta signed with a SHA-256 or SHA-512 algorithm (set BOARD_AVB_ALGORITHM to e.g. SHA256_RSA4096 or SHA512_RSA4096).",
+      "empty_is_safe": true,
+      "null_is_safe": true
+    },
+    {
+      "id": "BOOT-VERITY-AVB-KCONFIG-001",
+      "category": "BOOT_SECURITY",
+      "label": "Kernel CONFIG_DM_VERITY_AVB Support",
+      "command": "(zcat /proc/config.gz 2>/dev/null || gzip -dc /proc/config.gz 2>/dev/null) | grep -E 'CONFIG_DM_VERITY_AVB=' || echo absent",
+      "safe_pattern": "CONFIG_DM_VERITY_AVB=y",
+      "level": "info",
+      "description": "CONFIG_DM_VERITY_AVB lets the kernel invalidate the current slot on dm-verity corruption, required for AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE. 'absent' means /proc/config.gz is not exposed (common) - this is informational, not a failure.",
+      "remediation": "If using the RESTART_AND_INVALIDATE error mode, build the kernel with CONFIG_DM_VERITY_AVB=y. Not required for EIO/managed modes.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "BOOT-VBMETA-SIZE-001",
+      "category": "BOOT_SECURITY",
+      "label": "VBMeta Size Baseline",
+      "command": "getprop ro.boot.vbmeta.size 2>/dev/null",
+      "safe_pattern": "^[0-9]+$",
+      "level": "info",
+      "description": "Size in bytes of the verified vbmeta blob, exported by the bootloader. Record alongside the VBMeta digest as a known-good baseline; an unexpected change on the same firmware build is a tamper indicator. Empty on devices that do not export it.",
+      "remediation": "Informational baseline. Capture per firmware build and compare across audits.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "BOOT-VBMETA-AVBVER-001",
+      "category": "BOOT_SECURITY",
+      "label": "Required libavb Version (vbmeta)",
+      "command": "getprop ro.boot.vbmeta.avb_version 2>/dev/null",
+      "safe_pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$",
+      "level": "info",
+      "description": "libavb version required to verify the vbmeta struct (distinct from ro.boot.avb_version). Informational - confirms the vbmeta was AVB-verified and records the version for fleet consistency.",
+      "remediation": "Informational. Ensure the bootloader's libavb version matches the version avbtool used to sign the images.",
+      "empty_is_safe": false
     }
   ]
 }
