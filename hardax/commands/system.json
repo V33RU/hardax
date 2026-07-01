@@ -437,9 +437,9 @@
       "category": "SYSTEM",
       "label": "dm-verity Mode",
       "command": "getprop ro.boot.veritymode 2>/dev/null",
-      "safe_pattern": "^(enforcing|eio|panicking)$",
+      "safe_pattern": "^(enforcing|eio|restart|panicking)$",
       "level": "critical",
-      "description": "dm-verity must fail closed to protect system partitions. Secure modes are 'enforcing', 'eio' (AVB-recommended managed mode) and 'panicking'. 'ignore_corruption'/'logging' may return corrupt data and 'disabled' means no verity.",
+      "description": "dm-verity must fail closed to protect system partitions. Secure modes are 'enforcing', 'eio' (AVB-recommended managed mode), 'restart' and 'panicking'. 'ignore_corruption'/'logging' may return corrupt data and 'disabled' means no verity.",
       "remediation": "Run: adb enable-verity and reboot. Ensure ro.boot.veritymode is enforcing or eio (managed). Avoid ignore_corruption/logging/disabled."
     },
     {
