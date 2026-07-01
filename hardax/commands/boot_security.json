@@ -129,10 +129,10 @@
     {
       "category": "BOOT_SECURITY",
       "label": "Verity Mode (cmdline)",
-      "command": "grep -o 'androidboot.veritymode=[^ ]*' /proc/cmdline | cut -d= -f2",
-      "safe_pattern": "^(enforcing|eio|panicking)$",
+      "command": "grep -hoE 'androidboot\\.veritymode=[a-z_]+|androidboot\\.veritymode = \"[a-z_]+' /proc/cmdline /proc/bootconfig 2>/dev/null | grep -oE '[a-z_]+$' | head -1",
+      "safe_pattern": "^(enforcing|eio|restart|panicking)$",
       "level": "critical",
-      "description": "dm-verity must fail closed. Secure runtime modes are 'enforcing', 'eio' (the AVB-recommended MANAGED_RESTART_AND_EIO) and 'panicking'. Insecure values are 'ignore_corruption'/'logging' (corrupt data may be returned) and 'disabled' (no verity).",
+      "description": "dm-verity must fail closed. Secure runtime modes are 'enforcing', 'eio' (the AVB-recommended MANAGED_RESTART_AND_EIO), 'restart' and 'panicking'. Insecure values are 'ignore_corruption'/'logging' (corrupt data may be returned) and 'disabled' (no verity). Reads both /proc/cmdline and /proc/bootconfig, since Android 12+ may export androidboot.* via bootconfig instead of the kernel command line.",
       "remediation": "Flash stock vbmeta without the --disable-verity flag. Avoid ignore_corruption/logging error modes; use AVB_HASHTREE_ERROR_MODE_MANAGED_RESTART_AND_EIO."
     },
     {
@@ -184,7 +184,7 @@
       "id": "BOOT-VBMETA-DIGEST-001",
       "category": "BOOT_SECURITY",
       "label": "VBMeta Digest (verified-boot fingerprint)",
-      "command": "D=$(getprop ro.boot.vbmeta.digest 2>/dev/null); if [ -z \"$D\" ]; then D=$(grep -o 'androidboot.vbmeta.digest=[^ ]*' /proc/cmdline 2>/dev/null | cut -d= -f2); fi; echo \"$D\"",
+      "command": "D=$(getprop ro.boot.vbmeta.digest 2>/dev/null); if [ -z \"$D\" ]; then D=$(grep -hoE 'androidboot\\.vbmeta\\.digest=[a-f0-9]+|androidboot\\.vbmeta\\.digest = \"[a-f0-9]+' /proc/cmdline /proc/bootconfig 2>/dev/null | grep -oE '[a-f0-9]+$' | head -1); fi; echo \"$D\"",
       "safe_pattern": "^([a-f0-9]{64}|[a-f0-9]{128})$",
       "level": "info",
       "description": "AVB VBMeta digest - a SHA-256/512 hash over all vbmeta structs (including chained partitions). It is the runtime fingerprint of the entire verified-boot metadata and the value used in hardware-backed attestation. Record it per firmware build and diff across audits to detect vbmeta tampering. Empty means the bootloader did not export it (non-AVB or older device).",
@@ -196,7 +196,7 @@
       "id": "BOOT-VERITY-MANAGED-001",
       "category": "BOOT_SECURITY",
       "label": "dm-verity Managed Error-Mode Policy",
-      "command": "M=$(grep -o 'androidboot.veritymode.managed=[^ ]*' /proc/cmdline 2>/dev/null | cut -d= -f2); I=$(grep -o 'androidboot.vbmeta.invalidate_on_error=[^ ]*' /proc/cmdline 2>/dev/null | cut -d= -f2); echo \"managed=${M:-unset} invalidate_on_error=${I:-unset}\"",
+      "command": "M=$(grep -hoE 'androidboot\\.veritymode\\.managed=[a-z]+|androidboot\\.veritymode\\.managed = \"[a-z]+' /proc/cmdline /proc/bootconfig 2>/dev/null | grep -oE '[a-z]+$' | head -1); I=$(grep -hoE 'androidboot\\.vbmeta\\.invalidate_on_error=[a-z]+|androidboot\\.vbmeta\\.invalidate_on_error = \"[a-z]+' /proc/cmdline /proc/bootconfig 2>/dev/null | grep -oE '[a-z]+$' | head -1); echo \"managed=${M:-unset} invalidate_on_error=${I:-unset}\"",
       "safe_pattern": ".*",
       "level": "info",
       "description": "Records the AVB hashtree error-handling policy (androidboot.veritymode.managed and androidboot.vbmeta.invalidate_on_error). 'managed=yes' is the recommended AVB_HASHTREE_ERROR_MODE_MANAGED_RESTART_AND_EIO state machine for Android; 'invalidate_on_error=yes' corresponds to RESTART_AND_INVALIDATE. Informational - pair with the 'Verity Mode' checks to confirm verity fails closed.",
@@ -247,6 +247,17 @@
       "description": "libavb version required to verify the vbmeta struct (distinct from ro.boot.avb_version). Informational - confirms the vbmeta was AVB-verified and records the version for fleet consistency.",
       "remediation": "Informational. Ensure the bootloader's libavb version matches the version avbtool used to sign the images.",
       "empty_is_safe": false
+    },
+    {
+      "id": "BOOT-VBSTATE-YELLOW-001",
+      "category": "BOOT_SECURITY",
+      "label": "Verified Boot Custom Root of Trust (verifiedbootstate=yellow)",
+      "command": "V=$(grep -hoE 'androidboot\\.verifiedbootstate=[a-z]+|androidboot\\.verifiedbootstate = \"[a-z]+' /proc/cmdline /proc/bootconfig 2>/dev/null | grep -oE '[a-z]+$' | head -1); [ -z \"$V\" ] && V=$(getprop ro.boot.verifiedbootstate 2>/dev/null); case \"$V\" in yellow) echo \"YELLOW_CUSTOM_ROOT_OF_TRUST\" ;; *) echo \"OK_${V:-unset}\" ;; esac",
+      "safe_pattern": "^OK_",
+      "level": "warning",
+      "description": "verifiedbootstate=yellow means the bootloader is LOCKED but boots an OS signed with a user-installed custom root of trust (a custom AVB key, e.g. one flashed to avb_custom_key). Verified boot is still enforced, but by a non-OEM key, so a custom or potentially unauthorized build is running under a locked bootloader. This is distinct from orange (fully UNLOCKED), which the 'vbmeta Device State', 'Bootloader Locked' and 'verifiedbootstate=green' checks already flag as critical - yellow is surfaced here as a warning so a custom-key deployment is not conflated with an unlocked device. Only 'yellow' fails this check. Reads /proc/cmdline, /proc/bootconfig (Android 12+) and getprop.",
+      "remediation": "If a custom root of trust is not expected on this fleet, reflash OEM-signed firmware and remove the custom AVB key (e.g. 'fastboot erase avb_custom_key' on Pixel). If the custom key is intentional (an in-house signed build), record it as the expected state and baseline the root-of-trust fingerprint.",
+      "empty_is_safe": true
     }
   ]
 }

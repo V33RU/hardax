@@ -90,6 +90,17 @@
       "remediation": "Enable in Settings > Security and privacy > Advanced Protection. Note this disables sideloading and some debugging features. For account-level Advanced Protection enrollment, see g.co/advancedprotection.",
       "empty_is_safe": false,
       "null_is_safe": false
+    },
+    {
+      "id": "MOD-A17-LOCAL-NET-001",
+      "category": "MODERN_ANDROID",
+      "label": "Local Network Access Permission Grants (Android 17+)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 37 ] 2>/dev/null; then echo \"PRE_A17_SDK_$SDK\"; else pm list packages -3 2>/dev/null | sed 's/package://' | while read pkg; do if dumpsys package \"$pkg\" 2>/dev/null | grep -E 'granted=true' | grep -q 'android.permission.ACCESS_LOCAL_NETWORK'; then echo \"$pkg\"; fi; done | head -20; fi",
+      "safe_pattern": "^(PRE_A17_SDK_|$)",
+      "level": "warning",
+      "description": "Android 17 (API 37) introduced the ACCESS_LOCAL_NETWORK runtime permission (NEARBY_DEVICES group). Apps must hold it to reach the local network - LAN device discovery and direct socket connections to other hosts on the same network. This enumerates every third-party app granted it. On a POS, kiosk, medical or IoT deployment only the operator/integration app should reach the LAN; unexpected grants widen the local attack surface and can enable lateral movement or data exfiltration to other devices on the network. Empty output on A17+ means no third-party app holds it (SAFE). Pre-A17 builds report PRE_A17_SDK_<n>.",
+      "remediation": "Revoke from apps that do not need LAN access: 'pm revoke <pkg> android.permission.ACCESS_LOCAL_NETWORK'. Prefer the system-mediated device pickers where possible, and review remaining grants against the approved app list.",
+      "empty_is_safe": true
     }
   ]
 }
