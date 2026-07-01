@@ -9,7 +9,7 @@
     <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg" alt="Python 3.10 | 3.11 | 3.12">
   </a>
   <img src="https://img.shields.io/badge/checks-767-orange.svg" alt="Checks">
-  <img src="https://img.shields.io/badge/categories-27-purple.svg" alt="Categories">
+  <img src="https://img.shields.io/badge/categories-28-purple.svg" alt="Categories">
   <a href="https://github.com/V33RU/hardax/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
   </a>
@@ -34,7 +34,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **767 security checks** across **27 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **767 security checks** across **28 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -49,7 +49,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **767 Security Checks** | Comprehensive coverage across 27 security categories |
+| **767 Security Checks** | Comprehensive coverage across 28 security categories |
 | **Deterministic Analysis Engine** | Offline risk score (0-100), attack-chain correlation, prioritised remediation - reasons only over confirmed findings, no LLM, no network, no hallucination |
 | **Optional AI Narrative** | Opt-in `--ai` LLM summary on top of the deterministic engine (local Ollama, or Anthropic/OpenAI with your own key). Sends only the redacted analysis summary, never raw device output. Off by default |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
@@ -319,14 +319,14 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **767 checks** into **27 security categories**:
+HARDAX organizes **767 checks** into **28 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
 | **SYSTEM** | 86 | Kernel, memory, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, time, power, build properties, emulator detection, SIM status, device provisioning, WebView |
 | **BLUETOOTH** | 82 | BLE/Classic, pairing, profiles (PAN, HFP, A2DP, HID, SPP, OPP, MAP), L2CAP, ATT, SMP, GAP, attack surfaces |
 | **NETWORK** | 61 | Ports, WiFi, cellular (incl. Allow 2G), VPN, MQTT, CoAP, CAN bus, HL7, DICOM, hotspot WPA mode, active connections |
-| **PRIVACY** | 47 | Biometrics, screen lock, location, sensors, clipboard, audio, Android 13+ Restricted Settings |
+| **PRIVACY** | 42 | Screen lock, location, sensors, clipboard, audio, Android 13+ Restricted Settings |
 | **APPS** | 47 | Permissions, overlay attacks, install sources, backup audit, APK signature scheme, QUERY_ALL_PACKAGES, REQUEST_INSTALL_PACKAGES |
 | **BINARY_HARDENING** | 36 | PIE, NX, RELRO, stack canaries, stripped symbols, ASLR, kptr_restrict |
 | **PARTITION** | 35 | dm-verity, OverlayFS, A/B slots, FBE/FDE, mount flags (noexec / nosuid / nodev on /data, /storage/emulated, /mnt/media_rw, /cache, /metadata), block device permissions |
@@ -350,6 +350,7 @@ HARDAX organizes **767 checks** into **27 security categories**:
 | **ADB_SECURITY** | 8 | ADB keys, network ADB allowlist, debugging, shell privilege, USB-debug notify, adbd integrity hash |
 | **MODERN_ANDROID** | 9 | Android 13/14/15/16/17 surface: Photo Picker, READ_MEDIA_*, POST_NOTIFICATIONS, FGS type, Theft Detection Lock, Identity Check, Restricted Networking, Advanced Protection, A17 Local Network Access |
 | **MDM_POLICY** | 15 | DevicePolicyManager state via dumpsys device_policy: management state, keyguard/camera policy, lock/wipe, password, audit logging, USB signaling, Common Criteria, MTE, app control, permission policy, Wi-Fi lockdown, A15 privacy, system update, permitted accessibility/input |
+| **BIOMETRIC** | 5 | Fingerprint/face enrollment, biometric strength (Class 3 Strong vs Weak), biometric keyguard, auto-lock after biometric |
 
 ---
 
@@ -422,11 +423,12 @@ HARDAX/
     ├── ai.py              # Optional opt-in LLM narrative (Ollama/Anthropic/OpenAI, stdlib only)
     ├── templates/
     │   └── report.html    # Interactive HTML report template
-    └── commands/          # Security check definitions (767 checks, 27 categories)
+    └── commands/          # Security check definitions (767 checks, 28 categories)
         ├── system.json        #  86 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator, WebView
         ├── bluetooth.json     #  82 checks - BLE/Classic, pairing, all profiles
         ├── network.json       #  61 checks - Ports, WiFi, VPN, IoT protocols, Allow 2G, hotspot WPA
-        ├── privacy.json       #  47 checks - Biometrics, location, sensors, Restricted Settings
+        ├── privacy.json       #  42 checks - Screen lock, location, sensors, clipboard, Restricted Settings
+        ├── biometric.json     #   5 checks - Fingerprint/face enrollment, biometric strength (Strong/Weak), keyguard, auto-lock
         ├── apps.json          #  47 checks - Permissions, overlay, backup, install, APK signature scheme
         ├── binary_hardening.json # 36 checks - PIE, NX, RELRO, stack canaries, ASLR
         ├── partition.json     #  35 checks - dm-verity, A/B slots, FBE, mount flags (noexec/nosuid/nodev)
@@ -476,6 +478,7 @@ HARDAX/
 - [x] dm-verity `eio`/`panicking` false-positive fix: the AVB-recommended MANAGED_RESTART_AND_EIO mode is no longer flagged CRITICAL (v5.12.0)
 - [x] Baseline tamper detection: `--save-baseline` / `--baseline` compare integrity values (VBMeta digest/size, adbd SHA-256) and flag any change CRITICAL (v5.13.0)
 - [x] Android 17 Local Network Access (`ACCESS_LOCAL_NETWORK`) grant audit; dm-verity `restart` mode accepted; `/proc/bootconfig` (Android 12+) fallback on cmdline readers; verifiedbootstate=yellow (custom root of trust) surfaced as a distinct warning (v5.14.0)
+- [x] Dedicated `BIOMETRIC` category: fingerprint/face/strength/keyguard/auto-lock checks split out of `PRIVACY` into `biometric.json` (v5.15.0)
 
 ### Open
 
@@ -483,7 +486,7 @@ Grouped by theme. Order within a group is rough priority.
 
 #### Analysis features
 - [ ] Full scan-to-scan diff (compare two complete audits, surface all finding regressions; integrity-value baselines already shipped via `--baseline` in v5.13.0)
-- [ ] HARDAX Risk Score (0-100 composite across all 27 categories)
+- [ ] HARDAX Risk Score (0-100 composite across all 28 categories)
 - [ ] CVE correlation (map findings to relevant CVE IDs automatically)
 
 #### Additional security checks
