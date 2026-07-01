@@ -8,7 +8,7 @@
   <a href="https://pypi.org/project/hardax/">
     <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg" alt="Python 3.10 | 3.11 | 3.12">
   </a>
-  <img src="https://img.shields.io/badge/checks-765-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-767-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-27-purple.svg" alt="Categories">
   <a href="https://github.com/V33RU/hardax/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
@@ -34,7 +34,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **765 security checks** across **27 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **767 security checks** across **27 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -49,7 +49,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **765 Security Checks** | Comprehensive coverage across 27 security categories |
+| **767 Security Checks** | Comprehensive coverage across 27 security categories |
 | **Deterministic Analysis Engine** | Offline risk score (0-100), attack-chain correlation, prioritised remediation - reasons only over confirmed findings, no LLM, no network, no hallucination |
 | **Optional AI Narrative** | Opt-in `--ai` LLM summary on top of the deterministic engine (local Ollama, or Anthropic/OpenAI with your own key). Sends only the redacted analysis summary, never raw device output. Off by default |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
@@ -319,7 +319,7 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **765 checks** into **27 security categories**:
+HARDAX organizes **767 checks** into **27 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
@@ -337,7 +337,7 @@ HARDAX organizes **765 checks** into **27 security categories**:
 | **FORENSIC_INDICATORS** | 22 | Crash history, kernel panics, logcat anomalies, temp artifacts, clipboard forensics |
 | **ATTESTATION** | 20 | SafetyNet/Play Integrity, Knox warranty bit, TIMA, RKP, Titan M, fs-verity, bypass detection |
 | **AUTOMOTIVE** | 20 | Vehicle-specific checks, CAN bus, infotainment |
-| **BOOT_SECURITY** | 26 | Verified boot, AVB (VBMeta digest/hash-alg/size/version), dm-verity error modes, bootloader, integrity |
+| **BOOT_SECURITY** | 27 | Verified boot, AVB (VBMeta digest/hash-alg/size/version), dm-verity error modes (incl. restart, bootconfig-aware), custom root of trust (verifiedbootstate=yellow), bootloader, integrity |
 | **CRYPTOGRAPHY** | 20 | Encryption, keys, credentials, API keys, certificates, kernel entropy, Widevine DRM level |
 | **MALWARE** | 18 | Root/Magisk/SuperSU, Frida, Xposed/LSPosed, RATs, keyloggers, memory scrapers, root cloaking |
 | **CIS_BENCHMARK** | 17 | CIS Android Benchmark v1.6.0 controls (89% coverage) |
@@ -348,7 +348,7 @@ HARDAX organizes **765 checks** into **27 security categories**:
 | **MEDICAL** | 11 | Medical device-specific checks, IEEE 11073 PHD pairing, PACS C-STORE, insulin/cardiac telemetry |
 | **NFC_SECURITY** | 9 | NFC state, Android Beam, tap-to-pay, reader mode, secure element (eSE/UICC), tag write protection, HCE AID priority |
 | **ADB_SECURITY** | 8 | ADB keys, network ADB allowlist, debugging, shell privilege, USB-debug notify, adbd integrity hash |
-| **MODERN_ANDROID** | 8 | Android 13/14/15/16 surface: Photo Picker, READ_MEDIA_*, POST_NOTIFICATIONS, FGS type, Theft Detection Lock, Identity Check, Restricted Networking, Advanced Protection |
+| **MODERN_ANDROID** | 9 | Android 13/14/15/16/17 surface: Photo Picker, READ_MEDIA_*, POST_NOTIFICATIONS, FGS type, Theft Detection Lock, Identity Check, Restricted Networking, Advanced Protection, A17 Local Network Access |
 | **MDM_POLICY** | 15 | DevicePolicyManager state via dumpsys device_policy: management state, keyguard/camera policy, lock/wipe, password, audit logging, USB signaling, Common Criteria, MTE, app control, permission policy, Wi-Fi lockdown, A15 privacy, system update, permitted accessibility/input |
 
 ---
@@ -422,7 +422,7 @@ HARDAX/
     ├── ai.py              # Optional opt-in LLM narrative (Ollama/Anthropic/OpenAI, stdlib only)
     ├── templates/
     │   └── report.html    # Interactive HTML report template
-    └── commands/          # Security check definitions (765 checks, 27 categories)
+    └── commands/          # Security check definitions (767 checks, 27 categories)
         ├── system.json        #  86 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator, WebView
         ├── bluetooth.json     #  82 checks - BLE/Classic, pairing, all profiles
         ├── network.json       #  61 checks - Ports, WiFi, VPN, IoT protocols, Allow 2G, hotspot WPA
@@ -437,7 +437,7 @@ HARDAX/
         ├── forensic_indicators.json # 22 checks - Crashes, logcat, temp artifacts
         ├── attestation.json   #  20 checks - SafetyNet/Play Integrity, Knox, Titan M, bypass detection
         ├── automotive.json    #  20 checks - Vehicle, CAN bus, infotainment
-        ├── boot_security.json #  26 checks - Verified boot, AVB (VBMeta digest/hash/size/ver), dm-verity error modes
+        ├── boot_security.json #  27 checks - Verified boot, AVB (VBMeta digest/hash/size/ver), dm-verity error modes, verifiedbootstate=yellow
         ├── cryptography.json  #  20 checks - Keystore, StrongBox, kernel entropy, Widevine DRM
         ├── malware.json       #  18 checks - Root, Frida, Xposed, RATs, scrapers
         ├── cis_benchmark.json #  17 checks - CIS Android Benchmark v1.6.0
@@ -448,7 +448,7 @@ HARDAX/
         ├── medical.json       #  11 checks - Medical apps, IEEE 11073 PHD, PACS C-STORE, insulin/cardiac telemetry
         ├── nfc_security.json  #   9 checks - NFC, reader mode, secure element, tag write protection, HCE AID priority
         ├── adb_security.json  #   8 checks - ADB keys, network ADB allowlist, shell privilege, USB-debug notify, adbd integrity
-        ├── modern_android.json #  8 checks - A13/A14/A15/16: Photo Picker, READ_MEDIA_*, POST_NOTIFICATIONS, FGS type, Theft Detection Lock, Identity Check, Restricted Networking, Advanced Protection
+        ├── modern_android.json #  9 checks - A13/A14/A15/16/17: Photo Picker, READ_MEDIA_*, POST_NOTIFICATIONS, FGS type, Theft/Identity, Restricted Networking, Advanced Protection, A17 Local Network Access
         └── mdm_policy.json    #  15 checks - DevicePolicyManager state (dumpsys device_policy): keyguard, camera, lock/wipe, logging, USB signaling, MTE, Wi-Fi lockdown, etc.
 ```
 
@@ -475,6 +475,7 @@ HARDAX/
 - [x] 6 AVB metadata-integrity checks - VBMeta digest, hash algorithm, size, required libavb version, managed dm-verity error-mode policy, and CONFIG_DM_VERITY_AVB kernel support (v5.12.0)
 - [x] dm-verity `eio`/`panicking` false-positive fix: the AVB-recommended MANAGED_RESTART_AND_EIO mode is no longer flagged CRITICAL (v5.12.0)
 - [x] Baseline tamper detection: `--save-baseline` / `--baseline` compare integrity values (VBMeta digest/size, adbd SHA-256) and flag any change CRITICAL (v5.13.0)
+- [x] Android 17 Local Network Access (`ACCESS_LOCAL_NETWORK`) grant audit; dm-verity `restart` mode accepted; `/proc/bootconfig` (Android 12+) fallback on cmdline readers; verifiedbootstate=yellow (custom root of trust) surfaced as a distinct warning (v5.14.0)
 
 ### Open
 
