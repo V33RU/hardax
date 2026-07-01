@@ -42,11 +42,24 @@ if sys.version_info < (3, 10):
     sys.exit(f"[ERROR] HARDAX requires Python 3.10 or higher. "
              f"Detected: {sys.version_info.major}.{sys.version_info.minor}")
 
+# The CLI prints Unicode symbols (banner glyphs, status icons) unconditionally.
+# On Windows, stdout/stderr default to the console's legacy codepage (e.g.
+# cp1252) rather than UTF-8, which raises UnicodeEncodeError and crashes the
+# whole run the moment a symbol is printed - even when output is redirected to
+# a file. Reconfigure to UTF-8 with a safe fallback so the tool never crashes
+# on encoding; any character that still can't be represented is replaced
+# instead of raising.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  VERSION & CONSTANTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-__version__ = "5.17.0"
+__version__ = "5.18.0"
 
 REQUIRED_CHECK_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
 
@@ -268,9 +281,15 @@ class HUDDashboard:
         terminal. If the panel is taller than the screen, in-place redraw is
         impossible (you cannot move the cursor above the top visible row) and
         each refresh would stack a fresh copy of the table. In that case the
-        caller should fall back to the compact single-line progress bar."""
-        _cols, rows = Terminal.getSize()
-        return self.panelHeight + 1 <= rows
+        caller should fall back to the compact single-line progress bar.
+
+        Width matters too: every panel line is a fixed self._W + 4 visual
+        chars wide (2-space indent + left border + inner content + right
+        border). A narrower terminal wraps each line mid-border, breaking the
+        box-drawing alignment on every redraw - so a too-narrow terminal must
+        fall back to the compact bar just like a too-short one."""
+        cols, rows = Terminal.getSize()
+        return (self.panelHeight + 1 <= rows) and (self._W + 4 <= cols)
 
     def start(self):
         """Hide the cursor and draw the panel for the first time. Call only
@@ -1390,6 +1409,8 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
     startTime = time.time()
     consecutiveAdbErrors = 0
     _lastCategory = None   # tracks category for section headers
+    _lastLoggedPct = -1    # tracks last whole-percent logged when stdout is not a tty
+    _stdoutIsTty = sys.stdout.isatty()
 
     for idx, chk in enumerate(checks, start=1):
         category = chk.get("category", "General")
@@ -1616,7 +1637,7 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                 # HUD Tactical Dashboard mode
                 dashboard.onCheckComplete(category, label, status)
 
-            else:
+            elif _stdoutIsTty:
                 # Compact progress bar fallback (no dashboard, no --show-commands)
                 barWidth = 24
                 filled = int((idx / total) * barWidth)
@@ -1632,6 +1653,22 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                     f"  {Colors.DIM}ETA {etaStr}{Colors.RESET}  "
                 )
                 sys.stdout.flush()
+            else:
+                # stdout is redirected/piped/logged (CI, nohup, log shipping, a
+                # captured subprocess, etc). A '\r'-only progress bar collapses
+                # into one unreadable multi-megabyte line for any consumer that
+                # doesn't interpret carriage returns as an in-place overwrite
+                # (cat, grep, tail -f, most log viewers/aggregators). Print one
+                # clean newline-terminated line per whole-percent step instead,
+                # plus always the final 100% line, so a redirected/logged run
+                # stays legible and greppable.
+                wholePct = int(percentage)
+                if wholePct != _lastLoggedPct or idx == total:
+                    _lastLoggedPct = wholePct
+                    print(f"  [{idx}/{total}] ({percentage:4.1f}%) "
+                          f"safe={counts['safe']} critical={counts['critical']} "
+                          f"warning={counts['warning']} verify={counts['verify']} "
+                          f"skipped={counts['skipped']} ETA={etaStr}")
 
             if onProgress:
                 onProgress(idx, total)
@@ -1951,6 +1988,16 @@ def writeTxtReport(path: str, deviceInfo: Dict[str, str],
 #  REPORT GENERATION - CSV
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+#  Some checks return unbounded raw device output (e.g. a shell operator-
+#  precedence quirk causing a full symbol-table dump instead of a grep count).
+#  Guard the CSV "result" cell so a single misbehaving check cannot produce a
+#  cell that exceeds Excel's 32,767-char limit (silent truncation/corruption
+#  on open) or blow past csv.reader's default field_size_limit (a hard parse
+#  error for downstream tooling). Full untruncated output is always available
+#  via --json-out.
+_CSV_RESULT_MAX = 4000
+
+
 def writeCsvReport(path: str, rows: List[Dict[str, Any]]) -> None:
     fieldnames = ["timestamp", "category", "id", "label", "level", "severity",
                   "bucket", "status", "matched", "command", "result", "description",
@@ -1963,6 +2010,11 @@ def writeCsvReport(path: str, rows: List[Dict[str, Any]]) -> None:
             out = {k: r.get(k, "") for k in fieldnames}
             if isinstance(out.get("tags"), list):
                 out["tags"] = ", ".join(str(t) for t in out["tags"])
+            res = str(out.get("result", "") or "")
+            if len(res) > _CSV_RESULT_MAX:
+                out["result"] = (res[:_CSV_RESULT_MAX] +
+                                 f"... [truncated, {len(res)} chars total - "
+                                 f"see the JSON report (--json-out) for the full output]")
             w.writerow(out)
 
 
@@ -2470,7 +2522,7 @@ def printBanner(idLine: Optional[str], checkCount: int = 0, categoryCount: int =
 ┃  {Colors.BRIGHT_WHITE}██   ██ ██   ██ ██   ██ ██████  ██   ██ ██   ██{Colors.BRIGHT_CYAN}                  ┃
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ┃  {Colors.BOLD}Hardening Audit eXaminer{Colors.RESET}{Colors.BRIGHT_CYAN} v{__version__}{' ' * max(1, 67 - len('  Hardening Audit eXaminer v' + __version__))}┃
-┃  {Colors.DIM}Android OS based Connected Devices Security Configuration Auditor{Colors.BRIGHT_CYAN}┃
+┃  {Colors.DIM}Android OS based Connected Devices Security Configuration Auditor{Colors.BRIGHT_CYAN}{' ' * max(1, 67 - len('  Android OS based Connected Devices Security Configuration Auditor'))}┃
 ┃  {Colors.YELLOW}{checksStr}{Colors.RESET} {Colors.GREEN}{catsStr}{Colors.BRIGHT_CYAN}{' ' * max(1, 67 - len('  ' + checksStr + ' ' + catsStr))}┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛{Colors.RESET}
 """)
