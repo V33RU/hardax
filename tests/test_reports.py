@@ -2,17 +2,22 @@
 for TXT, CSV, JSON and HTML without raising."""
 import json
 
+import pytest
+
 import hardax
 from hardax import analysis
 
 
 def _rows():
     return [{
-        "timestamp": "2026-01-01 00:00:00", "category": "SYSTEM", "label": "A Check",
-        "level": "critical", "bucket": "critical", "status": "CRITICAL",
-        "matched": "False", "command": "getprop x", "result": "bad value",
-        "description": "desc", "needs_verification": False, "baseline": "",
-        "remediation": "fix it",
+        "timestamp": "2026-01-01 00:00:00", "category": "SYSTEM", "id": "SYS-1",
+        "label": "A Check", "level": "critical", "severity": "", "bucket": "critical",
+        "status": "CRITICAL", "matched": "False", "command": "getprop x",
+        "result": "bad value", "description": "desc",
+        "why": "matters because reasons", "risk_if_fail": "bad things happen",
+        "expected_secure_state": "should be safe", "nist_800_53": "AC-3",
+        "cis_id": "1.3", "tags": ["kernel", "selinux"],
+        "needs_verification": False, "baseline": "", "remediation": "fix it",
     }]
 
 
@@ -27,12 +32,47 @@ def _device():
             "timezone": "UTC"}
 
 
-def test_csv_report_includes_baseline_column(tmp_path):
+def test_csv_report_includes_technical_columns(tmp_path):
     p = str(tmp_path / "r.csv")
     hardax.writeCsvReport(p, _rows())
     content = open(p, encoding="utf-8").read()
-    assert "baseline" in content.splitlines()[0]  # header
+    header = content.splitlines()[0]
+    for col in ("baseline", "why", "risk_if_fail", "expected_secure_state",
+                "nist_800_53", "cis_id", "tags"):
+        assert col in header, col
     assert "CRITICAL" in content
+    assert "kernel, selinux" in content  # list tags are joined for CSV
+
+
+def test_xlsx_report_sheets_and_technical_columns(tmp_path):
+    openpyxl = pytest.importorskip("openpyxl")
+    from hardax import analysis
+    p = str(tmp_path / "r.xlsx")
+    a = analysis.analyze_findings(_rows(), _counts(), profile="pos")
+    hardax.writeXlsxReport(p, _device(), _rows(), _counts(), [], "target", a)
+    wb = openpyxl.load_workbook(p)
+    assert {"Summary", "Findings", "Analysis"}.issubset(set(wb.sheetnames))
+    hdr = [c.value for c in wb["Findings"][1]]
+    for col in ("Category", "Status", "Why it matters", "Risk if failed",
+                "Expected secure state", "Command", "Remediation", "NIST 800-53"):
+        assert col in hdr, col
+    why_col = hdr.index("Why it matters") + 1
+    assert "matters because" in str(wb["Findings"].cell(2, why_col).value)
+
+
+def test_xlsx_report_handles_list_valued_compliance_fields(tmp_path):
+    # nist_800_53 / cis_id can be multi-valued in check JSON; the writer must
+    # coerce them instead of letting openpyxl raise and abort the audit.
+    openpyxl = pytest.importorskip("openpyxl")
+    rows = _rows()
+    rows[0]["nist_800_53"] = ["AC-3", "SC-7"]
+    rows[0]["cis_id"] = ["1.1", "1.2"]
+    p = str(tmp_path / "r.xlsx")
+    hardax.writeXlsxReport(p, _device(), rows, _counts(), [], "target", None)  # must not raise
+    wb = openpyxl.load_workbook(p)
+    hdr = [c.value for c in wb["Findings"][1]]
+    nist_col = hdr.index("NIST 800-53") + 1
+    assert "AC-3" in str(wb["Findings"].cell(2, nist_col).value)
 
 
 def test_json_report_is_valid_and_complete(tmp_path):

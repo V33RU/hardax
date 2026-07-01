@@ -443,6 +443,52 @@
       margin-top: 4px;
     }
 
+    /* ── Technical detail groups (why / risk / expected) + compliance chips ── */
+    .detail-text {
+      font-size: 0.8rem;
+      color: var(--text-0);
+      line-height: 1.55;
+      margin-top: 3px;
+    }
+
+    .why-group {
+      background: rgba(68,138,255,0.05);
+      border-left: 3px solid var(--info);
+      padding: 8px 12px;
+      border-radius: 0 4px 4px 0;
+    }
+    .why-group .detail-tag { color: var(--info); }
+
+    .risk-group {
+      background: rgba(255,45,85,0.05);
+      border-left: 3px solid var(--critical);
+      padding: 8px 12px;
+      border-radius: 0 4px 4px 0;
+    }
+    .risk-group .detail-tag { color: var(--critical); }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--border);
+    }
+
+    .meta-chip {
+      font-size: 0.62rem;
+      padding: 3px 9px;
+      border-radius: 10px;
+      background: var(--bg-3);
+      color: var(--text-1);
+      border: 1px solid var(--border);
+      letter-spacing: 0.3px;
+      font-weight: 600;
+    }
+    .meta-chip.id-chip { color: var(--accent); border-color: rgba(0,229,255,0.25); }
+    .meta-chip.tag-chip { color: var(--text-1); font-style: italic; }
+
     pre {
       background: #060d14;
       color: #00e676;

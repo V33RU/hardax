@@ -74,6 +74,15 @@ def test_row_has_expected_shape(run_check):
         assert key in row
 
 
+def test_row_carries_technical_metadata(run_check):
+    chk = make_check(id="X-1", why="w-text", risk_if_fail="r-text", nist_800_53="AC-3",
+                     cis_id="1.1", tags=["a", "b"], expected_secure_state="ok-state")
+    row, _ = run_check(chk, "anything")
+    assert row["id"] == "X-1" and row["why"] == "w-text" and row["risk_if_fail"] == "r-text"
+    assert row["nist_800_53"] == "AC-3" and row["cis_id"] == "1.1"
+    assert row["tags"] == ["a", "b"] and row["expected_secure_state"] == "ok-state"
+
+
 # --- baseline tamper detection --------------------------------------------
 
 BKEY_CHECK = make_check(id="BASE", baseline_key="k",

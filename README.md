@@ -61,7 +61,7 @@ HARDAX is designed for:
 | **UART Shell Support** | Connect over serial console with auto baud detection, user/root shell identification |
 | **SSH Root Awareness** | Detects when SSH session is already root - skips unnecessary `su` probing |
 | **6 Status Levels** | SAFE, WARNING, CRITICAL, VERIFY, INFO, SKIPPED |
-| **3 Report Formats** | TXT, CSV, HTML with interactive dashboard |
+| **5 Report Formats** | TXT, CSV, a detailed XLSX workbook, an interactive HTML dashboard, and machine-readable JSON |
 | **Smart False Positive Prevention** | Catches empty output, service unavailability, and transport errors - marks as SKIPPED not CRITICAL |
 | **Extensible JSON Checks** | Easy to add custom security checks - drop JSON, run |
 | **Baseline Tamper Detection** | `--save-baseline` captures integrity values (VBMeta digest/size, adbd SHA-256); `--baseline` compares later audits and flags any change CRITICAL |
@@ -354,17 +354,28 @@ HARDAX organizes **767 checks** into **28 security categories**:
 
 ---
 
-## HTML Report Features
+## Report Formats
 
-The interactive HTML report includes:
+Every run writes TXT, CSV, a detailed **XLSX** workbook and an interactive **HTML** dashboard (plus JSON with `--json-out`) into a timestamped folder under `--out`.
 
-- **Summary Dashboard** - Total checks, pass/fail counts, doughnut chart
-- **Device Information** - Model, Android version, build, serial, security patch level
-- **Collapsible Categories** - Click to expand/collapse each security area
-- **Color-Coded Results** - Green=SAFE, Yellow=WARNING, Red=CRITICAL
+### Interactive HTML dashboard
+
+- **Summary Dashboard** - total checks and per-severity counts (click a card to filter), doughnut chart
+- **Deterministic Analysis card** - risk score, grade, attack chains, and the fix-in-order priorities
+- **Device Information** - model, Android version, build, serial, SoC
+- **Collapsible categories** with per-category severity badges
+- **Per-check technical detail** - description, *why it matters*, *risk if failed*, *expected secure state*, the exact command and its output, remediation, and compliance chips (check ID, NIST 800-53, CIS, tags)
 - **Certificate Audit Table** - CA certificates with expiry dates and risk status
-- **Search & Filter** - Find specific checks by keyword
-- **Category Statistics** - Per-category breakdown of findings
+- **Search & Filter** - find checks by label, description, ID, NIST control or tag
+
+### Detailed XLSX workbook
+
+A multi-sheet, audit-grade Excel workbook:
+
+- **Summary** - risk score / grade / posture, findings-by-severity, device info, and a per-category breakdown
+- **Findings** - one row per check with the full technical context (category, ID, label, status, level, why it matters, risk if failed, expected secure state, command, output, description, remediation, NIST 800-53, CIS, tags, baseline), colour-coded by severity, with a frozen header row and auto-filter
+- **Certificates** - the CA certificate audit
+- **Analysis** - correlated attack chains and the prioritised remediation order
 
 ---
 
@@ -481,6 +492,7 @@ HARDAX/
 - [x] Dedicated `BIOMETRIC` category: fingerprint/face/strength/keyguard/auto-lock checks split out of `PRIVACY` into `biometric.json` (v5.15.0)
 - [x] Deterministic risk score (0-100) with grade, correlated attack chains and prioritised remediation, plus a `--profile` weighting flag (generic/pos/medical/kiosk/automotive/iot) (v5.10.0)
 - [x] pytest suite (engine, analysis, AI redaction, helpers, reporters) + formal `hardax/commands.schema.json` validated in CI (v5.16.0)
+- [x] Detailed XLSX report (Summary / Findings / Certificates / Analysis sheets) and richer HTML/CSV surfacing per-check technical context: why it matters, risk if failed, expected secure state, NIST/CIS mappings and tags (v5.17.0)
 
 ### Open
 
