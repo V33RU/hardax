@@ -281,9 +281,15 @@ class HUDDashboard:
         terminal. If the panel is taller than the screen, in-place redraw is
         impossible (you cannot move the cursor above the top visible row) and
         each refresh would stack a fresh copy of the table. In that case the
-        caller should fall back to the compact single-line progress bar."""
-        _cols, rows = Terminal.getSize()
-        return self.panelHeight + 1 <= rows
+        caller should fall back to the compact single-line progress bar.
+
+        Width matters too: every panel line is a fixed self._W + 4 visual
+        chars wide (2-space indent + left border + inner content + right
+        border). A narrower terminal wraps each line mid-border, breaking the
+        box-drawing alignment on every redraw - so a too-narrow terminal must
+        fall back to the compact bar just like a too-short one."""
+        cols, rows = Terminal.getSize()
+        return (self.panelHeight + 1 <= rows) and (self._W + 4 <= cols)
 
     def start(self):
         """Hide the cursor and draw the panel for the first time. Call only
@@ -1403,6 +1409,8 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
     startTime = time.time()
     consecutiveAdbErrors = 0
     _lastCategory = None   # tracks category for section headers
+    _lastLoggedPct = -1    # tracks last whole-percent logged when stdout is not a tty
+    _stdoutIsTty = sys.stdout.isatty()
 
     for idx, chk in enumerate(checks, start=1):
         category = chk.get("category", "General")
@@ -1629,7 +1637,7 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                 # HUD Tactical Dashboard mode
                 dashboard.onCheckComplete(category, label, status)
 
-            else:
+            elif _stdoutIsTty:
                 # Compact progress bar fallback (no dashboard, no --show-commands)
                 barWidth = 24
                 filled = int((idx / total) * barWidth)
@@ -1645,6 +1653,22 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                     f"  {Colors.DIM}ETA {etaStr}{Colors.RESET}  "
                 )
                 sys.stdout.flush()
+            else:
+                # stdout is redirected/piped/logged (CI, nohup, log shipping, a
+                # captured subprocess, etc). A '\r'-only progress bar collapses
+                # into one unreadable multi-megabyte line for any consumer that
+                # doesn't interpret carriage returns as an in-place overwrite
+                # (cat, grep, tail -f, most log viewers/aggregators). Print one
+                # clean newline-terminated line per whole-percent step instead,
+                # plus always the final 100% line, so a redirected/logged run
+                # stays legible and greppable.
+                wholePct = int(percentage)
+                if wholePct != _lastLoggedPct or idx == total:
+                    _lastLoggedPct = wholePct
+                    print(f"  [{idx}/{total}] ({percentage:4.1f}%) "
+                          f"safe={counts['safe']} critical={counts['critical']} "
+                          f"warning={counts['warning']} verify={counts['verify']} "
+                          f"skipped={counts['skipped']} ETA={etaStr}")
 
             if onProgress:
                 onProgress(idx, total)

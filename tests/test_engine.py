@@ -1,5 +1,8 @@
 """Tests for the check-execution/classification engine (runChecks) and the
 baseline tamper-detection logic."""
+import io
+import contextlib
+
 import hardax
 from conftest import FakeDevice, make_check
 
@@ -131,3 +134,54 @@ def test_baseline_file_roundtrip(tmp_path):
     assert doc["values"] == {"k": "v"}
     assert doc["device"]["fingerprint"] == "fp1"
     assert doc["hardax_baseline"] == "1"
+
+
+# --- non-tty progress logging (CI / redirected / nohup runs) ---------------
+#
+# pytest captures stdout with a non-tty stream, so runChecks naturally takes
+# the "else" (not _stdoutIsTty) branch here - this exercises exactly the
+# redirected/logged scenario a real CI pipeline or `nohup hardax > log` hits.
+
+def test_non_tty_progress_prints_clean_lines_not_carriage_returns():
+    checks = [make_check(label=f"chk{i}", safe_pattern=".") for i in range(20)]
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        hardax.runChecks(FakeDevice(default="ok"), checks)
+    out = buf.getvalue()
+    assert "\r" not in out
+    lines = [l for l in out.splitlines() if l.strip().startswith("[")]
+    assert lines, "expected at least one progress line"
+    assert lines[-1].startswith("[20/20]") or "[20/20]" in lines[-1]
+    assert "safe=" in lines[0] and "critical=" in lines[0]
+
+
+def test_non_tty_progress_line_count_is_bounded_for_large_check_sets():
+    # One line per whole percent (plus a guaranteed final line), not one line
+    # per check - a 767-check audit should log ~100 lines, not 767+.
+    checks = [make_check(label=f"chk{i}", safe_pattern=".") for i in range(767)]
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        hardax.runChecks(FakeDevice(default="ok"), checks)
+    lines = [l for l in buf.getvalue().splitlines() if l.strip().startswith("[")]
+    assert 90 <= len(lines) <= 110
+    assert lines[-1].startswith("[767/767]") or "[767/767]" in lines[-1]
+
+
+# --- HUD dashboard terminal-fit checks --------------------------------------
+
+def test_hud_fits_terminal_requires_both_width_and_height(monkeypatch):
+    hud = hardax.HUDDashboard([{"category": "C"}] * 5, deviceInfo="d")
+    required_width = hud._W + 4
+    required_height = hud.panelHeight + 1
+
+    # Wide enough and tall enough -> fits
+    monkeypatch.setattr(hardax.Terminal, "getSize", staticmethod(lambda: (required_width, required_height)))
+    assert hud.fitsTerminal() is True
+
+    # Tall enough but too narrow -> must NOT fit (previously ignored width entirely)
+    monkeypatch.setattr(hardax.Terminal, "getSize", staticmethod(lambda: (required_width - 1, required_height)))
+    assert hud.fitsTerminal() is False
+
+    # Wide enough but too short -> must not fit
+    monkeypatch.setattr(hardax.Terminal, "getSize", staticmethod(lambda: (required_width, required_height - 1)))
+    assert hud.fitsTerminal() is False
