@@ -479,6 +479,8 @@ HARDAX/
 - [x] Baseline tamper detection: `--save-baseline` / `--baseline` compare integrity values (VBMeta digest/size, adbd SHA-256) and flag any change CRITICAL (v5.13.0)
 - [x] Android 17 Local Network Access (`ACCESS_LOCAL_NETWORK`) grant audit; dm-verity `restart` mode accepted; `/proc/bootconfig` (Android 12+) fallback on cmdline readers; verifiedbootstate=yellow (custom root of trust) surfaced as a distinct warning (v5.14.0)
 - [x] Dedicated `BIOMETRIC` category: fingerprint/face/strength/keyguard/auto-lock checks split out of `PRIVACY` into `biometric.json` (v5.15.0)
+- [x] Deterministic risk score (0-100) with grade, correlated attack chains and prioritised remediation, plus a `--profile` weighting flag (generic/pos/medical/kiosk/automotive/iot) (v5.10.0)
+- [x] pytest suite (engine, analysis, AI redaction, helpers, reporters) + formal `hardax/commands.schema.json` validated in CI (v5.16.0)
 
 ### Open
 
@@ -486,7 +488,6 @@ Grouped by theme. Order within a group is rough priority.
 
 #### Analysis features
 - [ ] Full scan-to-scan diff (compare two complete audits, surface all finding regressions; integrity-value baselines already shipped via `--baseline` in v5.13.0)
-- [ ] HARDAX Risk Score (0-100 composite across all 28 categories)
 - [ ] CVE correlation (map findings to relevant CVE IDs automatically)
 
 #### Additional security checks
@@ -503,7 +504,6 @@ Grouped by theme. Order within a group is rough priority.
 - [ ] PCI-DSS 4.0 detailed mapping (POS terminals)
 
 #### Tooling and ergonomics
-- [ ] `--profile` flag with built-in presets (kiosk / POS / automotive / medical / IoT)
 - [ ] Inline remediation suggestions in the HTML report
 - [ ] Multi-device parallel scanning
 - [ ] Plugin architecture for custom check loaders
@@ -511,9 +511,7 @@ Grouped by theme. Order within a group is rough priority.
 - [ ] Web dashboard (Flask / FastAPI) for centralised audit storage and history
 
 #### Code quality
-- [ ] pytest suite covering the engine, transports, and reporters
 - [ ] Split the 2400-line `hardax/__init__.py` into modules (transports, engine, reporters, cli)
-- [ ] Formal JSON schema for `commands/*.json` (jsonschema validation)
 - [ ] Type hints throughout, clean under `mypy --strict`
 
 #### External integration
