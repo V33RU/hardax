@@ -60,6 +60,25 @@ def test_xlsx_report_sheets_and_technical_columns(tmp_path):
     assert "matters because" in str(wb["Findings"].cell(2, why_col).value)
 
 
+def test_csv_report_truncates_unbounded_result_field(tmp_path):
+    # A misbehaving check (or a shell operator-precedence bug) can return
+    # megabytes of raw output. The CSV writer must cap it so the cell never
+    # exceeds Excel's 32,767-char limit or breaks csv.reader's default
+    # field_size_limit (131072) for downstream tooling.
+    rows = _rows()
+    rows[0]["result"] = "A" * 500_000
+    p = str(tmp_path / "r.csv")
+    hardax.writeCsvReport(p, rows)
+    import csv as csvmod
+    with open(p, encoding="utf-8", newline="") as f:
+        parsed = list(csvmod.reader(f))  # must not raise with the default field_size_limit
+    assert len(parsed) == 2
+    result_cell = parsed[1][parsed[0].index("result")]
+    assert len(result_cell) < 32767
+    assert "truncated, 500000 chars total" in result_cell
+    assert "--json-out" in result_cell
+
+
 def test_xlsx_report_handles_list_valued_compliance_fields(tmp_path):
     # nist_800_53 / cis_id can be multi-valued in check JSON; the writer must
     # coerce them instead of letting openpyxl raise and abort the audit.
