@@ -46,7 +46,7 @@ if sys.version_info < (3, 10):
 #  VERSION & CONSTANTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-__version__ = "5.16.0"
+__version__ = "5.17.0"
 
 REQUIRED_CHECK_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
 
@@ -1657,14 +1657,24 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
         rows.append({
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
             "category": category,
+            "id": chk.get("id", ""),
             "label": label,
             "level": level,
+            "severity": chk.get("severity", ""),
             "bucket": bucket,
             "status": status,
             "matched": str(matched),
             "command": command,
             "result": displayResult,
             "description": displayDesc,
+            # Technical-explanation metadata (surfaced in the HTML/XLSX reports).
+            "why": chk.get("why", ""),
+            "risk_if_fail": chk.get("risk_if_fail", ""),
+            "expected_secure_state": chk.get("expected_secure_state", ""),
+            "control_area": chk.get("control_area", ""),
+            "nist_800_53": chk.get("nist_800_53", ""),
+            "cis_id": chk.get("cis_id", ""),
+            "tags": chk.get("tags", []),
             "needs_verification": needsVerification,
             "baseline": baselineState,
             "remediation": chk.get("remediation", ""),
@@ -1942,13 +1952,228 @@ def writeTxtReport(path: str, deviceInfo: Dict[str, str],
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def writeCsvReport(path: str, rows: List[Dict[str, Any]]) -> None:
-    fieldnames = ["timestamp", "category", "label", "level", "bucket", "status",
-                  "matched", "command", "result", "description", "baseline", "remediation"]
+    fieldnames = ["timestamp", "category", "id", "label", "level", "severity",
+                  "bucket", "status", "matched", "command", "result", "description",
+                  "why", "risk_if_fail", "expected_secure_state", "nist_800_53",
+                  "cis_id", "tags", "baseline", "remediation"]
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
         for r in rows:
-            w.writerow({k: r.get(k, "") for k in fieldnames})
+            out = {k: r.get(k, "") for k in fieldnames}
+            if isinstance(out.get("tags"), list):
+                out["tags"] = ", ".join(str(t) for t in out["tags"])
+            w.writerow(out)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  REPORT GENERATION - XLSX (detailed, technically explained)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def writeXlsxReport(path: str, deviceInfo: Dict[str, str],
+                    rows: List[Dict[str, Any]], counts: Dict[str, int],
+                    certs: Optional[List[Dict[str, Any]]] = None,
+                    target: str = "",
+                    analysis: Optional[Dict[str, Any]] = None) -> None:
+    """Write a detailed, technically-explained multi-sheet Excel workbook:
+    Summary (risk + per-category), Findings (every check with why / risk /
+    expected state / command / output / remediation / compliance), Certificates,
+    and Analysis. Skips gracefully if openpyxl is unavailable."""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.utils import get_column_letter
+    except Exception:
+        print(f"{Colors.YELLOW}⚠ openpyxl not installed; skipping XLSX report "
+              f"(pip install openpyxl){Colors.RESET}", file=sys.stderr)
+        return
+
+    rows = rows or []
+    counts = counts or {}
+    deviceInfo = deviceInfo or {}
+
+    def _xv(v):
+        """Coerce any value into something openpyxl can store in a cell.
+        Author-controlled fields like nist_800_53/cis_id may be multi-valued
+        lists; openpyxl raises on list/dict cell values, so normalise them."""
+        if v is None:
+            return ""
+        if isinstance(v, (list, tuple)):
+            return ", ".join(str(x) for x in v)
+        if isinstance(v, dict):
+            return "; ".join(f"{k}={vv}" for k, vv in v.items())
+        if isinstance(v, (str, int, float, bool)):
+            return v
+        return str(v)
+
+    HEADER_FILL = PatternFill("solid", fgColor="1F2D3D")
+    HEADER_FONT = Font(bold=True, color="FFFFFF", size=11)
+    KEY_FONT = Font(bold=True, color="1F2D3D")
+    TITLE_FONT = Font(bold=True, size=16, color="1F2D3D")
+    SECTION_FONT = Font(bold=True, size=12, color="1F2D3D")
+    WRAP = Alignment(vertical="top", wrap_text=True)
+    STATUS_FILL = {
+        "CRITICAL": PatternFill("solid", fgColor="F5B7B1"),
+        "WARNING":  PatternFill("solid", fgColor="FAD7A0"),
+        "VERIFY":   PatternFill("solid", fgColor="D7BDE2"),
+        "SAFE":     PatternFill("solid", fgColor="ABEBC6"),
+        "INFO":     PatternFill("solid", fgColor="AED6F1"),
+        "SKIPPED":  PatternFill("solid", fgColor="D5DBDB"),
+    }
+
+    def _hdr(ws, row, headers, widths=None):
+        for ci, h in enumerate(headers, 1):
+            c = ws.cell(row, ci, h)
+            c.fill = HEADER_FILL
+            c.font = HEADER_FONT
+            c.alignment = WRAP
+            if widths:
+                ws.column_dimensions[get_column_letter(ci)].width = widths[ci - 1]
+
+    wb = Workbook()
+
+    # ---- Summary sheet ------------------------------------------------------
+    ws = wb.active
+    ws.title = "Summary"
+    ws["A1"] = "HARDAX Security Audit Report"
+    ws["A1"].font = TITLE_FONT
+    ws["A2"] = f"HARDAX v{__version__}    {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    ws["A3"] = f"Target: {target}"
+    ws.column_dimensions["A"].width = 26
+    ws.column_dimensions["B"].width = 60
+    r = 5
+    if analysis:
+        for k, v in (("Risk score", f"{analysis.get('risk_score')}/100  (grade {analysis.get('grade')})"),
+                     ("Posture", analysis.get("posture", "")),
+                     ("Profile", analysis.get("profile", ""))):
+            ws.cell(r, 1, k).font = KEY_FONT
+            ws.cell(r, 2, v)
+            r += 1
+        r += 1
+    ws.cell(r, 1, "Findings by severity").font = SECTION_FONT
+    r += 1
+    for k in ("critical", "warning", "verify", "safe", "info", "skipped"):
+        cell = ws.cell(r, 1, k.upper())
+        fill = STATUS_FILL.get(k.upper())
+        if fill:
+            cell.fill = fill
+        ws.cell(r, 2, int(counts.get(k, 0) or 0))
+        r += 1
+    r += 1
+    ws.cell(r, 1, "Device").font = SECTION_FONT
+    r += 1
+    for key in ("model", "brand", "manufacturer", "android_version", "sdk_level",
+                "build_id", "fingerprint", "serialno", "soc_model", "timezone"):
+        v = (deviceInfo or {}).get(key, "")
+        if v and v != "(unknown)":
+            ws.cell(r, 1, key.replace("_", " ").title()).font = KEY_FONT
+            ws.cell(r, 2, v)
+            r += 1
+    r += 1
+    ws.cell(r, 1, "Per-category breakdown").font = SECTION_FONT
+    r += 1
+    _hdr(ws, r, ["Category", "Critical", "Warning", "Verify", "Safe", "Info", "Skipped", "Total"])
+    for col in "BCDEFGH":
+        ws.column_dimensions[col].width = 10
+    r += 1
+    cat_stats = collections.defaultdict(lambda: collections.defaultdict(int))
+    for row in rows:
+        cat_stats[row.get("category", "?")][row.get("status", "")] += 1
+        cat_stats[row.get("category", "?")]["_total"] += 1
+    for cat in sorted(cat_stats):
+        s = cat_stats[cat]
+        for ci, val in enumerate([cat, s["CRITICAL"], s["WARNING"], s["VERIFY"],
+                                  s["SAFE"], s["INFO"], s["SKIPPED"], s["_total"]], 1):
+            ws.cell(r, ci, val)
+        r += 1
+
+    # ---- Findings sheet -----------------------------------------------------
+    wf = wb.create_sheet("Findings")
+    cols = [("Category", 16), ("ID", 16), ("Label", 34), ("Status", 11), ("Level", 9),
+            ("Why it matters", 42), ("Risk if failed", 42), ("Expected secure state", 30),
+            ("Command", 46), ("Output", 40), ("Description", 46), ("Remediation", 46),
+            ("NIST 800-53", 16), ("CIS", 9), ("Tags", 20), ("Baseline", 12)]
+    _hdr(wf, 1, [c[0] for c in cols], [c[1] for c in cols])
+    for ri, row in enumerate(rows, start=2):
+        tags = row.get("tags") or []
+        if isinstance(tags, list):
+            tags = ", ".join(str(t) for t in tags)
+        vals = [row.get("category", ""), row.get("id", ""), row.get("label", ""),
+                row.get("status", ""), row.get("level", ""), row.get("why", ""),
+                row.get("risk_if_fail", ""), row.get("expected_secure_state", ""),
+                row.get("command", ""), (str(row.get("result", "")) or "")[:2000],
+                row.get("description", ""), row.get("remediation", ""),
+                row.get("nist_800_53", ""), row.get("cis_id", ""), tags, row.get("baseline", "")]
+        for ci, val in enumerate(vals, 1):
+            wf.cell(ri, ci, _xv(val)).alignment = WRAP
+        st = row.get("status", "")
+        if st in STATUS_FILL:
+            wf.cell(ri, 4).fill = STATUS_FILL[st]
+    wf.freeze_panes = "A2"
+    if rows:
+        wf.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{len(rows) + 1}"
+
+    # ---- Certificates sheet -------------------------------------------------
+    if certs:
+        wc = wb.create_sheet("Certificates")
+        ccols = [("Common Name", 40), ("Issuer", 40), ("Valid From", 13), ("Valid Until", 13),
+                 ("Days Old", 10), ("Days To Expiry", 14), ("Status", 16), ("Risk", 10)]
+        _hdr(wc, 1, [c[0] for c in ccols], [c[1] for c in ccols])
+        for ri, c in enumerate(certs, start=2):
+            for ci, val in enumerate([c.get("cn", ""), c.get("issuer", ""), c.get("not_before", ""),
+                                      c.get("not_after", ""), c.get("days_old", ""),
+                                      c.get("days_until_expiry", ""), c.get("status", ""),
+                                      c.get("risk", "")], 1):
+                wc.cell(ri, ci, val)
+        wc.freeze_panes = "A2"
+
+    # ---- Analysis sheet -----------------------------------------------------
+    if analysis:
+        wa = wb.create_sheet("Analysis")
+        wa.column_dimensions["A"].width = 16
+        wa.column_dimensions["B"].width = 44
+        wa.column_dimensions["C"].width = 52
+        wa.column_dimensions["D"].width = 18
+        wa.column_dimensions["E"].width = 10
+        rr = 1
+        wa.cell(rr, 1, "HARDAX Analysis (deterministic, offline)").font = TITLE_FONT
+        rr += 2
+        for k, v in (("Risk score", f"{analysis.get('risk_score')}/100"),
+                     ("Grade", analysis.get("grade", "")),
+                     ("Posture", analysis.get("posture", "")),
+                     ("Profile", analysis.get("profile", ""))):
+            wa.cell(rr, 1, k).font = KEY_FONT
+            wa.cell(rr, 2, v).alignment = WRAP
+            rr += 1
+        rr += 1
+        chains = analysis.get("attack_chains") or []
+        if chains:
+            wa.cell(rr, 1, "Attack chains").font = SECTION_FONT
+            rr += 1
+            _hdr(wa, rr, ["Severity", "Name", "Evidence (confirmed findings)"])
+            rr += 1
+            for ch in chains:
+                wa.cell(rr, 1, str(ch.get("severity", "")).upper())
+                wa.cell(rr, 2, ch.get("name", "")).alignment = WRAP
+                steps = "; ".join(f"{s.get('status')}: {s.get('label')}" for s in ch.get("steps", []))
+                wa.cell(rr, 3, steps).alignment = WRAP
+                rr += 1
+            rr += 1
+        prios = analysis.get("priorities") or []
+        if prios:
+            wa.cell(rr, 1, "Fix in this order").font = SECTION_FONT
+            rr += 1
+            _hdr(wa, rr, ["#", "Status", "Finding", "Category", "In chain"])
+            rr += 1
+            for p in prios:
+                wa.cell(rr, 1, p.get("rank"))
+                wa.cell(rr, 2, p.get("status", ""))
+                wa.cell(rr, 3, p.get("label", "")).alignment = WRAP
+                wa.cell(rr, 4, p.get("category", ""))
+                wa.cell(rr, 5, "yes" if p.get("in_attack_chain") else "")
+                rr += 1
+
+    wb.save(path)
 
 
 def writeJsonReport(path: str, deviceInfo: Dict[str, str],
@@ -2104,6 +2329,14 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
                 badges.append(f'<span class="badge {cls}">{stats[key]} {key.title()}</span>')
         badgesHtml = " ".join(badges)
 
+        def _detailGroup(tag, text, extraCls=""):
+            if not text:
+                return ""
+            return (f'\n            <div class="detail-group {extraCls}">'
+                    f'\n              <span class="detail-tag">{tag}</span>'
+                    f'\n              <p class="detail-text">{htmlEscape(str(text))}</p>'
+                    f'\n            </div>')
+
         itemsHtml = []
         for r in catRows:
             cmdEsc = htmlEscape(r["command"])
@@ -2113,6 +2346,10 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
             st = r["status"]
             cssClass = {"SAFE": "safe", "WARNING": "warning", "CRITICAL": "critical",
                         "VERIFY": "verify", "SKIPPED": "skipped"}.get(st, "info")
+
+            whyHtml = _detailGroup("Why it matters", r.get("why", ""), "why-group")
+            riskHtml = _detailGroup("Risk if failed", r.get("risk_if_fail", ""), "risk-group")
+            expHtml = _detailGroup("Expected secure state", r.get("expected_secure_state", ""))
 
             remediationHtml = ""
             remText = r.get("remediation", "")
@@ -2124,14 +2361,30 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
                     f'\n            </div>'
                 )
 
+            chips = []
+            if r.get("id"):
+                chips.append(f'<span class="meta-chip id-chip">{htmlEscape(str(r["id"]))}</span>')
+            if r.get("nist_800_53"):
+                chips.append(f'<span class="meta-chip">NIST {htmlEscape(str(r["nist_800_53"]))}</span>')
+            if r.get("cis_id"):
+                chips.append(f'<span class="meta-chip">CIS {htmlEscape(str(r["cis_id"]))}</span>')
+            tagList = r.get("tags") or []
+            tagList = tagList if isinstance(tagList, list) else []
+            for t in tagList[:6]:
+                chips.append(f'<span class="meta-chip tag-chip">{htmlEscape(str(t))}</span>')
+            metaHtml = f'\n            <div class="meta-row">{"".join(chips)}</div>' if chips else ""
+
+            searchExtra = (str(r.get("id", "")) + " " + str(r.get("nist_800_53", "")) + " "
+                           + " ".join(str(x) for x in tagList)).lower().strip()
+
             itemsHtml.append(f'''
-        <div class="check-item {cssClass}" data-status="{st}" data-search="{htmlEscape(r['label'].lower())} {htmlEscape(r['description'].lower())}">
+        <div class="check-item {cssClass}" data-status="{st}" data-search="{htmlEscape(r['label'].lower())} {htmlEscape(r['description'].lower())} {htmlEscape(searchExtra)}">
           <div class="check-head">
             <span class="check-label">{labelEsc}</span>
             <span class="status-pill {cssClass}">{st}</span>
           </div>
           <p class="check-desc">{descEsc}</p>
-          <div class="check-detail">
+          <div class="check-detail">{whyHtml}{riskHtml}{expHtml}
             <div class="detail-group">
               <span class="detail-tag">Command</span>
               <pre><code>{cmdEsc}</code></pre>
@@ -2139,7 +2392,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
             <div class="detail-group">
               <span class="detail-tag">Output</span>
               <pre><code>{resEsc if resEsc else "(empty)"}</code></pre>
-            </div>{remediationHtml}
+            </div>{remediationHtml}{metaHtml}
           </div>
         </div>''')
 
@@ -2410,6 +2663,7 @@ Examples:
     txtFile = os.path.join(txtDir, "audit_report.txt")
     htmlFile = os.path.join(htmlDir, "audit_report.html")
     csvFile = os.path.join(htmlDir, "audit_report.csv")
+    xlsxFile = os.path.join(htmlDir, "audit_report.xlsx")
     jsonFile = os.path.join(htmlDir, "audit_report.json") if args.json_out else None
 
     # Root detection
@@ -2629,6 +2883,10 @@ Examples:
     # Generate reports
     writeTxtReport(txtFile, deviceInfo, rows, counts, certs, device.idString(), analysis)
     writeCsvReport(csvFile, rows)
+    try:
+        writeXlsxReport(xlsxFile, deviceInfo, rows, counts, certs, device.idString(), analysis)
+    except Exception as _xlsxErr:
+        print(f"{Colors.YELLOW}⚠ XLSX report skipped ({_xlsxErr}){Colors.RESET}", file=sys.stderr)
     writeHtmlReport(htmlFile, deviceInfo, rows, counts, certs, analysis)
     if jsonFile:
         writeJsonReport(jsonFile, deviceInfo, rows, counts, certs, device.idString(), analysis)
@@ -2722,6 +2980,7 @@ Examples:
     _box_line(f"  {D}TXT {R}  {D}{txtFile}{R}")
     _box_line(f"  {D}HTML{R}  {D}{htmlFile}{R}")
     _box_line(f"  {D}CSV {R}  {D}{csvFile}{R}")
+    _box_line(f"  {D}XLSX{R}  {D}{xlsxFile}{R}")
     if jsonFile:
         _box_line(f"  {D}JSON{R}  {D}{jsonFile}{R}")
 
