@@ -493,6 +493,8 @@ HARDAX/
 - [x] Deterministic risk score (0-100) with grade, correlated attack chains and prioritised remediation, plus a `--profile` weighting flag (generic/pos/medical/kiosk/automotive/iot) (v5.10.0)
 - [x] pytest suite (engine, analysis, AI redaction, helpers, reporters) + formal `hardax/commands.schema.json` validated in CI (v5.16.0)
 - [x] Detailed XLSX report (Summary / Findings / Certificates / Analysis sheets) and richer HTML/CSV surfacing per-check technical context: why it matters, risk if failed, expected secure state, NIST/CIS mappings and tags (v5.17.0)
+- [x] Fix a Windows-only stdout/stderr encoding crash, a CSV unbounded-result bug, 9 `binary_hardening.json` shell-precedence bugs (PIE/canary/RELRO/NX/FORTIFY checks), and CLI visibility for redirected/logged runs and narrow terminals - all found by running HARDAX end-to-end against a real device (v5.18.0)
+- [x] CLI visual redesign: one rounded-corner box family reserved for panels that print once or redraw in place (banner, live HUD, final summary, final analysis), boxless hairline-rule category headers instead of a 3-line box repeated per category, a `❯_ HARDAX` wordmark, a strict two-role colour discipline (structure vs. severity), a guaranteed space between every status icon and its count (some terminal fonts render icons like ⚠ at double width), and terminal-width-aware truncation for `--show-commands` command/remediation lines so nothing needs horizontal scrolling - chosen from an independently-judged panel of 3 redesign directions and verified on both native Windows console and git-bash/mintty (v5.19.0)
 
 ### Open
 
