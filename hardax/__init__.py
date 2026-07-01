@@ -59,7 +59,7 @@ for _stream in (sys.stdout, sys.stderr):
 #  VERSION & CONSTANTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-__version__ = "5.18.0"
+__version__ = "5.19.0"
 
 REQUIRED_CHECK_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
 
@@ -222,6 +222,44 @@ def _vtrunc(s: str, maxLen: int) -> str:
     return s[:maxLen - 1] + "…"
 
 
+def _vtruncFront(s: str, maxLen: int) -> str:
+    """Truncate a plain string from the FRONT (keep the tail), adding a
+    leading … if needed. Used for file paths, where the filename at the end
+    is the useful part and the leading directory is not."""
+    if maxLen <= 0:
+        return ""
+    if len(s) <= maxLen:
+        return s
+    return "…" + s[-(maxLen - 1):]
+
+
+def _fitLine(prefixLen: int, s: str, minLen: int = 20, margin: int = 1) -> str:
+    """Truncate s so prefixLen + len(result) never exceeds the actual
+    terminal width - so a long shell command, or remediation text printed
+    in --show-commands mode, never needs horizontal scrolling regardless of
+    terminal size. Falls back to Terminal.getSize()'s own 80-column default
+    when the real width can't be detected (e.g. output is piped)."""
+    cols, _ = Terminal.getSize()
+    avail = max(minLen, cols - prefixLen - margin)
+    return _vtrunc(s, avail)
+
+
+def _titledRule(title: str, suffix: str = "", width: int = 72) -> str:
+    """A single boxless section-divider line: '── TITLE  suffix ──────'.
+
+    Used for elements that repeat many times in one run (category headers
+    can print ~28 times per audit) so structure comes from one hairline rule
+    instead of a 3-line box repeated 28 times. Width-safe: computed from the
+    plain (uncoloured) text length via _vlen, never hand-counted."""
+    D = Colors.DIM
+    R = Colors.RESET
+    B = Colors.BOLD
+    W = Colors.BRIGHT_WHITE
+    plain = f"── {title}  {suffix} "
+    fill = max(3, width - len(plain))
+    return f"{D}──{R} {B}{W}{title}{R}  {D}{suffix}{R} {D}{'─' * fill}{R}"
+
+
 class HUDDashboard:
     """Live split-panel HUD with categories on left, findings feed on right.
 
@@ -324,13 +362,13 @@ class HUDDashboard:
         W = Colors.BRIGHT_WHITE; C = Colors.BRIGHT_CYAN; Y = Colors.YELLOW
         dev = _vtrunc(self.deviceInfo, 20) if self.deviceInfo else ""
         # plain text (no colour) to measure
-        plain = f"─── HARDAX v{__version__} ── {dev} ── {self.totalChecks} checks "
+        plain = f"─── ❯ HARDAX v{__version__} ── {dev} ── {self.totalChecks} checks "
         fill = max(1, self._W - len(plain))
-        coloured = (f"{D}───{R} {B}{W}HARDAX v{__version__}{R} "
+        coloured = (f"{D}───{R} {B}{C}❯{R} {B}{W}HARDAX v{__version__}{R} "
                     f"{D}──{R} {C}{dev}{R} "
                     f"{D}──{R} {Y}{self.totalChecks} checks{R} "
                     f"{D}{'─' * fill}{R}")
-        return f"  {D}┌{R}{coloured}{D}┐{R}"
+        return f"  {D}╭{R}{coloured}{D}╮{R}"
 
     def _lineHeaders(self) -> str:
         D = Colors.DIM; R = Colors.RESET; B = Colors.BOLD; W = Colors.BRIGHT_WHITE
@@ -429,16 +467,20 @@ class HUDDashboard:
         D = Colors.DIM; R = Colors.RESET
         G = Colors.GREEN; RD = Colors.BRIGHT_RED; Y = Colors.YELLOW; C = Colors.CYAN
         c = self.counts
-        tally = (f" {G}✓{c['safe']}{R} SAFE  "
-                 f"{RD}✗{c['critical']}{R} CRIT  "
-                 f"{Y}⚠{c['warning']}{R} WARN  "
-                 f"{D}⊘{c['skipped']}{R} SKIP  "
-                 f"{C}ℹ{c['info']}{R} INFO")
+        # A space always follows each icon before its count: some terminal
+        # fonts render ⚠ (and other symbols) with emoji-style double-width
+        # presentation, which visually collides with an immediately-adjacent
+        # digit if there is no gap between them.
+        tally = (f" {G}✓ {c['safe']}{R} SAFE  "
+                 f"{RD}✗ {c['critical']}{R} CRIT  "
+                 f"{Y}⚠ {c['warning']}{R} WARN  "
+                 f"{D}⊘ {c['skipped']}{R} SKIP  "
+                 f"{C}ℹ {c['info']}{R} INFO")
         return f"  {D}│{R}{_vpad(tally, self._W)}{D}│{R}"
 
     def _lineBottom(self) -> str:
         D = Colors.DIM; R = Colors.RESET
-        return f"  {D}└{'─' * self._W}┘{R}"
+        return f"  {D}╰{'─' * self._W}╯{R}"
 
     # ── full frame ──────────────────────────────────────────
 
@@ -1105,7 +1147,10 @@ def executeWithFallback(device: Device, command: str,
 
         for cand in candidates:
             if showCommands:
-                print("  -> Trying: %s" % cand)
+                # Width-aware: a su-wrapped netstat/ss candidate can be very
+                # long, and this line previously had no cap at all, forcing
+                # the terminal to wrap or scroll sideways on every attempt.
+                print("  -> Trying: %s" % _fitLine(len("  -> Trying: "), cand))
             raw = device.shell(cand)
             ok, why = outputReason(raw)
             if not ok:
@@ -1595,19 +1640,16 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
             sc, sym = HUDDashboard._STATUS_FMT.get(status, (Colors.CYAN, "ℹ"))
 
             if showCommands:
-                # Category header when section changes
+                # Category header when section changes: one boxless hairline
+                # rule instead of a 3-line box, since this repeats once per
+                # category (~28 times in a full audit) - a box that heavy
+                # scrolling past 28 times is exactly the fatigue a full audit
+                # log should not have.
                 if category != _lastCategory:
                     if _lastCategory is not None:
                         print()
-                    catLabel = category.upper()
-                    # Count checks in this category
                     catTotal = sum(1 for c in checks if c.get("category", "General") == category)
-                    print(f"  {Colors.BRIGHT_CYAN}┌{'─' * 68}┐{Colors.RESET}")
-                    print(f"  {Colors.BRIGHT_CYAN}│{Colors.RESET} {Colors.BOLD}{Colors.BRIGHT_WHITE}{catLabel}{Colors.RESET}"
-                          f"{Colors.DIM} ({catTotal} checks){Colors.RESET}"
-                          f"{'':>{max(1, 60 - len(catLabel) - len(str(catTotal)))}}"
-                          f"{Colors.BRIGHT_CYAN}│{Colors.RESET}")
-                    print(f"  {Colors.BRIGHT_CYAN}└{'─' * 68}┘{Colors.RESET}")
+                    print(f"  {_titledRule(category.upper(), f'({catTotal} checks)')}")
                     _lastCategory = category
 
                 # Per-check line with counter
@@ -1624,14 +1666,23 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                     f"{Colors.DIM}→ {Colors.RESET}{sc}{rPreview or '(empty)'}{Colors.RESET}"
                 )
 
-                # For critical/warning show the command and remediation
+                # For critical/warning show the command and remediation. Kept
+                # neutral (DIM), not tinted by the finding's severity colour:
+                # severity colour is reserved for the status icon and its
+                # immediate payload above, never for extended text below it -
+                # that discipline is what keeps a long scrolling log from
+                # turning into a wash of unrelated colour.
                 if status in ("CRITICAL", "WARNING") and command:
-                    cmdShort = command[:60] + "…" if len(command) > 60 else command
+                    # Width-aware, not a fixed 60/70-char guess: neither line
+                    # can ever be wider than the real terminal, so nothing in
+                    # --show-commands mode needs horizontal scrolling.
+                    cmdShort = _fitLine(len("  " + " " * 10 + " └─ $ "), command, minLen=30)
                     print(f"  {Colors.DIM}{'':>10} └─ $ {cmdShort}{Colors.RESET}")
                     remText = chk.get("remediation", "")
                     if remText:
-                        remShort = remText[:70] + "…" if len(remText) > 70 else remText
-                        print(f"  {Colors.CYAN}{'':>10} └─ Fix: {remShort}{Colors.RESET}")
+                        remShort = _fitLine(len("  " + " " * 10 + " └─ Fix: "), remText, minLen=30)
+                        print(f"  {Colors.DIM}{'':>10} └─ {Colors.BRIGHT_CYAN}Fix:{Colors.RESET}"
+                              f"{Colors.DIM} {remShort}{Colors.RESET}")
 
             elif dashboard:
                 # HUD Tactical Dashboard mode
@@ -1643,13 +1694,17 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                 filled = int((idx / total) * barWidth)
                 bar = "█" * filled + "░" * (barWidth - filled)
                 sys.stdout.write(
-                    f"\r  {Colors.BRIGHT_BLUE}[{bar}]{Colors.RESET} "
+                    f"\r  {Colors.BRIGHT_CYAN}❯ [{bar}]{Colors.RESET} "
                     f"{Colors.BRIGHT_WHITE}{idx:3d}/{total}{Colors.RESET} "
                     f"{Colors.DIM}({percentage:4.1f}%){Colors.RESET}  "
-                    f"{Colors.GREEN}✓{counts['safe']:<4}{Colors.RESET}"
-                    f"{Colors.BRIGHT_RED}✗{counts['critical']:<3}{Colors.RESET}"
-                    f"{Colors.YELLOW}⚠{counts['warning']:<3}{Colors.RESET}"
-                    f"{Colors.BRIGHT_MAGENTA}?{counts['verify']:<3}{Colors.RESET}"
+                    # A space after each icon before its count: some terminal
+                    # fonts render an icon (⚠ especially) with emoji-style
+                    # double-width presentation, which visually collides with
+                    # an immediately-adjacent digit if there is no gap.
+                    f"{Colors.GREEN}✓ {counts['safe']:<3}{Colors.RESET}"
+                    f"{Colors.BRIGHT_RED}✗ {counts['critical']:<2}{Colors.RESET}"
+                    f"{Colors.YELLOW}⚠ {counts['warning']:<2}{Colors.RESET}"
+                    f"{Colors.BRIGHT_MAGENTA}? {counts['verify']:<2}{Colors.RESET}"
                     f"  {Colors.DIM}ETA {etaStr}{Colors.RESET}  "
                 )
                 sys.stdout.flush()
@@ -2509,25 +2564,46 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
 #  CLI BANNER
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+# Shared frame width for every "earned" panel (banner, final summary, final
+# analysis) so they read as one continuous report rather than three
+# differently-sized boxes. The HUD dashboard has its own width (a denser,
+# genuinely different split-panel layout) but shares the same rounded
+# corner style, so all four boxed panels in the tool are visibly one family.
+_PANEL_WIDTH = 68
+
+
 def printBanner(idLine: Optional[str], checkCount: int = 0, categoryCount: int = 0) -> None:
-    """Print the ASCII art banner with terminal colours."""
-    checksStr = f"[{checkCount} Checks]" if checkCount else "[--- Checks]"
-    catsStr = f"[{categoryCount} Categories]" if categoryCount else "[--- Categories]"
-    print(f"""
-{Colors.BRIGHT_CYAN}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  {Colors.BRIGHT_WHITE}██   ██  █████  ██████  ██████   █████  ██   ██{Colors.BRIGHT_CYAN}                  ┃
-┃  {Colors.BRIGHT_WHITE}██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██{Colors.BRIGHT_CYAN}                   ┃
-┃  {Colors.BRIGHT_WHITE}███████ ███████ ██████  ██   ██ ███████   ███{Colors.BRIGHT_CYAN}                    ┃
-┃  {Colors.BRIGHT_WHITE}██   ██ ██   ██ ██   ██ ██   ██ ██   ██  ██ ██{Colors.BRIGHT_CYAN}                   ┃
-┃  {Colors.BRIGHT_WHITE}██   ██ ██   ██ ██   ██ ██████  ██   ██ ██   ██{Colors.BRIGHT_CYAN}                  ┃
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃  {Colors.BOLD}Hardening Audit eXaminer{Colors.RESET}{Colors.BRIGHT_CYAN} v{__version__}{' ' * max(1, 67 - len('  Hardening Audit eXaminer v' + __version__))}┃
-┃  {Colors.DIM}Android OS based Connected Devices Security Configuration Auditor{Colors.BRIGHT_CYAN}{' ' * max(1, 67 - len('  Android OS based Connected Devices Security Configuration Auditor'))}┃
-┃  {Colors.YELLOW}{checksStr}{Colors.RESET} {Colors.GREEN}{catsStr}{Colors.BRIGHT_CYAN}{' ' * max(1, 67 - len('  ' + checksStr + ' ' + catsStr))}┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛{Colors.RESET}
-""")
+    """Print the compact HARDAX banner: one rounded panel with the wordmark,
+    version, and check/category counts, plus a plain target-device line.
+    Width-safe throughout: built with _vpad/_vlen like every other boxed
+    panel in the tool, never hand-counted padding."""
+    C = Colors.BRIGHT_CYAN
+    R = Colors.RESET
+    B = Colors.BOLD
+    D = Colors.DIM
+    W = Colors.BRIGHT_WHITE
+
+    def _line(content: str) -> str:
+        return f"  {C}│{R}{_vpad(content, _PANEL_WIDTH)}{C}│{R}"
+
+    checksStr = f"{checkCount} checks" if checkCount else "-- checks"
+    catsStr = f"{categoryCount} categories" if categoryCount else "-- categories"
+
+    mark = f"{B}{C}❯{R}{D}_{R} {B}{W}HARDAX{R}"
+    subtitle = f"{D}Hardening Audit eXaminer{R}"
+    gap = max(2, _PANEL_WIDTH - _vlen(mark) - _vlen(subtitle) - 4)
+    titleLine = f"  {mark}{' ' * gap}{subtitle}"
+
+    statsLine = f"  {D}v{__version__}   ·   {checksStr}   ·   {catsStr}{R}"
+
+    print()
+    print(f"  {C}╭{'─' * _PANEL_WIDTH}╮{R}")
+    print(_line(titleLine))
+    print(_line(statsLine))
+    print(f"  {C}╰{'─' * _PANEL_WIDTH}╯{R}")
+    print()
     if idLine:
-        print(f"{Colors.BRIGHT_WHITE}📱 Target Device: {Colors.BOLD}{Colors.BRIGHT_CYAN}{idLine}{Colors.RESET}\n")
+        print(f"  {D}target device{R}  {B}{C}{idLine}{R}\n")
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2719,7 +2795,7 @@ Examples:
     jsonFile = os.path.join(htmlDir, "audit_report.json") if args.json_out else None
 
     # Root detection
-    print(f"\n{Colors.BRIGHT_CYAN}🔍 Starting security audit with {len(checks)} checks...{Colors.RESET}\n")
+    print(f"\n{Colors.BRIGHT_CYAN}❯{Colors.RESET} Starting security audit with {len(checks)} checks...\n")
 
     isRooted, rootMethod = detectRootStatus(device)
     if isRooted:
@@ -2961,18 +3037,21 @@ Examples:
     B = Colors.BOLD
     D = Colors.DIM
 
-    FRAME_WIDTH = 68       # number of '═' between corners (kept as-is)
-    INNER_WIDTH = FRAME_WIDTH  # inner content width between the two ║
+    # Same rounded-corner family and width as the banner (_PANEL_WIDTH), so
+    # the banner / summary / analysis panels all read as one continuous
+    # report instead of three differently-styled boxes.
+    FRAME_WIDTH = _PANEL_WIDTH
+    INNER_WIDTH = FRAME_WIDTH  # inner content width between the two │
 
     def _box_top():
-        print(f"\n{C}  ╔{'═' * FRAME_WIDTH}╗{R}")
+        print(f"\n{C}  ╭{'─' * FRAME_WIDTH}╮{R}")
     def _box_sep():
-        print(f"{C}  ╠{'═' * FRAME_WIDTH}╣{R}")
+        print(f"{C}  ├{'─' * FRAME_WIDTH}┤{R}")
 
     def _box_bottom():
-        print(f"{C}  ╚{'═' * FRAME_WIDTH}╝{R}\n")
+        print(f"{C}  ╰{'─' * FRAME_WIDTH}╯{R}\n")
     def _box_line(content: str):
-        print(f"{C}  ║{R}{_vpad(content, INNER_WIDTH)}{C}║{R}")
+        print(f"{C}  │{R}{_vpad(content, INNER_WIDTH)}{C}│{R}")
 
     # ── Fixed-width progress bar (exact visual width) ────────────────────
     def _bar_fixed(n: int, tot: int, width: int = 16, col: str = Colors.GREEN) -> str:
@@ -3028,13 +3107,21 @@ Examples:
 
     _box_sep()
 
-    # footer file paths
-    _box_line(f"  {D}TXT {R}  {D}{txtFile}{R}")
-    _box_line(f"  {D}HTML{R}  {D}{htmlFile}{R}")
-    _box_line(f"  {D}CSV {R}  {D}{csvFile}{R}")
-    _box_line(f"  {D}XLSX{R}  {D}{xlsxFile}{R}")
+    # footer file paths. A long --out directory (arbitrary user input, plus a
+    # timestamped subfolder) can be longer than the panel is wide, so the
+    # path itself must be truncated to fit BEFORE it is wrapped in a colour
+    # code - otherwise it silently overflows the right border, since _vpad()
+    # only pads short content and is correctly a no-op (not a truncator) on
+    # content that is already too wide.
+    _pathBudget = INNER_WIDTH - len("  " + "X" * 4 + "  ")  # 2-indent + 4-char tag + 2 spaces
+    def _reportLine(tag: str, path: str) -> None:
+        _box_line(f"  {D}{tag:<4}{R}  {D}{_vtruncFront(path, _pathBudget)}{R}")
+    _reportLine("TXT", txtFile)
+    _reportLine("HTML", htmlFile)
+    _reportLine("CSV", csvFile)
+    _reportLine("XLSX", xlsxFile)
     if jsonFile:
-        _box_line(f"  {D}JSON{R}  {D}{jsonFile}{R}")
+        _reportLine("JSON", jsonFile)
 
     _box_bottom()
 
