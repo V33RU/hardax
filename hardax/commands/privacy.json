@@ -29,42 +29,6 @@
     },
     {
       "category": "PRIVACY",
-      "label": "Fingerprint Enrolled",
-      "command": "settings get secure fingerprint_enrolled_fingers",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Check if fingerprint authentication is enrolled",
-      "remediation": "Enroll a fingerprint in Settings > Security > Fingerprint for stronger auth."
-    },
-    {
-      "category": "PRIVACY",
-      "label": "Face Unlock Status",
-      "command": "settings get secure face_unlock_method",
-      "safe_pattern": "^(0|null)$",
-      "level": "warning",
-      "description": "Face unlock may be less secure than fingerprint",
-      "remediation": "Disable face unlock in Settings > Security and use fingerprint or PIN instead."
-    },
-    {
-      "category": "PRIVACY",
-      "label": "Auto-Lock After Biometric",
-      "command": "settings get secure lock_screen_lock_after_timeout",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Auto-lock timeout after biometric failure",
-      "remediation": "Set a short auto-lock timeout in Settings > Security > Screen lock timeout."
-    },
-    {
-      "category": "PRIVACY",
-      "label": "Biometric Keyguard Enabled",
-      "command": "settings get secure biometric_keyguard_enabled",
-      "safe_pattern": "^1$",
-      "level": "warning",
-      "description": "Biometric keyguard should be enabled for secure unlock",
-      "remediation": "Enable biometric keyguard in Settings > Security > Biometrics."
-    },
-    {
-      "category": "PRIVACY",
       "label": "Clipboard Access Notification",
       "command": "settings get secure show_clipboard_access_notification",
       "safe_pattern": "^1$",
@@ -288,16 +252,6 @@
       "level": "warning",
       "description": "Clipboard history should be disabled to prevent data leaks",
       "remediation": "Disable clipboard history in your keyboard settings or use a clipboard manager with auto-clear.",
-      "empty_is_safe": true
-    },
-    {
-      "category": "PRIVACY",
-      "label": "Biometric Strength",
-      "command": "dumpsys biometric | grep 'Strength='",
-      "safe_pattern": "=STRONG",
-      "level": "warning",
-      "description": "Biometric auth should be 'STRONG' (not 'WEAK'). Empty if no biometric hardware.",
-      "remediation": "Use a device with STRONG biometric hardware or fall back to PIN/password.",
       "empty_is_safe": true
     },
     {
