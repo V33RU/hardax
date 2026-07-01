@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/V33RU/hardax/blob/main/hardax/commands.schema.json",
+  "title": "HARDAX command file",
+  "description": "Schema for a HARDAX security-check file (commands/*.json). A file is either an array of checks or an object with a 'checks' array.",
+  "oneOf": [
+    { "type": "array", "items": { "$ref": "#/definitions/check" } },
+    {
+      "type": "object",
+      "required": ["checks"],
+      "properties": {
+        "checks": { "type": "array", "items": { "$ref": "#/definitions/check" } }
+      },
+      "additionalProperties": true
+    }
+  ],
+  "definitions": {
+    "check": {
+      "type": "object",
+      "required": ["category", "label", "command", "safe_pattern", "level", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "category": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "command": { "type": "string" },
+        "safe_pattern": { "type": "string", "description": "Regex; output matching it is SAFE. Must be a valid Python regex." },
+        "level": {
+          "type": "string",
+          "enum": ["info", "warning", "critical", "verify", "high", "medium", "low"],
+          "description": "Severity. Mapped to buckets: critical/high -> critical, warning/medium -> warning, else info."
+        },
+        "description": { "type": "string" },
+        "remediation": { "type": "string" },
+        "id": { "type": "string", "description": "Unique check identifier (e.g. BT-001). Must be unique across all command files." },
+        "empty_is_safe": { "type": "boolean" },
+        "null_is_safe": { "type": "boolean" },
+        "requires_output": { "type": "boolean" },
+        "requires_manual_review": { "type": "boolean" },
+        "requires_root": { "type": "boolean" },
+        "baseline_key": { "type": "string", "description": "Opts the check into --save-baseline/--baseline tamper detection under this key." },
+        "why": { "type": "string" },
+        "risk_if_fail": { "type": "string" },
+        "notes": { "type": "string" },
+        "fail_pattern": { "type": "string" },
+        "severity": { "type": "string" },
+        "type": { "type": "string" },
+        "control_area": { "type": "string" },
+        "expected_secure_state": { "type": "string" },
+        "cis_id": { "type": "string" },
+        "cis_level": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "platforms": { "type": "array", "items": { "type": "string" } },
+        "nist_800_53": { "type": "string" },
+        "nist_800_121": { "type": "string" },
+        "nist_sp_800_121_rev2": { "type": "string" }
+      }
+    }
+  }
+}
