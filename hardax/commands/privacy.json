@@ -74,12 +74,12 @@
     },
     {
       "category": "PRIVACY",
-      "label": "Screenshot Prevention",
-      "command": "settings get secure screensaver_enabled",
-      "safe_pattern": ".",
+      "label": "Screen Capture Disabled (Device Policy)",
+      "command": "D=$(dumpsys device_policy 2>/dev/null | grep -iE 'screen ?capture ?disabled|mScreenCaptureDisabled' | head -3); [ -z \"$D\" ] && echo NO_POLICY || echo \"$D\"",
+      "safe_pattern": "true|=1|disabled=true",
       "level": "info",
-      "description": "Screensaver/daydream configuration",
-      "remediation": "Disable screensaver in Settings > Display > Screen saver to prevent info leaks."
+      "description": "Reports whether a device/profile owner has disabled screen capture (screenshots and screen recording) via DevicePolicyManager.setScreenCaptureDisabled. On a managed kiosk, POS, medical or BYOD-work-profile device that handles sensitive on-screen data, screen capture should be disabled by policy so content cannot be exfiltrated via screenshots or screen recording. NO_POLICY means no admin has set the restriction (screenshots are allowed), which is the stock default and reported as INFO rather than a failure, since it is only a finding on devices that are meant to be locked down. This replaces an earlier check that mistakenly read the unrelated screensaver_enabled setting.",
+      "remediation": "On a managed device, have the DPC call DevicePolicyManager.setScreenCaptureDisabled(admin, true). This blocks screenshots, screen recording and non-system screen sharing for the affected user/profile. There is no stock user-facing toggle; it requires a device or profile owner."
     },
     {
       "category": "PRIVACY",
