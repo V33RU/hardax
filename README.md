@@ -8,7 +8,7 @@
   <a href="https://pypi.org/project/hardax/">
     <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg" alt="Python 3.10 | 3.11 | 3.12">
   </a>
-  <img src="https://img.shields.io/badge/checks-777-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-780-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-28-purple.svg" alt="Categories">
   <a href="https://github.com/V33RU/hardax/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
@@ -34,7 +34,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **777 security checks** across **28 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **780 security checks** across **28 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -49,7 +49,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **777 Security Checks** | Comprehensive coverage across 28 security categories |
+| **780 Security Checks** | Comprehensive coverage across 28 security categories |
 | **Deterministic Analysis Engine** | Offline risk score (0-100), attack-chain correlation, prioritised remediation - reasons only over confirmed findings, no LLM, no network, no hallucination |
 | **Optional AI Narrative** | Opt-in `--ai` LLM summary on top of the deterministic engine (local Ollama, or Anthropic/OpenAI with your own key). Sends only the redacted analysis summary, never raw device output. Off by default |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
@@ -319,7 +319,7 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **777 checks** into **28 security categories**:
+HARDAX organizes **780 checks** into **28 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
@@ -434,7 +434,7 @@ HARDAX/
     ├── ai.py              # Optional opt-in LLM narrative (Ollama/Anthropic/OpenAI, stdlib only)
     ├── templates/
     │   └── report.html    # Interactive HTML report template
-    └── commands/          # Security check definitions (777 checks, 28 categories)
+    └── commands/          # Security check definitions (780 checks, 28 categories)
         ├── system.json        #  86 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator, WebView
         ├── bluetooth.json     #  82 checks - BLE/Classic, pairing, all profiles
         ├── network.json       #  61 checks - Ports, WiFi, VPN, IoT protocols, Allow 2G, hotspot WPA
@@ -496,6 +496,7 @@ HARDAX/
 - [x] Fix a Windows-only stdout/stderr encoding crash, a CSV unbounded-result bug, 9 `binary_hardening.json` shell-precedence bugs (PIE/canary/RELRO/NX/FORTIFY checks), and CLI visibility for redirected/logged runs and narrow terminals - all found by running HARDAX end-to-end against a real device (v5.18.0)
 - [x] CLI visual redesign: one rounded-corner box family reserved for panels that print once or redraw in place (banner, live HUD, final summary, final analysis), boxless hairline-rule category headers instead of a 3-line box repeated per category, a `❯_ HARDAX` wordmark, a strict two-role colour discipline (structure vs. severity), a guaranteed space between every status icon and its count (some terminal fonts render icons like ⚠ at double width), and terminal-width-aware truncation for `--show-commands` command/remediation lines so nothing needs horizontal scrolling - chosen from an independently-judged panel of 3 redesign directions and verified on both native Windows console and git-bash/mintty (v5.19.0)
 - [x] 10 new checks from a 2025-2026 Android security feature gap analysis: null cipher protection (A14+) and cellular identifier disclosure notifications (A16+) - the first cellular-security checks in `network.json`; Certificate Transparency platform flags (A16+); Private Space profile (A15+); Intrusion Logging / Advanced Protection service state (A16+); Advanced Protection subfeature audit and KeyMint post-quantum readiness (A17+); io_uring restriction and 16KB page-size build (kernel); pKVM/AVF protected-VM support (v5.20.0)
+- [x] 3 new exploited-in-the-wild CVE indicators: LANDFALL Samsung spyware chain (CVE-2025-21042/21043, CISA KEV, zero-click via DNG images, Samsung-gated), the December 2025 Framework zero-day pair (CVE-2025-48633/48572), and the June 2026 zero-interaction remote privesc (CVE-2025-48595); plus a fix to the Screenshot Prevention check which mistakenly read the unrelated `screensaver_enabled` setting instead of the DevicePolicyManager screen-capture-disabled policy (v5.21.0)
 
 ### Open
 
