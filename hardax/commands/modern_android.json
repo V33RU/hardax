@@ -101,6 +101,52 @@
       "description": "Android 17 (API 37) introduced the ACCESS_LOCAL_NETWORK runtime permission (NEARBY_DEVICES group). Apps must hold it to reach the local network - LAN device discovery and direct socket connections to other hosts on the same network. This enumerates every third-party app granted it. On a POS, kiosk, medical or IoT deployment only the operator/integration app should reach the LAN; unexpected grants widen the local attack surface and can enable lateral movement or data exfiltration to other devices on the network. Empty output on A17+ means no third-party app holds it (SAFE). Pre-A17 builds report PRE_A17_SDK_<n>.",
       "remediation": "Revoke from apps that do not need LAN access: 'pm revoke <pkg> android.permission.ACCESS_LOCAL_NETWORK'. Prefer the system-mediated device pickers where possible, and review remaining grants against the approved app list.",
       "empty_is_safe": true
+    },
+    {
+      "id": "MOD-A15-PRIVATE-SPACE-001",
+      "category": "MODERN_ANDROID",
+      "label": "Private Space Profile Present (Android 15+)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 35 ] 2>/dev/null; then echo \"PRE_A15_SDK_$SDK\"; else P=$(pm list users -v 2>/dev/null | grep -i private | head -3); [ -z \"$P\" ] && echo NO_PRIVATE_SPACE || echo \"$P\"; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Android 15 (API 35) added Private Space: a separate, biometric/PIN-locked user profile (user type profile.PRIVATE) whose apps and notifications are hidden from the main profile and paused when locked. On a personal or BYOD device its presence is a privacy-hardening plus (sensitive apps isolated from casual device access). On a locked-down single-purpose deployment (POS, kiosk, medical) an unexpected private profile is a review item because it provides a hidden app installation surface. Reported as INFO either way: NO_PRIVATE_SPACE means no private profile exists; a line naming a private profile means one is configured. Pre-A15 builds report PRE_A15_SDK_<n>.",
+      "remediation": "Nothing to fix by default. On single-purpose fleets, review any private profile found and remove it if not sanctioned: identify the user id from 'pm list users -v' and run 'pm remove-user <id>'. On personal devices used by high-risk staff, consider recommending Private Space for sensitive apps.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "MOD-A16-INTRUSION-LOG-001",
+      "category": "MODERN_ANDROID",
+      "label": "Intrusion Logging / Advanced Protection Service State (Android 16+)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 36 ] 2>/dev/null; then echo \"PRE_A16_SDK_$SDK\"; else D=$(dumpsys advanced_protection 2>/dev/null | head -20); [ -z \"$D\" ] && echo NO_SERVICE_OUTPUT || echo \"$D\"; fi",
+      "safe_pattern": ".",
+      "level": "verify",
+      "description": "Android 16's Advanced Protection includes Intrusion Logging (rolling out since the Android 16 December 2025 update): activity logs (USB connections, network info, app installs, Bluetooth pairing, lock screen events) are backed up end-to-end encrypted to the user's Google account in a tamper-resistant way, so a suspected compromise can be investigated after the fact. State lives in the system advanced_protection service; this check dumps its state for manual review because the dump format is undocumented and varies by build. NO_SERVICE_OUTPUT means the service is absent or empty on this build (common on non-Pixel A16 builds until the feature reaches them). Pre-A16 builds report PRE_A16_SDK_<n>.",
+      "remediation": "For high-risk users, enable Advanced Protection (Settings > Security and privacy > Advanced Protection) and opt in to Intrusion Logging when prompted, choosing a Google account for the encrypted log backup. Review the dumped state to confirm the expected subfeatures are on.",
+      "empty_is_safe": false,
+      "requires_manual_review": true
+    },
+    {
+      "id": "MOD-A17-AP-SUBFEATURES-001",
+      "category": "MODERN_ANDROID",
+      "label": "Advanced Protection Subfeature Audit (Android 17+)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 37 ] 2>/dev/null; then echo \"PRE_A17_SDK_$SDK\"; else D=$(dumpsys advanced_protection 2>/dev/null | grep -iE 'enabled|feature|usb|accessibility|webgpu|unlock|scam|mte' | head -15); [ -z \"$D\" ] && echo NO_SERVICE_OUTPUT || echo \"$D\"; fi",
+      "safe_pattern": ".",
+      "level": "verify",
+      "description": "Android 17 expands Advanced Protection beyond the Android 16 baseline: it removes accessibility-service access from non-accessibility apps, disables device-to-device unlocking, disables Chrome WebGPU, and integrates scam detection for chat notifications, alongside the existing USB lock protection and MTE enforcement. The companion MOD-A16-APP-001 check only confirms the mode master toggle; this check extracts the per-subfeature lines from the advanced_protection service dump for manual review, since subfeature availability differs by OEM and rollout wave. NO_SERVICE_OUTPUT means the service dump exposes nothing greppable on this build. Pre-A17 builds report PRE_A17_SDK_<n>.",
+      "remediation": "Enable Advanced Protection in Settings > Security and privacy > Advanced Protection and review the dumped subfeature state against the deployment's threat model. For managed fleets, Android Enterprise support for Advanced Protection is rolling out during 2026; track DPC support to enforce it by policy.",
+      "empty_is_safe": false,
+      "requires_manual_review": true
+    },
+    {
+      "id": "MOD-A17-KEYMINT-PQC-001",
+      "category": "MODERN_ANDROID",
+      "label": "KeyMint Version / Post-Quantum Readiness (Android 17+)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 37 ] 2>/dev/null; then echo \"PRE_A17_SDK_$SDK\"; else F=$(pm list features 2>/dev/null | grep -i 'hardware_keystore' | head -2); K=$(getprop ro.hardware.keystore 2>/dev/null); echo \"${F:-NO_KEYSTORE_FEATURE} hal=${K:-unknown}\"; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Android 17 introduces post-quantum cryptography support: devices with a new-enough KeyMint can generate ML-DSA (Module-Lattice Digital Signature Algorithm) keys in secure hardware, and the platform adds APK Signature Scheme v3.2 combining classical and ML-DSA signatures. This reports the android.hardware.hardware_keystore feature version (the number after '=' is the KeyMint feature level, e.g. 300) plus the keystore HAL property, so an auditor can record whether the device's secure hardware generation is PQC-capable. Informational: PQC availability depends on the KeyMint version shipped by the SoC vendor, and most 2026 fleet hardware will not have it yet. Pre-A17 builds report PRE_A17_SDK_<n>.",
+      "remediation": "Nothing to fix on-device. For long-lived deployments handling data that must stay confidential for many years, prefer hardware whose KeyMint version supports ML-DSA key generation when refreshing the fleet.",
+      "empty_is_safe": false
     }
   ]
 }

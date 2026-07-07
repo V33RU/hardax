@@ -818,6 +818,26 @@
       "null_is_safe": true,
       "description": "WebView SafeBrowsing protects in-app web content from malicious URLs (similar to Chrome SafeBrowsing). Null or empty means the per-device override is unset and WebView uses its own default (typically enabled). Explicit 0 means an admin or app has disabled it.",
       "remediation": "If the value is 0, restore WebView default by clearing the setting: 'settings delete global webview_safe_browsing_state'."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "io_uring Restriction (kernel 6.6+)",
+      "command": "V=$(cat /proc/sys/kernel/io_uring_disabled 2>/dev/null); [ -z \"$V\" ] && echo NO_SYSCTL || echo \"$V\"",
+      "safe_pattern": "^(NO_SYSCTL|[12])$",
+      "level": "warning",
+      "description": "io_uring has been one of the most productive Linux kernel exploitation surfaces of recent years (a large share of kernel LPE bugs and exploit-competition wins). Android restricts it two ways: seccomp blocks it for untrusted apps, and GKI 6.6+ kernels expose the kernel.io_uring_disabled sysctl. 2 = io_uring disabled for everyone (strongest). 1 = restricted to privileged processes (Android's hardened default on kernels that ship the knob). 0 = unrestricted, which needlessly re-opens a major kernel attack surface and fails this check. NO_SYSCTL = the kernel predates the knob (5.x GKI); those builds rely on seccomp alone and are reported as acceptable rather than failing, since the sysctl simply does not exist there.",
+      "remediation": "If the value is 0, restore the restriction: 'echo 2 > /proc/sys/kernel/io_uring_disabled' (root), and fix whatever init/vendor script relaxed it so the setting survives reboot. Value 1 or 2 is expected stock posture on Android 15+ devices with 6.6+ kernels.",
+      "empty_is_safe": false
+    },
+    {
+      "category": "SYSTEM",
+      "label": "16KB Page Size Build",
+      "command": "V=$(getprop ro.product.build.16k_page.enabled 2>/dev/null); P=$(getconf PAGE_SIZE 2>/dev/null); echo \"16k_build=${V:-unset} page_size=${P:-unknown}\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Android 15+ supports 16KB memory pages (and Android 16+ requires new device support for it on arm64). Larger pages are primarily a performance feature, but they also perturb heap-grooming and page-spray assumptions baked into many public kernel and userspace exploits, so recording the page size is useful audit context when assessing exploit exposure. Reports the 16KB build property and the runtime PAGE_SIZE (4096 or 16384). Informational only: 4KB remains a fully supported, secure configuration.",
+      "remediation": "Nothing to fix. When refreshing fleet hardware, note that Android 16+ launch devices increasingly ship 16KB-page kernels, and in-house native code (JNI .so files) must be rebuilt with 16KB-aligned ELF segments to run on them.",
+      "empty_is_safe": false
     }
   ]
 }
