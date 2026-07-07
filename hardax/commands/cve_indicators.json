@@ -392,6 +392,42 @@
       "null_is_safe": false,
       "description": "Use-after-free in Qualcomm FastRPC / DSP service while maintaining memory maps of HLOS memory. Spyware-chain zero-day, actively exploited per CISA KEV (October 2024). Affects Snapdragon 8 Gen 1/2/3, FastConnect 6700/6800/6900/7800, automotive SA/SG, audio WCD. Patched in Qualcomm October 2024 security bulletin.",
       "remediation": "Install the 2024-10-01 or later vendor security patch level. Compare ro.vendor.build.security_patch (or ro.build.version.security_patch on devices without separate vendor SPL)."
+    },
+    {
+      "id": "CVE-035",
+      "category": "CVE_INDICATORS",
+      "label": "LANDFALL spyware chain (CVE-2025-21042 / CVE-2025-21043, CISA KEV) - Samsung",
+      "command": "sh -c 'mfg=$(getprop ro.product.manufacturer 2>/dev/null); brand=$(getprop ro.product.brand 2>/dev/null); sp=$(getprop ro.build.version.security_patch 2>/dev/null | tr -d -); sam=0; case \"${mfg}${brand}\" in *[Ss]amsung*) sam=1 ;; esac; if [ \"$sam\" = \"0\" ]; then echo \"NOT_AFFECTED non-Samsung mfg=${mfg:-?}\"; elif [ -z \"$sp\" ]; then echo \"UNKNOWN Samsung device, no security_patch\"; elif [ \"$sp\" -lt \"20250401\" ]; then echo \"POTENTIALLY_VULNERABLE samsung patch=$sp pre-2025-04-01 (CVE-2025-21042 unpatched)\"; elif [ \"$sp\" -lt \"20250901\" ]; then echo \"POTENTIALLY_VULNERABLE samsung patch=$sp pre-2025-09-01 (CVE-2025-21043 unpatched)\"; else echo \"LIKELY_PATCHED samsung patch=$sp\"; fi'",
+      "safe_pattern": "^(NOT_AFFECTED|LIKELY_PATCHED)",
+      "level": "critical",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Out-of-bounds write vulnerabilities in the Samsung image codec library libimagecodec.quram.so, exploited zero-click via malicious DNG images (delivered over WhatsApp) to deploy the commercial-grade LANDFALL Android spyware against Samsung Galaxy devices. Campaign active since mid-2024, uncovered by Unit 42, added to CISA KEV in November 2025. CVE-2025-21042 was patched in the Samsung April 2025 SMR; the related CVE-2025-21043 was patched in September 2025. A Samsung device is only fully clear of the chain at security patch level 2025-09-01 or later. Non-Samsung devices report NOT_AFFECTED.",
+      "remediation": "Install the Samsung September 2025 security maintenance release (patch level 2025-09-01) or later. On managed Samsung fleets, treat any device below this SPL as high priority, this chain has been used in targeted, zero-click spyware attacks."
+    },
+    {
+      "id": "CVE-036",
+      "category": "CVE_INDICATORS",
+      "label": "Android Framework zero-day pair (CVE-2025-48633 / CVE-2025-48572, exploited)",
+      "command": "sh -c 'sp=$(getprop ro.build.version.security_patch 2>/dev/null | tr -d -); if [ -z \"$sp\" ]; then echo \"UNKNOWN no security_patch\"; elif [ \"$sp\" -lt \"20251201\" ]; then echo \"POTENTIALLY_VULNERABLE patch=$sp pre-2025-12-01\"; else echo \"LIKELY_PATCHED patch=$sp\"; fi'",
+      "safe_pattern": "^LIKELY_PATCHED",
+      "level": "critical",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Two Android Framework flaws flagged for limited, targeted in-the-wild exploitation in the December 2025 Android Security Bulletin: CVE-2025-48633 (High, information disclosure) and CVE-2025-48572 (High, local elevation of privilege). Both affect Android 13, 14, 15 and 16. Patched at security patch level 2025-12-01.",
+      "remediation": "Install the 2025-12-01 or later Android security patch level."
+    },
+    {
+      "id": "CVE-037",
+      "category": "CVE_INDICATORS",
+      "label": "Framework remote privesc, zero-interaction (CVE-2025-48595, exploited)",
+      "command": "sh -c 'sp=$(getprop ro.build.version.security_patch 2>/dev/null | tr -d -); if [ -z \"$sp\" ]; then echo \"UNKNOWN no security_patch\"; elif [ \"$sp\" -lt \"20260601\" ]; then echo \"POTENTIALLY_VULNERABLE patch=$sp pre-2026-06-01\"; else echo \"LIKELY_PATCHED patch=$sp\"; fi'",
+      "safe_pattern": "^LIKELY_PATCHED",
+      "level": "critical",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Critical Android Framework vulnerability highlighted in the June 2026 Android Security Bulletin, enabling remote privilege escalation with no user interaction (no link click, app install, or other action required). Affects Android 14, 15, 16 and 16 QPR2. Patched at security patch level 2026-06-01.",
+      "remediation": "Install the 2026-06-01 or later Android security patch level."
     }
   ]
 }
