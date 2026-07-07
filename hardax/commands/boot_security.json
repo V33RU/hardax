@@ -258,6 +258,17 @@
       "description": "verifiedbootstate=yellow means the bootloader is LOCKED but boots an OS signed with a user-installed custom root of trust (a custom AVB key, e.g. one flashed to avb_custom_key). Verified boot is still enforced, but by a non-OEM key, so a custom or potentially unauthorized build is running under a locked bootloader. This is distinct from orange (fully UNLOCKED), which the 'vbmeta Device State', 'Bootloader Locked' and 'verifiedbootstate=green' checks already flag as critical - yellow is surfaced here as a warning so a custom-key deployment is not conflated with an unlocked device. Only 'yellow' fails this check. Reads /proc/cmdline, /proc/bootconfig (Android 12+) and getprop.",
       "remediation": "If a custom root of trust is not expected on this fleet, reflash OEM-signed firmware and remove the custom AVB key (e.g. 'fastboot erase avb_custom_key' on Pixel). If the custom key is intentional (an in-house signed build), record it as the expected state and baseline the root-of-trust fingerprint.",
       "empty_is_safe": true
+    },
+    {
+      "id": "BOOT-PKVM-001",
+      "category": "BOOT_SECURITY",
+      "label": "Protected KVM / AVF Support (pKVM)",
+      "command": "S=$(getprop ro.boot.hypervisor.protected_vm.supported 2>/dev/null); V=$(getprop ro.boot.hypervisor.version 2>/dev/null); N=$(getprop ro.boot.hypervisor.vm.supported 2>/dev/null); echo \"protected_vm=${S:-unset} vm=${N:-unset} hypervisor=${V:-none}\"",
+      "safe_pattern": "^protected_vm=1",
+      "level": "info",
+      "description": "Protected KVM (pKVM) is Android's hypervisor for the Android Virtualization Framework (AVF): it runs isolated protected VMs whose memory even a fully compromised Android kernel cannot read. It underpins Isolated Compilation, on-device Private Compute workloads and, on Android 17, AISeal (hardware-backed isolation for Private AI Compute). protected_vm=1 means the device boot-advertises pKVM protected-VM support (SAFE); unset/0 means the SoC or firmware does not expose it, which is the norm on most non-Pixel and older hardware and is reported as INFO rather than a failure. The hypervisor version string, when present, identifies the AVF generation.",
+      "remediation": "Nothing to fix on existing hardware; pKVM support is fixed by SoC and firmware. For high-assurance refresh cycles (devices processing sensitive data on-device, or Android 17 AI privacy features), prefer hardware that advertises protected_vm=1.",
+      "empty_is_safe": false
     }
   ]
 }
