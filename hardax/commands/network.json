@@ -570,6 +570,34 @@
       "null_is_safe": false,
       "description": "If the device hosts a Wi-Fi hotspot it should run WPA2 or WPA3 (SAE), never Open or WEP. Empty output means the hotspot is not active, which is also acceptable. Critical for any device that may act as an access point in the field.",
       "remediation": "If a hotspot is in use, configure it for WPA2-Personal or WPA3-Personal (SAE) under Settings > Network & internet > Hotspot & tethering."
+    },
+    {
+      "category": "NETWORK",
+      "label": "Null Cipher Protection (Android 14+)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 34 ] 2>/dev/null; then echo \"PRE_A14_SDK_$SDK\"; else V=$(settings get global null_cipher_and_integrity_protection_enabled 2>/dev/null); [ -z \"$V\" ] || [ \"$V\" = \"null\" ] && V=$(settings get global null_cipher_and_integrity_protection 2>/dev/null); [ -z \"$V\" ] || [ \"$V\" = \"null\" ] && echo UNSET || echo \"$V\"; fi",
+      "safe_pattern": "^(PRE_A14_SDK_|1)$",
+      "level": "info",
+      "description": "Android 14 added the ability to reject null-ciphered (unencrypted) cellular connections at the modem, so circuit-switched voice and SMS can no longer be silently downgraded to no encryption by a rogue base station and passively intercepted over the air. Requires radio HAL 2.0+, and the OEM chooses whether to expose the toggle (Settings > Network & internet > SIMs > Require encryption). 1 = protection enabled (SAFE). UNSET = the user has not enabled it, the modem does not support it, or this build stores the toggle under a different key - reported as INFO, not a finding, because the exact settings key is not confirmed across OEM builds. Verify the toggle's presence in the Mobile network settings UI when UNSET. Complements the 'Allow 2G Disabled' check: 2G-off blocks the legacy downgrade path, null-cipher protection blocks unencrypted connections on modern radio layers.",
+      "remediation": "On Android 14+ with radio HAL 2.0+, enable encryption requirement under Settings > Network & internet > SIMs > Require encryption. For cellular POS terminals and other devices carrying sensitive traffic over mobile data, treat modem-level encryption enforcement as required posture alongside disabling 2G."
+    },
+    {
+      "category": "NETWORK",
+      "label": "Cellular Identifier Disclosure Notifications (Android 16+)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 36 ] 2>/dev/null; then echo \"PRE_A16_SDK_$SDK\"; else V=$(settings get global cellular_identifier_disclosure_notifications_enabled 2>/dev/null); [ -z \"$V\" ] || [ \"$V\" = \"null\" ] && V=$(settings get global enable_cellular_identifier_disclosure_notifications 2>/dev/null); [ -z \"$V\" ] || [ \"$V\" = \"null\" ] && echo UNSET || echo \"$V\"; fi",
+      "safe_pattern": "^(PRE_A16_SDK_|1)$",
+      "level": "info",
+      "description": "Android 16 added a Mobile network security section (Settings Safety Center) with a toggle that raises system notifications when the device connects to an unencrypted cellular network or when the network requests device identifiers such as IMSI or IMEI - the tell-tale behavior of IMSI catchers (Stingrays) and rogue base stations. 1 = notifications enabled (SAFE). UNSET = not enabled, unsupported modem (requires radio HAL 3.0+), or a different key on this OEM build - reported as INFO because the exact settings key is not confirmed across OEM builds. For journalists, executives and field staff in hostile RF environments this toggle is the only stock-Android visibility into cell-network identifier harvesting.",
+      "remediation": "On Android 16+ with a supporting modem, enable network notifications under Settings > Security & privacy > Mobile network security. Combine with 'Allow 2G Disabled' and 'Null Cipher Protection' for full stock-Android cellular defense."
+    },
+    {
+      "category": "NETWORK",
+      "label": "Certificate Transparency Platform Flags (Android 16+)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 36 ] 2>/dev/null; then echo \"PRE_A16_SDK_$SDK\"; else CT=$(device_config list network_security 2>/dev/null | grep -i certificate_transparency | head -5); [ -z \"$CT\" ] && echo NO_CT_FLAGS || echo \"$CT\"; fi",
+      "safe_pattern": ".",
+      "level": "verify",
+      "description": "Android 16 introduced platform support for Certificate Transparency (CT) verification: TLS certificates can be checked against public append-only CT logs, defeating mis-issued or covertly issued certificates that chain to a trusted CA. Enforcement is controlled by device_config flags in the network_security namespace (delivered via Google Play services) plus per-app opt-in through networkSecurityConfig. This dumps any certificate_transparency flags currently set, for manual review: flag names and defaults are server-controlled and change across rollout waves, so no fixed safe value exists. NO_CT_FLAGS means no CT flag is currently set on this device (enforcement follows the platform default). Pre-A16 builds report PRE_A16_SDK_<n>.",
+      "remediation": "No direct device-side fix. For in-house apps, opt in to CT enforcement via networkSecurityConfig (certificateTransparency enabled) so mis-issued certificates are rejected even before platform-wide enforcement reaches this device.",
+      "requires_manual_review": true
     }
   ]
 }
