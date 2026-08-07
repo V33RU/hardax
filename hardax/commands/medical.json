@@ -109,6 +109,16 @@
       "description": "Detects Android companion / programmer apps for cardiac implantable electronic devices (CIEDs): pacemakers, ICDs, CRT-D. App presence on a legitimate clinical programmer is expected and not itself a vulnerability, so this is informational - it surfaces the device class for manual review. The St Jude Merlin@home (CVE-2017-12712), Medtronic CareLink 2090 (CVE-2018-8870), and Abbott (CVE-2019-19550) cases all involved unencrypted or weakly-authenticated telemetry that allowed an attacker within RF range to read or alter pacing settings. If such an app is installed, verify the radio link uses encrypted, authenticated programming.",
       "remediation": "Confirm the implant firmware enforces encrypted, authenticated MICS/BLE telemetry and that the companion app rejects sessions over plaintext channels. Restrict the app to a managed work profile and require biometric/PIN before any reprogramming action.",
       "empty_is_safe": true
+    },
+    {
+      "id": "MED-HEALTHCONNECT-001",
+      "category": "MEDICAL",
+      "label": "Health Connect Data Store Present",
+      "command": "P=$(pm list packages 2>/dev/null | grep -iE 'healthdata|health\\.connect' | sed 's/^package://' | tr '\\n' ' '); N=$(pm list permissions 2>/dev/null | grep -c 'permission.health'); echo \"health_connect=${P:-none} health_permissions_declared=${N:-0}\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Health Connect is the on-device store that aggregates health and fitness records (heart rate, sleep, blood glucose, steps, cycle tracking) from every app that writes to it, and became a platform component in Android 14. It concentrates data that is individually low-value into one queryable store guarded by the android.permission.health.* permission family. This reports whether the store is installed and how many health permissions the platform declares. Informational: presence on a consumer or clinical device is expected. It is reported so an auditor knows a consolidated health record exists on the device and can review which apps hold read access to it.",
+      "remediation": "Review granted health permissions per app in Settings > Security and privacy > Privacy > Health Connect and revoke read access for any app that does not need it. On managed devices, treat Health Connect as regulated data at rest and confirm it falls inside the device encryption and remote wipe policy."
     }
   ]
 }
