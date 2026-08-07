@@ -8,7 +8,7 @@
   <a href="https://pypi.org/project/hardax/">
     <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg" alt="Python 3.10 | 3.11 | 3.12">
   </a>
-  <img src="https://img.shields.io/badge/checks-780-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-788-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-28-purple.svg" alt="Categories">
   <a href="https://github.com/V33RU/hardax/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
@@ -34,7 +34,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **780 security checks** across **28 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **788 security checks** across **28 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -49,7 +49,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **780 Security Checks** | Comprehensive coverage across 28 security categories |
+| **788 Security Checks** | Comprehensive coverage across 28 security categories |
 | **Deterministic Analysis Engine** | Offline risk score (0-100), attack-chain correlation, prioritised remediation - reasons only over confirmed findings, no LLM, no network, no hallucination |
 | **Optional AI Narrative** | Opt-in `--ai` LLM summary on top of the deterministic engine (local Ollama, or Anthropic/OpenAI with your own key). Sends only the redacted analysis summary, never raw device output. Off by default |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
@@ -319,15 +319,15 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **780 checks** into **28 security categories**:
+HARDAX organizes **788 checks** into **28 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
-| **SYSTEM** | 86 | Kernel, memory, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, time, power, build properties, emulator detection, SIM status, device provisioning, WebView |
+| **SYSTEM** | 90 | Kernel, memory, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, time, power, build properties, emulator detection, SIM status, device provisioning, WebView, Scudo/GWP-ASan allocator hardening, GKI kernel and module loading |
 | **BLUETOOTH** | 82 | BLE/Classic, pairing, profiles (PAN, HFP, A2DP, HID, SPP, OPP, MAP), L2CAP, ATT, SMP, GAP, attack surfaces |
-| **NETWORK** | 61 | Ports, WiFi, cellular (incl. Allow 2G), VPN, MQTT, CoAP, CAN bus, HL7, DICOM, hotspot WPA mode, active connections |
-| **PRIVACY** | 42 | Screen lock, location, sensors, clipboard, audio, Android 13+ Restricted Settings |
-| **APPS** | 47 | Permissions, overlay attacks, install sources, backup audit, APK signature scheme, QUERY_ALL_PACKAGES, REQUEST_INSTALL_PACKAGES |
+| **NETWORK** | 65 | Ports, WiFi, cellular (incl. Allow 2G), VPN, MQTT, CoAP, CAN bus, HL7, DICOM, hotspot WPA mode, active connections, eSIM/eUICC provisioning |
+| **PRIVACY** | 43 | Screen lock, location, sensors, clipboard, audio, Android 13+ Restricted Settings, Credential Manager / passkey provider |
+| **APPS** | 48 | Permissions, overlay attacks, install sources, backup audit, APK signature scheme, QUERY_ALL_PACKAGES, REQUEST_INSTALL_PACKAGES, SDK Runtime (Privacy Sandbox) |
 | **BINARY_HARDENING** | 36 | PIE, NX, RELRO, stack canaries, stripped symbols, ASLR, kptr_restrict |
 | **PARTITION** | 35 | dm-verity, OverlayFS, A/B slots, FBE/FDE, mount flags (noexec / nosuid / nodev on /data, /storage/emulated, /mnt/media_rw, /cache, /metadata), block device permissions |
 | **SELINUX** | 30 | SELinux enforcement, policy version, audit, context, boot flags |
@@ -335,20 +335,20 @@ HARDAX organizes **780 checks** into **28 security categories**:
 | **POS_SECURITY** | 24 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper, NFC relay, PAX CVE |
 | **STORAGE** | 24 | Filesystem, backup, encryption, partitions |
 | **FORENSIC_INDICATORS** | 22 | Crash history, kernel panics, logcat anomalies, temp artifacts, clipboard forensics |
-| **ATTESTATION** | 20 | SafetyNet/Play Integrity, Knox warranty bit, TIMA, RKP, Titan M, fs-verity, bypass detection |
+| **ATTESTATION** | 22 | SafetyNet/Play Integrity, Knox warranty bit, TIMA, RKP, Titan M, fs-verity, bypass detection, KeyMint HAL, remote key provisioning |
 | **AUTOMOTIVE** | 20 | Vehicle-specific checks, CAN bus, infotainment |
-| **BOOT_SECURITY** | 27 | Verified boot, AVB (VBMeta digest/hash-alg/size/version), dm-verity error modes (incl. restart, bootconfig-aware), custom root of trust (verifiedbootstate=yellow), bootloader, integrity |
+| **BOOT_SECURITY** | 28 | Verified boot, AVB (VBMeta digest/hash-alg/size/version), dm-verity error modes (incl. restart, bootconfig-aware), custom root of trust (verifiedbootstate=yellow), bootloader, integrity |
 | **CRYPTOGRAPHY** | 20 | Encryption, keys, credentials, API keys, certificates, kernel entropy, Widevine DRM level |
 | **MALWARE** | 18 | Root/Magisk/SuperSU, Frida, Xposed/LSPosed, RATs, keyloggers, memory scrapers, root cloaking |
 | **CIS_BENCHMARK** | 17 | CIS Android Benchmark v1.6.0 controls (89% coverage) |
 | **USB_SECURITY** | 16 | USB debugging, interfaces, serial ports, gadget mode |
-| **CVE_INDICATORS** | 33 | Dirty Pipe, Bad Binder, Dirty COW, MTK-su, Exynos baseband, Mali GPU, kernel CVE ranges, WebView debugging |
+| **CVE_INDICATORS** | 36 | Dirty Pipe, Bad Binder, Dirty COW, MTK-su, Exynos baseband, Mali GPU, kernel CVE ranges, WebView debugging |
 | **DEVICE_MANAGEMENT** | 13 | MDM, accounts, developer options |
 | **INPUT** | 12 | Keyboards, accessibility, input methods, IME INTERNET audit, kbd layout, clipboard auto-clear |
-| **MEDICAL** | 11 | Medical device-specific checks, IEEE 11073 PHD pairing, PACS C-STORE, insulin/cardiac telemetry |
+| **MEDICAL** | 12 | Medical device-specific checks, IEEE 11073 PHD pairing, PACS C-STORE, insulin/cardiac telemetry, Health Connect data store |
 | **NFC_SECURITY** | 9 | NFC state, Android Beam, tap-to-pay, reader mode, secure element (eSE/UICC), tag write protection, HCE AID priority |
 | **ADB_SECURITY** | 8 | ADB keys, network ADB allowlist, debugging, shell privilege, USB-debug notify, adbd integrity hash |
-| **MODERN_ANDROID** | 9 | Android 13/14/15/16/17 surface: Photo Picker, READ_MEDIA_*, POST_NOTIFICATIONS, FGS type, Theft Detection Lock, Identity Check, Restricted Networking, Advanced Protection, A17 Local Network Access |
+| **MODERN_ANDROID** | 13 | Android 13/14/15/16/17 surface: Photo Picker, READ_MEDIA_*, POST_NOTIFICATIONS, FGS type, Theft Detection Lock, Identity Check, Restricted Networking, Advanced Protection, A17 Local Network Access |
 | **MDM_POLICY** | 15 | DevicePolicyManager state via dumpsys device_policy: management state, keyguard/camera policy, lock/wipe, password, audit logging, USB signaling, Common Criteria, MTE, app control, permission policy, Wi-Fi lockdown, A15 privacy, system update, permitted accessibility/input |
 | **BIOMETRIC** | 5 | Fingerprint/face enrollment, biometric strength (Class 3 Strong vs Weak), biometric keyguard, auto-lock after biometric |
 
@@ -434,7 +434,7 @@ HARDAX/
     ├── ai.py              # Optional opt-in LLM narrative (Ollama/Anthropic/OpenAI, stdlib only)
     ├── templates/
     │   └── report.html    # Interactive HTML report template
-    └── commands/          # Security check definitions (780 checks, 28 categories)
+    └── commands/          # Security check definitions (788 checks, 28 categories)
         ├── system.json        #  86 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator, WebView
         ├── bluetooth.json     #  82 checks - BLE/Classic, pairing, all profiles
         ├── network.json       #  61 checks - Ports, WiFi, VPN, IoT protocols, Allow 2G, hotspot WPA

@@ -389,6 +389,17 @@
       "null_is_safe": false,
       "description": "Android 13 introduces Restricted Settings: when a sideloaded app tries to enable Accessibility, Notification Listener, Device Admin, or BindVpnService, Android blocks the toggle and shows a 'Restricted setting' dialog. Setting should be 1.",
       "remediation": "Ensure enhanced_confirmation_mode is 1. On Android 13+ this is on by default; if changed, restore it."
+    },
+    {
+      "id": "PRIV-CREDMGR-001",
+      "category": "PRIVACY",
+      "label": "Credential Manager / Passkey Provider",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); C=$(settings get secure credential_service 2>/dev/null); A=$(settings get secure autofill_service 2>/dev/null); echo \"sdk=${SDK:-unknown} credential_service=${C:-unset} autofill_service=${A:-unset}\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "description": "Android 14 introduced Credential Manager, the unified API that brokers passkeys, passwords, and federated sign-in. The selected providers are recorded in the secure settings credential_service and autofill_service keys as component names. A credential or autofill provider sees every credential the user is offered at sign-in time, so an attacker-installed provider is a full credential interception channel that needs no accessibility service and no root. Reported for review rather than as pass or fail because the legitimate provider differs by deployment (Google Password Manager, an enterprise password manager, an OEM vault), so only an operator can say which component name is expected. A value of 'null' means no provider is selected.",
+      "remediation": "Confirm every component name listed resolves to an approved package. Remove unrecognised providers, and on managed fleets restrict credential and autofill providers through the DPC allowlist so a sideloaded app cannot register as one.",
+      "requires_manual_review": true
     }
   ]
 }

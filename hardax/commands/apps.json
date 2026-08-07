@@ -446,6 +446,16 @@
       "null_is_safe": false,
       "description": "REQUEST_INSTALL_PACKAGES lets an app prompt the user to sideload APKs. Necessary for app stores, browsers, and file managers; abused by malware to drop payloads. On a locked-down kiosk or POS device the list should ideally be empty or limited to the OEM updater.",
       "remediation": "Review each listed app. On kiosk/POS devices, restrict this permission to the OEM update agent only; revoke it for browsers, file managers, and unknown apps."
+    },
+    {
+      "id": "APP-SDKSANDBOX-001",
+      "category": "APPS",
+      "label": "Sandboxed SDK Runtime (Privacy Sandbox)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 33 ] 2>/dev/null; then echo \"PRE_A13_SDK_$SDK\"; else P=$(pm list packages 2>/dev/null | grep -iE 'sdksandbox|adservices' | sed 's/^package://' | tr '\\n' ' '); echo \"sdk=$SDK runtime=${P:-not_present}\"; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "The SDK Runtime, part of Privacy Sandbox on Android, moves third-party advertising and analytics SDKs out of the host app process into a separate sandboxed process with its own restricted permissions and no access to the host app's storage or non-sandboxed permissions. This reports whether the SDK Runtime and AdServices packages are installed. It matters for audit scope: when the runtime is active, an SDK's data access is no longer implied by the host app's manifest permissions, so an app permission review alone no longer describes what a bundled SDK can reach. Informational, since the runtime's presence depends on the Android version and whether the build ships GMS.",
+      "remediation": "Nothing to fix on-device. When reviewing app permissions on a device with the SDK Runtime present, audit sandboxed SDK permissions separately from host app permissions rather than assuming the host manifest covers both."
     }
   ]
 }

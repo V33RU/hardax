@@ -838,6 +838,29 @@
       "description": "Android 15+ supports 16KB memory pages (and Android 16+ requires new device support for it on arm64). Larger pages are primarily a performance feature, but they also perturb heap-grooming and page-spray assumptions baked into many public kernel and userspace exploits, so recording the page size is useful audit context when assessing exploit exposure. Reports the 16KB build property and the runtime PAGE_SIZE (4096 or 16384). Informational only: 4KB remains a fully supported, secure configuration.",
       "remediation": "Nothing to fix. When refreshing fleet hardware, note that Android 16+ launch devices increasingly ship 16KB-page kernels, and in-house native code (JNI .so files) must be rebuilt with 16KB-aligned ELF segments to run on them.",
       "empty_is_safe": false
+    },
+    {
+      "id": "SYS-ALLOC-001",
+      "category": "SYSTEM",
+      "label": "Heap Allocator Hardening (Scudo / GWP-ASan)",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ]; then echo SDK_UNKNOWN; elif [ \"$SDK\" -lt 30 ] 2>/dev/null; then echo \"PRE_SCUDO_SDK_$SDK\"; else G=$(getprop 2>/dev/null | grep -c 'libc.debug.gwp_asan'); M=$(getprop libc.debug.malloc.options 2>/dev/null); echo \"SCUDO_DEFAULT sdk=$SDK gwp_asan_props=$G malloc_options=${M:-unset}\"; fi",
+      "safe_pattern": "^SCUDO_DEFAULT.*malloc_options=unset$",
+      "level": "warning",
+      "description": "Android 11 (API 30) made Scudo the default native heap allocator for all platform and app processes. Scudo adds chunk header checksums, delayed free lists, and randomised allocation that turn many heap overflow and use-after-free bugs into aborts instead of exploitable corruption. GWP-ASan samples a small fraction of allocations for guarded pages on top of it. Setting libc.debug.malloc.options switches processes to the debug allocator, which disables the hardened paths, so it should be unset on any production build. Builds below API 30 report PRE_SCUDO_SDK_<n> and use the older jemalloc path with none of these protections.",
+      "remediation": "Clear the debug allocator property with 'setprop libc.debug.malloc.options \"\"' and confirm no init script or build overlay sets it. For builds below API 30, the only fix is an OS upgrade: the allocator cannot be replaced in place.",
+      "why": "Scudo converts a large class of heap corruption primitives into controlled aborts. Reverting to the debug allocator removes that mitigation process-wide.",
+      "risk_if_fail": "Heap overflows and use-after-free bugs in native code become exploitable instead of aborting."
+    },
+    {
+      "id": "SYS-GKI-001",
+      "category": "SYSTEM",
+      "label": "GKI Kernel and Module Loading Restriction",
+      "command": "K=$(uname -r 2>/dev/null); if echo \"$K\" | grep -qE '\\-android[0-9]+'; then G=GKI; else G=NON_GKI; fi; MD=$(cat /proc/sys/kernel/modules_disabled 2>/dev/null); echo \"kernel=${K:-unknown} type=$G modules_disabled=${MD:-unreadable}\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "description": "Reports the kernel release string, whether it is a Generic Kernel Image build (GKI releases carry an -androidNN- suffix and receive Android security patches directly from Google rather than waiting on an SoC vendor backport), and the state of the kernel.modules_disabled sysctl. When modules_disabled is 1 the kernel refuses all further module loads for the rest of the boot, which closes the most direct path from a root shell to persistent kernel-level code. Reported for review rather than as a failure because most Android devices legitimately leave the sysctl at 0 to support late-loading vendor modules, and a NON_GKI kernel is normal on older or heavily customised platforms.",
+      "remediation": "Prefer GKI-based kernels so security patches arrive on the Android bulletin cadence instead of the SoC vendor cadence. On locked-down appliance builds where every module is loaded during early boot, set kernel.modules_disabled to 1 once boot completes to block later module loads.",
+      "requires_manual_review": true
     }
   ]
 }
