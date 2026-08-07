@@ -214,6 +214,29 @@
       "level": "verify",
       "description": "Security patch level affects Play Integrity API device integrity verdict. Outdated patches may cause device to fail integrity checks.",
       "remediation": "Update to the latest security patch level. Outdated devices may fail Play Integrity checks in production."
+    },
+    {
+      "id": "ATT-021",
+      "category": "ATTESTATION",
+      "label": "Hardware-Backed Keystore / KeyMint HAL Present",
+      "command": "F=$(pm list features 2>/dev/null | grep -iE 'hardware_keystore|strongbox' | tr '\\n' ' '); H=$(getprop ro.hardware.keystore 2>/dev/null); L=$(lshal 2>/dev/null | grep -oiE 'keymint@[0-9.]+|keymaster@[0-9.]+' | sort -u | tr '\\n' ' '); echo \"features=${F:-none} hal_prop=${H:-unset} hal=${L:-unavailable}\"",
+      "safe_pattern": "hardware_keystore|strongbox|keymint@|keymaster@",
+      "level": "warning",
+      "description": "Hardware key attestation is the root of every attestation claim this category makes. It requires a KeyMint (Android 12+) or Keymaster (older) HAL backing the keystore. The android.hardware.hardware_keystore feature is reported with a version suffix (for example =300 for KeyMint 3.0) and android.hardware.strongbox_keystore indicates a discrete secure element. If none of these are present, the device has no hardware-backed key storage: keys live in software, attestation certificates cannot be chained to a Google-signed root, and the other ATTESTATION checks describe policy rather than enforced hardware. The lshal probe is best-effort because non-root shells on some user builds cannot enumerate HALs, so 'hal=unavailable' alone is not a failure.",
+      "remediation": "Hardware-backed keystore cannot be added in software. If this fails on production hardware, confirm the keystore HAL is declared in the device manifest and the SoC vendor shipped a KeyMint implementation. Do not rely on key attestation, StrongBox, or Play Integrity hardware verdicts on a device without it.",
+      "why": "Every hardware attestation claim, StrongBox key, and device-integrity verdict chains back to a KeyMint or Keymaster HAL. Without one the chain has no hardware root.",
+      "risk_if_fail": "Cryptographic keys are software-only and extractable from a rooted or compromised device, and attestation certificates cannot prove the device state."
+    },
+    {
+      "id": "ATT-022",
+      "category": "ATTESTATION",
+      "label": "Remote Key Provisioning (Attestation Key Certification)",
+      "command": "P=$(pm list packages 2>/dev/null | grep -iE 'rkpdapp|remoteprovisioner' | sed 's/^package://' | tr '\\n' ' '); L=$(lshal 2>/dev/null | grep -oiE 'IRemotelyProvisionedComponent[^ ]*' | sort -u | head -3 | tr '\\n' ' '); echo \"rkp_app=${P:-none} rkp_hal=${L:-unavailable}\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Remote Key Provisioning replaced factory-installed attestation key batches on Android 12 and later: the device generates keys locally and has them certified on demand by a Google backend, so a leaked factory key batch can be revoked without bricking attestation. Not to be confused with Samsung RKP (Real-time Kernel Protection), which is a separate check in this category. This reports whether the provisioning daemon app and the IRemotelyProvisionedComponent HAL are present. Informational rather than pass or fail: remote provisioning is part of the GMS ecosystem, so AOSP builds, non-GMS OEM builds, and many POS or industrial devices legitimately have neither, and their absence is a deployment fact to record rather than a misconfiguration.",
+      "remediation": "Nothing to fix directly. Record the result as part of the attestation baseline. If the deployment depends on revocable attestation keys, confirm with the OEM that the device participates in RKP rather than shipping a static factory key batch.",
+      "empty_is_safe": false
     }
   ]
 }

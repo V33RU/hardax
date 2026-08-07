@@ -598,6 +598,16 @@
       "description": "Android 16 introduced platform support for Certificate Transparency (CT) verification: TLS certificates can be checked against public append-only CT logs, defeating mis-issued or covertly issued certificates that chain to a trusted CA. Enforcement is controlled by device_config flags in the network_security namespace (delivered via Google Play services) plus per-app opt-in through networkSecurityConfig. This dumps any certificate_transparency flags currently set, for manual review: flag names and defaults are server-controlled and change across rollout waves, so no fixed safe value exists. NO_CT_FLAGS means no CT flag is currently set on this device (enforcement follows the platform default). Pre-A16 builds report PRE_A16_SDK_<n>.",
       "remediation": "No direct device-side fix. For in-house apps, opt in to CT enforcement via networkSecurityConfig (certificateTransparency enabled) so mis-issued certificates are rejected even before platform-wide enforcement reaches this device.",
       "requires_manual_review": true
+    },
+    {
+      "id": "NET-ESIM-001",
+      "category": "NETWORK",
+      "label": "eSIM / eUICC Support and Provisioning",
+      "command": "F=$(pm list features 2>/dev/null | grep -i 'telephony.euicc' | head -2 | tr '\\n' ' '); P=$(settings get global euicc_provisioned 2>/dev/null); S=$(getprop ro.telephony.sim.count 2>/dev/null); echo \"feature=${F:-none} euicc_provisioned=${P:-unset} sim_count=${S:-unknown}\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Reports whether the device exposes the android.hardware.telephony.euicc feature, whether an eSIM profile has been provisioned, and the configured SIM slot count. On a device with an eUICC, the cellular identity is software-provisioned: a profile can be downloaded, swapped, or deleted without physical access to the handset, which changes the threat model for any deployment that treats the SIM as a fixed identity anchor (fleet POS terminals, telematics units, tracked assets). Informational, because eSIM presence is a hardware capability rather than a misconfiguration.",
+      "remediation": "For fleet devices, restrict eSIM profile management: use a carrier-locked or enterprise-managed eUICC, and block the eSIM settings path through device policy so a local user cannot download or delete profiles. Record the provisioning state as part of the device baseline so an unexpected profile change is detectable."
     }
   ]
 }
