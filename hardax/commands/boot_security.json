@@ -97,7 +97,8 @@
       "safe_pattern": "^1$",
       "level": "critical",
       "description": "1 means locked bootloader; 0 means unlocked",
-      "remediation": "Re-lock the bootloader via 'fastboot flashing lock' after restoring stock firmware."
+      "remediation": "Re-lock the bootloader via 'fastboot flashing lock' after restoring stock firmware.",
+      "baseline_key": "bootloader_locked"
     },
     {
       "category": "BOOT_SECURITY",
@@ -269,6 +270,30 @@
       "description": "Protected KVM (pKVM) is Android's hypervisor for the Android Virtualization Framework (AVF): it runs isolated protected VMs whose memory even a fully compromised Android kernel cannot read. It underpins Isolated Compilation, on-device Private Compute workloads and, on Android 17, AISeal (hardware-backed isolation for Private AI Compute). protected_vm=1 means the device boot-advertises pKVM protected-VM support (SAFE); unset/0 means the SoC or firmware does not expose it, which is the norm on most non-Pixel and older hardware and is reported as INFO rather than a failure. The hypervisor version string, when present, identifies the AVF generation.",
       "remediation": "Nothing to fix on existing hardware; pKVM support is fixed by SoC and firmware. For high-assurance refresh cycles (devices processing sensitive data on-device, or Android 17 AI privacy features), prefer hardware that advertises protected_vm=1.",
       "empty_is_safe": false
+    },
+    {
+      "id": "BOOT-CONSIST-001",
+      "category": "BOOT_SECURITY",
+      "label": "Verified Boot State Consistency (property vs kernel cmdline)",
+      "command": "P=$(getprop ro.boot.verifiedbootstate 2>/dev/null); C=$(cat /proc/cmdline /proc/bootconfig 2>/dev/null | grep -oE 'androidboot\\.verifiedbootstate[ ]*=[ ]*\"?[a-z]+' | head -1 | grep -oE '[a-z]+$'); L=$(getprop ro.boot.flash.locked 2>/dev/null); if [ -z \"$C\" ]; then V=UNVERIFIABLE_NO_BOOT_CMDLINE; elif [ -z \"$P\" ]; then V=UNVERIFIABLE_NO_PROP; elif [ \"$P\" != \"$C\" ]; then V=MISMATCH_PROP_VS_CMDLINE; elif [ \"$P\" = \"green\" ] && [ \"$L\" = \"0\" ]; then V=MISMATCH_GREEN_BUT_UNLOCKED; else V=CONSISTENT; fi; echo \"$V prop=${P:-unset} cmdline=${C:-unset} flash_locked=${L:-unset}\"",
+      "safe_pattern": "^(CONSISTENT|UNVERIFIABLE)",
+      "level": "critical",
+      "description": "Property spoofing modules rewrite ro.boot.verifiedbootstate to 'green' with resetprop so that on-device integrity checks read a healthy value. They cannot rewrite the kernel command line: /proc/cmdline and /proc/bootconfig are populated by the bootloader before Android starts and are not writable from userspace. This check reads the same fact from both sources and compares them. A disagreement is direct, non-inferential proof that the boot state property has been forged. It also flags the contradictory combination of verifiedbootstate=green with flash.locked=0, which cannot occur on an honest device. This check does not judge whether the device is locked, that is the job of the separate Bootloader Locked and Verified Boot State checks. It only reports whether the device is telling the same story twice. An honestly unlocked device reports CONSISTENT here and is flagged by those other checks instead. Devices that expose neither source report UNVERIFIABLE and are not failed on absence of evidence.",
+      "remediation": "Identify and remove the module rewriting the boot properties, typically a resetprop-based Play Integrity or attestation spoofing module under /data/adb/modules. Reboot and re-run this check. Treat every prior on-device integrity decision made on this device as unreliable.",
+      "why": "The kernel command line cannot be rewritten from userspace, so a mismatch against the property is proof of deliberate boot state forgery.",
+      "risk_if_fail": "The device reports a forged verified boot state, so any local integrity check reading only the property is defeated.",
+      "empty_is_safe": false
+    },
+    {
+      "id": "BOOT-CONSIST-002",
+      "category": "BOOT_SECURITY",
+      "label": "Security Patch Level Consistency",
+      "command": "S=$(getprop ro.build.version.security_patch 2>/dev/null); V=$(getprop ro.vendor.build.security_patch 2>/dev/null); B=$(getprop ro.build.date.utc 2>/dev/null); D=$(getprop ro.build.date 2>/dev/null); echo \"system_spl=${S:-unset} vendor_spl=${V:-unset} build_utc=${B:-unset} build_date=${D:-unset}\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "description": "Attestation and integrity spoofing tooling commonly forges the security patch level alongside the boot state, so that a device running an outdated build advertises a current patch date. This collects the system patch level, the vendor patch level, and the build date for comparison. Two signals matter on review. A security patch level dated after the build date is impossible on an honest device, because a build cannot ship a patch that did not exist when it was compiled. A large gap between the system and vendor patch levels indicates a partial or forged update. Reported at verify level rather than as an automatic failure because the comparison needs date arithmetic that is not portable across the shells found on Android, and because a modest system-to-vendor skew is normal on real firmware.",
+      "remediation": "Compare system_spl against build_date. If the patch level is newer than the build date, the value is forged: locate and remove the spoofing module. If both are genuine but old, apply the vendor OTA to bring the device to a current patch level.",
+      "requires_manual_review": true
     }
   ]
 }

@@ -8,7 +8,8 @@
       "safe_pattern": "^green$",
       "level": "critical",
       "description": "Android Verified Boot state: green=fully verified, yellow=custom key, orange=unlocked, red=failed. Only green is production-safe.",
-      "remediation": "Re-lock bootloader and restore factory boot image to achieve green verified boot state."
+      "remediation": "Re-lock bootloader and restore factory boot image to achieve green verified boot state.",
+      "baseline_key": "verified_boot_state"
     },
     {
       "id": "ATT-002",
@@ -132,7 +133,7 @@
       "id": "ATT-013",
       "category": "ATTESTATION",
       "label": "SafetyNet / Play Integrity Bypass Modules",
-      "command": "ls /data/adb/modules/ 2>/dev/null | grep -iE 'safetynet|playintegrity|universal|shamiko|zygisk'",
+      "command": "ls /data/adb/modules/ 2>/dev/null | grep -iE 'safetynet|playintegrity|universal|shamiko|zygisk|tricky|keybox|kernelsu|apatch|hide|spoof'",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "SafetyNet/Play Integrity bypass modules (Shamiko, Universal SafetyNet Fix, etc.) found in Magisk modules directory.",
@@ -213,7 +214,8 @@
       "safe_pattern": ".",
       "level": "verify",
       "description": "Security patch level affects Play Integrity API device integrity verdict. Outdated patches may cause device to fail integrity checks.",
-      "remediation": "Update to the latest security patch level. Outdated devices may fail Play Integrity checks in production."
+      "remediation": "Update to the latest security patch level. Outdated devices may fail Play Integrity checks in production.",
+      "baseline_key": "security_patch"
     },
     {
       "id": "ATT-021",
@@ -237,6 +239,45 @@
       "description": "Remote Key Provisioning replaced factory-installed attestation key batches on Android 12 and later: the device generates keys locally and has them certified on demand by a Google backend, so a leaked factory key batch can be revoked without bricking attestation. Not to be confused with Samsung RKP (Real-time Kernel Protection), which is a separate check in this category. This reports whether the provisioning daemon app and the IRemotelyProvisionedComponent HAL are present. Informational rather than pass or fail: remote provisioning is part of the GMS ecosystem, so AOSP builds, non-GMS OEM builds, and many POS or industrial devices legitimately have neither, and their absence is a deployment fact to record rather than a misconfiguration.",
       "remediation": "Nothing to fix directly. Record the result as part of the attestation baseline. If the deployment depends on revocable attestation keys, confirm with the OEM that the device participates in RKP rather than shipping a static factory key batch.",
       "empty_is_safe": false
+    },
+    {
+      "id": "ATT-023",
+      "category": "ATTESTATION",
+      "label": "TrickyStore Attestation Spoofing Framework",
+      "command": "ls -d /data/adb/modules/tricky_store /data/adb/modules/TrickyStore /data/adb/tricky_store 2>/dev/null",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "TrickyStore hooks the Android Keystore layer and injects a third-party attestation key (a leaked 'keybox') into the certificate chain returned by getCertificateChain(). The result is a chain that a backend validates as genuine while the underlying device is rooted with an unlocked bootloader. This inverts the usual root-detection problem: every other root artifact makes a device look broken, this one makes a compromised device look healthy. Presence of the module directory or its config directory is direct evidence that hardware key attestation output from this device cannot be trusted.",
+      "remediation": "Remove the module with 'rm -rf /data/adb/modules/tricky_store /data/adb/tricky_store' and reboot, then delete any keybox material found by ATT-024. Treat every attestation this device produced while the module was installed as forged. On a fleet device, reflash stock firmware and relock the bootloader.",
+      "why": "It forges a valid-looking hardware attestation chain, so a backend cannot tell this device from a locked, verified one.",
+      "risk_if_fail": "Any service relying on key attestation from this device has been given a fabricated device-integrity verdict.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-024",
+      "category": "ATTESTATION",
+      "label": "Attestation Keybox Key Material On Disk",
+      "command": "find /data/adb /data/local/tmp /sdcard -maxdepth 3 -iname 'keybox*.xml' 2>/dev/null | head -5",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "A keybox.xml holds an attestation private key and its certificate chain, normally sealed inside the TEE or StrongBox and never exposed to the filesystem. A copy sitting on disk is leaked or extracted key material, and it is what attestation-spoofing tooling loads to sign forged chains. This is the failure mode the Google attestation revocation list exists to contain: factory-provisioned batch keys cover many devices, so one leaked keybox lets every device in that batch be impersonated until the key is revoked. Detected independently of TrickyStore because the file is a finding regardless of which tool placed it.",
+      "remediation": "Delete the file and reboot. Report the keybox to the device vendor or to Google so the key can be added to the attestation status list at https://android.googleapis.com/attestation/status. Do not accept attestation from this device until it is reflashed.",
+      "why": "An attestation private key outside secure hardware can sign arbitrary forged attestation chains.",
+      "risk_if_fail": "Attestation chains from this device, and potentially from every device sharing the same factory batch key, can be fabricated.",
+      "empty_is_safe": true
+    },
+    {
+      "id": "ATT-025",
+      "category": "ATTESTATION",
+      "label": "TrickyStore Spoofing Target Configuration",
+      "command": "head -20 /data/adb/tricky_store/target.txt 2>/dev/null; cat /data/adb/tricky_store/security_patch.txt 2>/dev/null",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "description": "TrickyStore reads target.txt to decide which application packages receive a forged attestation chain, and security_patch.txt to decide which security patch level to report back instead of the real one. Where ATT-023 proves the framework is installed, this check extracts the operator's intent: the exact list of apps being lied to and the fake patch level being advertised. On an incident response engagement this is the most directly useful artifact of the three, because it names the targeted services.",
+      "remediation": "Preserve both files as evidence before deletion. Notify every service listed in target.txt that attestation and security patch level from this device were forged, then remove the module per ATT-023.",
+      "why": "The target list names which services were given a forged device-integrity verdict, and the patch file names the fake security patch level advertised to them.",
+      "risk_if_fail": "Named services accepted a fabricated attestation and a fabricated security patch level from a rooted device.",
+      "empty_is_safe": true
     }
   ]
 }
