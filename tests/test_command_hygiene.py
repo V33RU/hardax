@@ -138,9 +138,11 @@ def test_no_em_dashes_in_check_text():
     assert not bad, "em dashes found:\n" + "\n".join(bad)
 
 
-def test_check_counter_is_stable():
-    """Cheap tripwire so a bulk edit that drops checks is noticed."""
-    checks = load_all_checks()
-    counts = Counter(c["category"] for c in checks)
+def test_category_set_is_intact():
+    """The exact check total is already pinned by the README badge test, so
+    this guards the shape instead: no category may silently empty out, and a
+    category must not shrink to a single check without being noticed."""
+    counts = Counter(c["category"] for c in load_all_checks())
     assert len(counts) == 28, f"category count changed: {sorted(counts)}"
-    assert len(checks) >= 770, f"check count dropped to {len(checks)}"
+    thin = {cat: n for cat, n in counts.items() if n < 3}
+    assert not thin, f"categories reduced to almost nothing: {thin}"

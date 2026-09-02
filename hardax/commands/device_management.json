@@ -57,15 +57,6 @@
     },
     {
       "category": "DEVICE_MANAGEMENT",
-      "label": "OEM Unlocking Disabled",
-      "command": "settings get global oem_unlock_enabled",
-      "safe_pattern": "^(0|null)$",
-      "level": "critical",
-      "description": "OEM unlocking allows bootloader unlock - should be disabled",
-      "remediation": "Disable OEM unlocking in Settings - Developer Options or run 'settings put global oem_unlock_enabled 0'."
-    },
-    {
-      "category": "DEVICE_MANAGEMENT",
       "label": "Device Admin Apps",
       "command": "dumpsys device_policy 2>/dev/null | grep -i admin | head -10",
       "safe_pattern": ".",

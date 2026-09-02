@@ -102,21 +102,23 @@
     },
     {
       "category": "BOOT_SECURITY",
-      "label": "Fastboot Unlock Allowed",
+      "label": "OEM Unlock Hardware Capability",
       "command": "getprop ro.oem_unlock_supported",
-      "safe_pattern": "^0$",
-      "level": "critical",
-      "description": "Fastboot OEM unlock must be disabled",
-      "remediation": "Disable OEM unlocking in Developer Options and verify the carrier or OEM policy disallows it."
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Reports ro.oem_unlock_supported, which states whether the hardware exposes an OEM unlock path at all. This is a device capability, not a security state: the large majority of non-carrier-locked devices report 1 and are perfectly secure with the bootloader locked. It was previously scored critical against a safe_pattern of ^0$, so nearly every device raised a critical finding for supporting a feature it ships with. The security-relevant facts are covered by 'Bootloader Locked' (ro.boot.flash.locked), 'OEM Unlock Allowed' (sys.oem_unlock_allowed) and 'OEM Unlock Permitted (Global Setting)'.",
+      "remediation": "Nothing to act on directly. Confirm the bootloader is locked and that OEM unlocking is not permitted; those are the checks that matter.",
+      "empty_is_safe": false
     },
     {
       "category": "BOOT_SECURITY",
-      "label": "OEM Unlock Disabled (Global Setting)",
-      "command": "settings get global oem_unlock_allowed 2>/dev/null",
-      "safe_pattern": "^0$",
+      "label": "OEM Unlock Permitted (Global Setting)",
+      "command": "A=$(settings get global oem_unlock_allowed 2>/dev/null); B=$(settings get global oem_unlock_enabled 2>/dev/null); V=\"$A\"; [ -z \"$V\" ] || [ \"$V\" = \"null\" ] && V=\"$B\"; case \"${V:-null}\" in 1) echo \"UNLOCK_PERMITTED allowed=${A:-null} enabled=${B:-null}\";; 0) echo \"UNLOCK_BLOCKED allowed=${A:-null} enabled=${B:-null}\";; *) echo \"NOT_SET allowed=${A:-null} enabled=${B:-null}\";; esac",
+      "safe_pattern": "^(UNLOCK_BLOCKED|NOT_SET)",
       "level": "warning",
-      "description": "OEM unlock should be disallowed by policy (0)",
-      "remediation": "Set 'settings put global oem_unlock_allowed 0' or disable OEM unlocking in Developer Options."
+      "description": "Reports whether the OEM unlocking toggle in Developer Options permits the bootloader to be unlocked. Both spellings of the key are read, because oem_unlock_allowed and oem_unlock_enabled are used by different OEM builds and a check reading only one returns null on the other. NOT_SET is treated as passing because neither key present means the toggle was never enabled. This merges two checks that read one spelling each and reported the same fact at different severities.",
+      "remediation": "Turn off OEM unlocking in Developer Options. On a managed fleet, block it with the DevicePolicyManager OEM-unlock restriction so a local user cannot re-enable it.",
+      "empty_is_safe": false
     },
     {
       "category": "BOOT_SECURITY",
@@ -129,12 +131,13 @@
     },
     {
       "category": "BOOT_SECURITY",
-      "label": "Verity Mode (cmdline)",
-      "command": "grep -hoE 'androidboot\\.veritymode=[a-z_]+|androidboot\\.veritymode = \"[a-z_]+' /proc/cmdline /proc/bootconfig 2>/dev/null | grep -oE '[a-z_]+$' | head -1",
-      "safe_pattern": "^(enforcing|eio|restart|panicking)$",
+      "label": "dm-verity Mode and Source Consistency",
+      "command": "C=$(grep -hoE 'androidboot\\.veritymode[ ]*=[ ]*\"?[a-z_]+' /proc/cmdline /proc/bootconfig 2>/dev/null | grep -oE '[a-z_]+$' | head -1); P=$(getprop ro.boot.veritymode 2>/dev/null); M=${C:-$P}; SRC=cmdline; [ -z \"$C\" ] && SRC=property; if [ -z \"$M\" ]; then echo 'UNVERIFIABLE no veritymode from cmdline, bootconfig or property'; elif [ -n \"$C\" ] && [ -n \"$P\" ] && [ \"$C\" != \"$P\" ]; then echo \"MISMATCH cmdline=$C prop=$P\"; else case \"$M\" in enforcing|eio|restart|panicking) echo \"VERITY_OK mode=$M source=$SRC\";; *) echo \"VERITY_WEAK mode=$M source=$SRC\";; esac; fi",
+      "safe_pattern": "^(VERITY_OK|UNVERIFIABLE)",
       "level": "critical",
-      "description": "dm-verity must fail closed. Secure runtime modes are 'enforcing', 'eio' (the AVB-recommended MANAGED_RESTART_AND_EIO), 'restart' and 'panicking'. Insecure values are 'ignore_corruption'/'logging' (corrupt data may be returned) and 'disabled' (no verity). Reads both /proc/cmdline and /proc/bootconfig, since Android 12+ may export androidboot.* via bootconfig instead of the kernel command line.",
-      "remediation": "Flash stock vbmeta without the --disable-verity flag. Avoid ignore_corruption/logging error modes; use AVB_HASHTREE_ERROR_MODE_MANAGED_RESTART_AND_EIO."
+      "description": "Reports the dm-verity error-handling mode and cross-checks the two places it is published. The bootloader writes androidboot.veritymode into the kernel command line and bootconfig, which userspace cannot rewrite, while ro.boot.veritymode is a property that resetprop can change. VERITY_OK means the mode is one of enforcing, eio, restart or panicking. MISMATCH means the command line and the property disagree, which is proof the property has been forged. VERITY_WEAK means verity is present but set to a non-enforcing mode such as logging or disabled. This merges two checks that read the same fact from the two sources independently and each scored critical, so a single misconfiguration produced two findings and a spoofed property produced none.",
+      "remediation": "Restore an enforcing verity mode by reflashing stock vbmeta without the disable-verity flag. On MISMATCH, find and remove the property-spoofing module before trusting any other property-derived check.",
+      "empty_is_safe": false
     },
     {
       "category": "BOOT_SECURITY",

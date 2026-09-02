@@ -3,11 +3,13 @@
     {
       "category": "SYSTEM",
       "label": "Security Patch Level",
-      "command": "PATCH_DATE=$(getprop ro.build.version.security_patch 2>/dev/null); if [ -z \"$PATCH_DATE\" ]; then echo 'UNKNOWN'; exit 1; fi; PATCH_EPOCH=$(date -d \"$PATCH_DATE\" +%s 2>/dev/null || echo 0); CURRENT_EPOCH=$(date +%s); DAYS_OLD=$(( ($CURRENT_EPOCH - $PATCH_EPOCH) / 86400 )); if [ $DAYS_OLD -lt 90 ]; then echo \"RECENT: $PATCH_DATE ($DAYS_OLD days old)\"; else echo \"OUTDATED: $PATCH_DATE ($DAYS_OLD days old)\"; fi",
-      "safe_pattern": "^RECENT:",
+      "command": "SP=$(getprop ro.build.version.security_patch 2>/dev/null); if [ -z \"$SP\" ]; then echo \"UNKNOWN no security_patch property\"; else P=$(printf '%s' \"$SP\" | tr -d '-' | cut -c1-6); N=$(date +%Y%m); PY=$(( ${P%??} + 0 )); PM=$(( 1${P#????} - 100 )); NY=$(( ${N%??} + 0 )); NM=$(( 1${N#????} - 100 )); D=$(( (NY-PY)*12 + (NM-PM) )); if [ \"$D\" -lt 0 ]; then echo \"FUTURE_SPL spl=$SP months_ahead=$(( -D ))\"; elif [ \"$D\" -le 3 ]; then echo \"RECENT spl=$SP months_old=$D\"; elif [ \"$D\" -le 6 ]; then echo \"AGING spl=$SP months_old=$D\"; else echo \"OUTDATED spl=$SP months_old=$D\"; fi; fi",
+      "safe_pattern": "^(RECENT|AGING)",
       "level": "critical",
-      "description": "Security patch must be less than 90 days old",
-      "remediation": "Apply the latest OTA security update or flash an updated system image with a patch level less than 90 days old."
+      "description": "Single authoritative answer to how old the device security patch level is. Reports months_old relative to the current month: RECENT at 3 months or less, AGING at 4 to 6, OUTDATED beyond 6, and FUTURE_SPL when the patch date is ahead of today, which no honest build produces and which spoofing tooling does. The arithmetic is integer YYYYMM subtraction and does not call 'date -d'. The earlier version did, and when 'date -d' was unavailable (toybox and busybox builds vary) it fell back to epoch 0, computed an age of roughly 20000 days and scored CRITICAL on a device with a perfectly current patch. This check replaces two other currency checks that answered the same question with different thresholds and different severities.",
+      "remediation": "Apply the vendor OTA. If FUTURE_SPL is reported, the patch level is forged: locate the spoofing module and treat the device as compromised.",
+      "baseline_key": "security_patch",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
@@ -431,15 +433,6 @@
       "level": "critical",
       "description": "ADB shell should NOT run as root (uid=0)",
       "remediation": "Use a user build (ro.build.type=user) which drops ADB to shell user. Run: adb unroot to demote."
-    },
-    {
-      "category": "SYSTEM",
-      "label": "dm-verity Mode",
-      "command": "getprop ro.boot.veritymode 2>/dev/null",
-      "safe_pattern": "^(enforcing|eio|restart|panicking)$",
-      "level": "critical",
-      "description": "dm-verity must fail closed to protect system partitions. Secure modes are 'enforcing', 'eio' (AVB-recommended managed mode), 'restart' and 'panicking'. 'ignore_corruption'/'logging' may return corrupt data and 'disabled' means no verity.",
-      "remediation": "Run: adb enable-verity and reboot. Ensure ro.boot.veritymode is enforcing or eio (managed). Avoid ignore_corruption/logging/disabled."
     },
     {
       "category": "SYSTEM",

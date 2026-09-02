@@ -196,17 +196,6 @@
       "empty_is_safe": true
     },
     {
-      "id": "ATT-020",
-      "category": "ATTESTATION",
-      "label": "Security Patch Level (Attestation Currency)",
-      "command": "getprop ro.build.version.security_patch 2>/dev/null",
-      "safe_pattern": ".",
-      "level": "verify",
-      "description": "Security patch level affects Play Integrity API device integrity verdict. Outdated patches may cause device to fail integrity checks.",
-      "remediation": "Update to the latest security patch level. Outdated devices may fail Play Integrity checks in production.",
-      "baseline_key": "security_patch"
-    },
-    {
       "id": "ATT-021",
       "category": "ATTESTATION",
       "label": "Hardware-Backed Keystore / KeyMint HAL Present",
