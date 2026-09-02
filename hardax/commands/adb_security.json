@@ -55,7 +55,7 @@
       "id": "ADB-NETWORK-ALLOWLIST-001",
       "category": "ADB_SECURITY",
       "label": "Network ADB Bound To Loopback Only",
-      "command": "P=$(getprop service.adb.tcp.port 2>/dev/null); if [ -z \"$P\" ] || [ \"$P\" = \"-1\" ] || [ \"$P\" = \"0\" ]; then echo DISABLED; else ADDRS=$((netstat -tln 2>/dev/null || ss -tln 2>/dev/null) | grep -E \":$P([^0-9]|$)\" | awk '{print $4}'); NONLOOP=$(printf '%s\\n' \"$ADDRS\" | grep -vE '^(127\\.0\\.0\\.1|::1|\\[::1\\])[:.]'); if [ -n \"$NONLOOP\" ]; then printf '%s\\n' \"$NONLOOP\" | head -3; else echo LOOPBACK_ONLY; fi; fi",
+      "command": "P=$(getprop service.adb.tcp.port 2>/dev/null); if [ -z \"$P\" ] || [ \"$P\" = \"-1\" ] || [ \"$P\" = \"0\" ]; then echo DISABLED; else ADDRS=$( (netstat -tln 2>/dev/null || ss -tln 2>/dev/null) | grep -E \":$P([^0-9]|$)\" | awk '{print $4}'); NONLOOP=$(printf '%s\\n' \"$ADDRS\" | grep -vE '^(127\\.0\\.0\\.1|::1|\\[::1\\])[:.]'); if [ -n \"$NONLOOP\" ]; then printf '%s\\n' \"$NONLOOP\" | head -3; else echo LOOPBACK_ONLY; fi; fi",
       "safe_pattern": "^(DISABLED|LOOPBACK_ONLY)$",
       "level": "critical",
       "description": "If network ADB is enabled (service.adb.tcp.port set), the adbd socket must bind to loopback only. A non-loopback bind (e.g. 0.0.0.0) exposes ADB to the LAN with no IP allowlist enforcement, which has been used in IoT and POS compromises. This check inspects every bind for the configured port (not just the first) so a dual-stack loopback+wildcard bind cannot mask the exposure.",

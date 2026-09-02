@@ -155,23 +155,12 @@
       "id": "ATT-015",
       "category": "ATTESTATION",
       "label": "fs-verity Kernel Support",
-      "command": "cat /proc/sys/fs/verity 2>/dev/null || getprop ro.product.first_api_level 2>/dev/null",
-      "safe_pattern": ".",
+      "command": "if [ -d /sys/fs/verity ] || [ -e /sys/fs/verity/require_signatures ]; then S=$(cat /sys/fs/verity/require_signatures 2>/dev/null); echo \"FSVERITY_SYSFS_PRESENT require_signatures=${S:-unset}\"; else M=$(getprop ro.apk_verity.mode 2>/dev/null); echo \"FSVERITY_SYSFS_ABSENT apk_verity_mode=${M:-unset}\"; fi",
+      "safe_pattern": "FSVERITY_SYSFS_PRESENT|apk_verity_mode=[12]",
       "level": "info",
-      "description": "fs-verity provides file-level integrity verification used by Android 11+ for APK and system file integrity.",
-      "remediation": "Informational. fs-verity is enabled in the kernel for Android 11+ devices. Verify kernel config if missing.",
-      "empty_is_safe": true
-    },
-    {
-      "id": "ATT-016",
-      "category": "ATTESTATION",
-      "label": "Device Owner / MDM Enrollment",
-      "command": "dumpsys device_policy 2>/dev/null | grep -iE 'device owner|profile owner' | head -5",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Device Owner/MDM enrollment indicates managed device with remote attestation and policy enforcement capability.",
-      "remediation": "Informational. Verify device admin policies and MDM enrollment are authorized.",
-      "empty_is_safe": true
+      "description": "fs-verity provides transparent, read-time integrity verification of individual files using a Merkle tree, and Android uses it from API 30 to protect installed APKs and select system files. Support is visible through the /sys/fs/verity directory, and Android's own usage level through the ro.apk_verity.mode property (0 disabled, 1 enabled, 2 enforced). This replaces an earlier version that read /proc/sys/fs/verity, a path that does not exist on Android, and then silently fell back to printing ro.product.first_api_level under an fs-verity label with a safe_pattern of '.' that could never fail.",
+      "remediation": "Set ro.apk_verity.mode to 2 to enforce APK fs-verity, and confirm the kernel is built with CONFIG_FS_VERITY=y and the userdata filesystem has the verity feature enabled.",
+      "empty_is_safe": false
     },
     {
       "id": "ATT-017",
@@ -205,17 +194,6 @@
       "description": "Samsung Knox DualDAR provides dual-layer encryption: AOSP FBE (Android layer) + Knox MDM-controlled second layer.",
       "remediation": "Informational. DualDAR requires Knox license and MDM enrollment.",
       "empty_is_safe": true
-    },
-    {
-      "id": "ATT-020",
-      "category": "ATTESTATION",
-      "label": "Security Patch Level (Attestation Currency)",
-      "command": "getprop ro.build.version.security_patch 2>/dev/null",
-      "safe_pattern": ".",
-      "level": "verify",
-      "description": "Security patch level affects Play Integrity API device integrity verdict. Outdated patches may cause device to fail integrity checks.",
-      "remediation": "Update to the latest security patch level. Outdated devices may fail Play Integrity checks in production.",
-      "baseline_key": "security_patch"
     },
     {
       "id": "ATT-021",

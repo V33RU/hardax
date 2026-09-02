@@ -227,15 +227,6 @@
     },
     {
       "category": "PRIVACY",
-      "label": "Screen Lock",
-      "command": "dumpsys window policy 2>/dev/null | grep -i 'showing.*lock\\|isShowing' || dumpsys trust 2>/dev/null | grep -i 'enabled' || settings get secure lockscreen.password_type 2>/dev/null",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Screen lock status (multiple detection methods)",
-      "remediation": "Ensure a screen lock is active in Settings > Security > Screen lock."
-    },
-    {
-      "category": "PRIVACY",
       "label": "Clipboard Access",
       "command": "cmd clipboard get-primary-clip",
       "safe_pattern": "^$",

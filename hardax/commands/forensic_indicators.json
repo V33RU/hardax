@@ -171,11 +171,12 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Data Usage Anomaly Check",
-      "command": "dumpsys netstats 2>/dev/null | grep -oE 'rxBytes=[0-9]+' | head -1 | grep -oE '[0-9]+' | awk '{gb=$1/1073741824; if(gb>10) print \"HIGH_\"int(gb)\"GB\"; else print \"NORMAL\"}'",
-      "safe_pattern": "NORMAL",
+      "command": "T=$(dumpsys netstats 2>/dev/null | grep -oE 'rxBytes=[0-9]+' | grep -oE '[0-9]+' | awk '{s+=$1} END{printf \"%.0f\", s+0}'); if [ -z \"$T\" ] || [ \"$T\" = \"0\" ]; then echo NO_NETSTATS_DATA; else printf '%s\\n' \"$T\" | awk '{gb=$1/1073741824; if (gb>50) printf \"HIGH_%dGB\\n\", gb; else printf \"NORMAL_%dGB\\n\", gb}'; fi",
+      "safe_pattern": "^(NORMAL|NO_NETSTATS_DATA)",
       "level": "info",
-      "description": "High data usage (>10GB) may indicate data exfiltration",
-      "remediation": "Identify top data-consuming apps in network stats. Restrict or remove suspicious ones."
+      "description": "Sums rxBytes across every bucket reported by dumpsys netstats to give a total received-byte figure for the device, and flags totals above 50 GB for review as a possible bulk exfiltration indicator. This replaces an earlier version that took only the first rxBytes value with 'head -1', which sampled one arbitrary accounting bucket rather than the device total and thresholded that single value at 10 GB, making the verdict effectively random. The threshold is raised to 50 GB because the figure is now a lifetime total across all buckets rather than a single sample.",
+      "remediation": "Correlate a HIGH result against the per-app breakdown in Settings > Network and internet > Data usage. Investigate any app whose received volume is inconsistent with its function.",
+      "empty_is_safe": false
     },
     {
       "category": "FORENSIC_INDICATORS",

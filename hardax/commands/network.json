@@ -608,6 +608,106 @@
       "level": "info",
       "description": "Reports whether the device exposes the android.hardware.telephony.euicc feature, whether an eSIM profile has been provisioned, and the configured SIM slot count. On a device with an eUICC, the cellular identity is software-provisioned: a profile can be downloaded, swapped, or deleted without physical access to the handset, which changes the threat model for any deployment that treats the SIM as a fixed identity anchor (fleet POS terminals, telematics units, tracked assets). Informational, because eSIM presence is a hardware capability rather than a misconfiguration.",
       "remediation": "For fleet devices, restrict eSIM profile management: use a carrier-locked or enterprise-managed eUICC, and block the eSIM settings path through device policy so a local user cannot download or delete profiles. Record the provisioning state as part of the device baseline so an unexpected profile change is detectable."
+    },
+    {
+      "id": "NET-ICMPREDIR-001",
+      "category": "NETWORK",
+      "label": "ICMP Redirects Not Accepted (IPv4)",
+      "command": "V=$(cat /proc/sys/net/ipv4/conf/all/accept_redirects 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^0$|^SYSCTL_ABSENT$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "net.ipv4.conf.all.accept_redirects controls whether the device updates its routing table when it receives an ICMP redirect. An attacker on the same network segment can send a forged redirect to insert themselves into the path for a chosen destination, which is a man-in-the-middle primitive requiring no authentication. 0 is both the hardened value and the common default, so this check fires only on a device that has been changed away from it.",
+      "remediation": "Set net.ipv4.conf.all.accept_redirects and net.ipv4.conf.default.accept_redirects to 0.",
+      "why": "A forged ICMP redirect from any host on the segment rewrites the routing table for a chosen destination.",
+      "risk_if_fail": "An attacker on the local network can silently place themselves in the path of the device's traffic."
+    },
+    {
+      "id": "NET-SRCROUTE-001",
+      "category": "NETWORK",
+      "label": "Source-Routed Packets Not Accepted (IPv4)",
+      "command": "V=$(cat /proc/sys/net/ipv4/conf/all/accept_source_route 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^0$|^SYSCTL_ABSENT$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "net.ipv4.conf.all.accept_source_route controls whether the device honours the IPv4 source-route option, which lets the sender dictate the return path of a packet. Source routing allows an attacker to bypass routing-based access controls and to receive replies at an address that would not normally be reachable. 0 is both the hardened value and the common default.",
+      "remediation": "Set net.ipv4.conf.all.accept_source_route and net.ipv4.conf.default.accept_source_route to 0.",
+      "why": "Source routing lets a sender choose the return path, defeating routing-based filtering.",
+      "risk_if_fail": "An attacker can steer replies to an address that routing policy would otherwise not reach."
+    },
+    {
+      "id": "NET-SYNCOOKIE-001",
+      "category": "NETWORK",
+      "label": "TCP SYN Cookies Enabled",
+      "command": "V=$(cat /proc/sys/net/ipv4/tcp_syncookies 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^1$|^SYSCTL_ABSENT$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "net.ipv4.tcp_syncookies lets the kernel answer a full SYN backlog without allocating state, so a SYN flood cannot exhaust the connection table and deny service to legitimate clients. 1 is both the hardened value and the common default. This matters most for a device that listens on a network port, which the listening-port checks in this category enumerate.",
+      "remediation": "Set net.ipv4.tcp_syncookies to 1.",
+      "why": "Without SYN cookies a trivial flood exhausts the backlog and denies service to real clients.",
+      "risk_if_fail": "Any listening service on the device can be knocked offline by a low-bandwidth SYN flood."
+    },
+    {
+      "id": "NET-ICMPBCAST-001",
+      "category": "NETWORK",
+      "label": "ICMP Broadcast Echo Ignored",
+      "command": "V=$(cat /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^1$|^SYSCTL_ABSENT$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "net.ipv4.icmp_echo_ignore_broadcasts makes the device ignore ICMP echo requests sent to a broadcast address. When disabled the device answers broadcast pings, which both reveals its presence to anyone sweeping the segment and makes it usable as an amplifier in a smurf-style reflection attack against a third party. 1 is both the hardened value and the common default.",
+      "remediation": "Set net.ipv4.icmp_echo_ignore_broadcasts to 1.",
+      "why": "Answering broadcast echo requests exposes the device to network sweeps and makes it a reflection amplifier.",
+      "risk_if_fail": "The device is discoverable by broadcast sweep and can be abused to amplify traffic at a third party."
+    },
+    {
+      "id": "NET-RPFILTER-001",
+      "category": "NETWORK",
+      "label": "Reverse Path Filtering Mode",
+      "command": "V=$(cat /proc/sys/net/ipv4/conf/all/rp_filter 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "net.ipv4.conf.all.rp_filter drops packets whose source address would not route back out the interface they arrived on, which blocks basic address spoofing. 1 is strict mode, 2 is loose mode, 0 is off. Reported for review rather than as a failure because Android uses per-network policy routing for its multiple simultaneous interfaces, where strict mode legitimately breaks traffic, so 2 or 0 can be correct on a phone while 1 is correct on a single-homed appliance.",
+      "remediation": "On a single-homed device such as a kiosk or POS terminal on fixed ethernet, set rp_filter to 1. On a multi-homed device leave it at 2 and enforce anti-spoofing upstream instead."
+    },
+    {
+      "id": "NET-SENDREDIR-001",
+      "category": "NETWORK",
+      "label": "ICMP Redirects Not Sent (IPv4)",
+      "command": "V=$(cat /proc/sys/net/ipv4/conf/all/send_redirects 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "net.ipv4.conf.all.send_redirects controls whether the device emits ICMP redirects. Only a router should do so, and on a host it leaks topology to anyone on the segment. Reported for review rather than as a failure because 1 is the kernel default on most builds, so failing on it would raise a finding on essentially every device rather than on a real misconfiguration. It becomes actionable on a device that is not forwarding traffic, and on one that is acting as a hotspot or tether the answer differs.",
+      "remediation": "Set net.ipv4.conf.all.send_redirects to 0 on any device that is not deliberately routing traffic. Leave it alone on a device operating as a hotspot or router."
+    },
+    {
+      "id": "NET-V6RA-001",
+      "category": "NETWORK",
+      "label": "IPv6 Router Advertisement Acceptance",
+      "command": "V=$(cat /proc/sys/net/ipv6/conf/all/accept_ra 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "net.ipv6.conf.all.accept_ra controls whether the device configures its IPv6 address, default route and DNS from router advertisements. A rogue RA from any host on the segment can install itself as the default gateway, which is a full man-in-the-middle with no authentication step anywhere in the protocol. Reported for review rather than as a failure because RA is how IPv6 addressing works on mobile and Wi-Fi, so 1 is required for normal operation on a phone, while a fixed-network appliance with static addressing should set 0. The correct value is a property of the deployment, not of the device.",
+      "remediation": "On a POS terminal, kiosk or IoT device on a fixed network, use static IPv6 configuration and set accept_ra to 0. Where RA is required, enable RA Guard on the switching infrastructure so a rogue advertisement cannot reach the device."
+    },
+    {
+      "id": "NET-V6REDIR-001",
+      "category": "NETWORK",
+      "label": "IPv6 ICMP Redirects Acceptance",
+      "command": "V=$(cat /proc/sys/net/ipv6/conf/all/accept_redirects 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "net.ipv6.conf.all.accept_redirects is the IPv6 counterpart of the IPv4 redirect check and carries the same man-in-the-middle risk. Reported for review rather than as a failure because 1 is the kernel default and is tied to accept_ra being enabled, so a device operating IPv6 normally will report 1 and failing on that would produce a finding on nearly every device.",
+      "remediation": "Set net.ipv6.conf.all.accept_redirects to 0 wherever accept_ra is also disabled, that is on a statically addressed appliance."
     }
   ]
 }

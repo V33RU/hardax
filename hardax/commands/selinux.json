@@ -176,22 +176,6 @@
       "remediation": "If contexts are missing, verify SELinux is enforcing and procps supports -Z. Relabel the filesystem if needed."
     },
     {
-      "id": "SELINUX_103",
-      "category": "SELINUX",
-      "label": "getenforce present",
-      "platforms": [
-        "android",
-        "linux"
-      ],
-      "type": "evidence",
-      "command": "sh -c 'command -v getenforce >/dev/null 2>&1 && echo PRESENT || echo MISSING'",
-      "safe_pattern": ".*",
-      "level": "info",
-      "requires_root": false,
-      "description": "Evidence: confirms getenforce tool availability.",
-      "remediation": "Install the policycoreutils package to get getenforce and other SELinux management tools."
-    },
-    {
       "id": "SELINUX_104",
       "category": "SELINUX",
       "label": "setenforce present (and not blocked)",
