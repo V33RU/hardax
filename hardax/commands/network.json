@@ -730,6 +730,17 @@
       "empty_is_safe": false,
       "description": "Inventories open netlink sockets and the protocol families in use. Netlink is the main configuration channel between userspace and the kernel, covering routing, netfilter, udev events, SELinux notifications and generic vendor protocols, and its parsers have produced kernel vulnerabilities reachable from any process holding the relevant capability. Family 0 is route, 9 is netfilter, 15 is kobject_uevent, 16 is generic. Informational: netlink is used constantly by the platform and its presence is expected.",
       "remediation": "Check that vendor daemons using generic netlink (family 16) validate message contents, and that SELinux restricts which domains may create netlink sockets of each family."
+    },
+    {
+      "id": "NET-UWB-001",
+      "category": "NETWORK",
+      "label": "Ultra-Wideband (UWB) Radio State",
+      "command": "F=$(pm list features 2>/dev/null | grep -i 'hardware.uwb' | head -1); if [ -z \"$F\" ]; then echo NO_UWB_HARDWARE; else S=$(settings get global uwb_enabled 2>/dev/null); D=$(dumpsys uwb 2>/dev/null | grep -iE 'state|enabled' | head -3 | tr '\\n' ' '); echo \"UWB_PRESENT enabled=${S:-unset} ${D:-no_dump}\"; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Reports whether the device exposes UWB hardware and whether the radio is enabled. UWB provides centimetre-accurate ranging and is used for digital car keys, secure unlock and precise finding, so the ranging session establishes a physical-proximity trust relationship. An enabled UWB radio is an always-on short-range attack surface and a precise location side channel. Informational because UWB presence is a hardware capability and enabling it is a legitimate user choice.",
+      "remediation": "Disable UWB on devices that do not use ranging features. Where digital key or secure ranging is in use, confirm the applet and ranging session are bound to a secure element rather than to app-level state."
     }
   ]
 }

@@ -205,6 +205,19 @@
       "level": "info",
       "description": "Non-standard services detected - review for potential threats",
       "remediation": "Identify unknown services and trace them to their source app. Remove if unauthorized."
+    },
+    {
+      "id": "FOR-BUGREPORT-001",
+      "category": "FORENSIC_INDICATORS",
+      "label": "Bugreport Artifacts Present",
+      "command": "F=$(ls -1 /bugreports/ /data/user_de/0/com.android.shell/files/bugreports/ 2>/dev/null | grep -icE 'bugreport|\\.zip$'); P=$(settings get global bugreport_in_power_menu 2>/dev/null); echo \"stored_bugreports=${F:-0} in_power_menu=${P:-null}\"",
+      "safe_pattern": "stored_bugreports=0",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "Counts stored bugreport archives and reports whether bugreport capture is exposed in the power menu. A bugreport is the single most sensitive artifact a device produces: it bundles full logcat, dumpsys output for every service, running process state, network configuration, account names and often authentication tokens that leaked into logs. An archive left on disk is a credential and PII disclosure readable by anything that can reach the path. The existing tombstone and dropbox checks cover crash artifacts; neither covers bugreports.",
+      "remediation": "Delete stored bugreport archives after use and treat them as credential material in transit. Disable bugreport_in_power_menu on production and kiosk devices so a bystander cannot trigger a capture.",
+      "why": "A bugreport aggregates logcat, every dumpsys service, account names and tokens leaked into logs into one readable archive.",
+      "risk_if_fail": "Credentials, tokens and personal data are recoverable from an archive sitting on the device."
     }
   ]
 }
