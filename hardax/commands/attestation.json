@@ -281,6 +281,18 @@
       "remediation": "Reflash with an image signed by production release keys and confirm otacerts.zip contains only the vendor's own OTA certificate. Never ship a device whose OTA trust anchor is the AOSP test key.",
       "why": "An OTA trust anchor set to a publicly available key lets anyone sign an update the device will install.",
       "risk_if_fail": "Persistent full-system compromise delivered through the normal update mechanism."
+    },
+    {
+      "id": "ATT-028",
+      "category": "ATTESTATION",
+      "label": "Secure Boot Fuse and Provisioning State",
+      "command": "S=$(getprop ro.boot.secureboot 2>/dev/null); F=$(getprop ro.boot.fuse.secure 2>/dev/null); H=$(getprop ro.boot.hwc 2>/dev/null); D=$(getprop ro.boot.hw.revision 2>/dev/null); E=$(getprop ro.boot.enable_dm_verity 2>/dev/null); echo \"secureboot=${S:-unset} secure_fuse=${F:-unset} hwc=${H:-unset} hw_rev=${D:-unset} dm_verity=${E:-unset}\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "Reports the boot properties that OEMs use to expose secure boot fuse and hardware provisioning state. On a production device the secure boot fuse is blown, permanently binding the boot ROM to the vendor's root key, and an unblown fuse means the entire chain of trust that Verified Boot and key attestation rest on can be bypassed by flashing an unsigned bootloader. Property names are entirely OEM-specific and many vendors expose none of this to Linux, so this is a best-effort evidence collector reported for review rather than a pass or fail. Definitive fuse state requires vendor tooling or hardware inspection and cannot be established from a shell.",
+      "remediation": "Confirm with the SoC vendor that the secure boot fuse is blown on production units and that engineering samples with unblown fuses are tracked and never shipped. Treat any device where this cannot be established as untrusted for attestation purposes."
     }
   ]
 }

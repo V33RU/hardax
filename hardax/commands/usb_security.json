@@ -149,6 +149,17 @@
       "level": "info",
       "description": "Raw block devices - check permissions",
       "remediation": "Set block device permissions to root-only (chmod 600) to prevent unauthorized disk access."
+    },
+    {
+      "id": "USB-TYPEC-001",
+      "category": "USB_SECURITY",
+      "label": "USB-C Port Roles and Power Delivery",
+      "command": "P=$(ls -d /sys/class/typec/port* 2>/dev/null | head -4); if [ -z \"$P\" ]; then echo NO_TYPEC_SYSFS; else O=''; for d in $P; do r=$(cat $d/data_role 2>/dev/null | tr -d '\\n'); p=$(cat $d/power_role 2>/dev/null | tr -d '\\n'); O=\"$O $(basename $d):data=${r:-?},power=${p:-?}\"; done; echo \"TYPEC_PRESENT$O\"; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Reports the USB-C port data and power roles. A port in dual-role or host mode negotiates Power Delivery with whatever is attached, and the PD message parser runs in the USB-C controller firmware below the operating system, which is the surface behind the BadPower class of attacks where a malicious charger rewrites controller firmware. A port acting as host also enumerates attacker-supplied devices, reaching every USB class driver in the kernel. Informational because dual-role is the normal configuration on a phone; on a fixed-function device it is often unnecessary.",
+      "remediation": "On a POS terminal, kiosk or embedded device that only charges, pin the port to sink and device role so it neither sources power nor enumerates attached peripherals, and disable USB host mode in the kernel configuration."
     }
   ]
 }

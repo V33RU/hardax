@@ -741,6 +741,28 @@
       "empty_is_safe": false,
       "description": "Reports whether the device exposes UWB hardware and whether the radio is enabled. UWB provides centimetre-accurate ranging and is used for digital car keys, secure unlock and precise finding, so the ranging session establishes a physical-proximity trust relationship. An enabled UWB radio is an always-on short-range attack surface and a precise location side channel. Informational because UWB presence is a hardware capability and enabling it is a legitimate user choice.",
       "remediation": "Disable UWB on devices that do not use ranging features. Where digital key or secure ranging is in use, confirm the applet and ranging session are bound to a secure element rather than to app-level state."
+    },
+    {
+      "id": "NET-EBPF-001",
+      "category": "NETWORK",
+      "label": "eBPF Network Policy Maps",
+      "command": "B=$(ls /sys/fs/bpf/ 2>/dev/null | head -10 | tr '\\n' ' '); N=$(ls /sys/fs/bpf/net_shared /sys/fs/bpf/netd_shared 2>/dev/null | wc -l); P=$(ls -ld /sys/fs/bpf 2>/dev/null | awk '{print $1}'); [ -z \"$B\" ] && echo NO_BPF_FS || echo \"bpf_objects=$B netd_maps=${N:-0} bpffs_mode=${P:-unknown}\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Inventories the pinned eBPF objects under /sys/fs/bpf. Android moved per-UID network policy, data accounting and firewall enforcement into eBPF programs loaded by bpfloader at boot, so these maps are the live firewall state: the UID allowlists that implement data saver, VPN lockdown, doze restrictions and per-app network blocking. Write access to the wrong map lets a process exempt itself from network restrictions or read another app's traffic accounting. Informational because the object set is platform-version specific and its presence is expected on Android 11 and later.",
+      "remediation": "Confirm /sys/fs/bpf is not writable outside the system and network stack UIDs, and that SELinux labels the netd maps so only netd and the network stack may update them."
+    },
+    {
+      "id": "NET-WIFIFW-001",
+      "category": "NETWORK",
+      "label": "Wi-Fi Chipset Firmware Inventory",
+      "command": "F=$(ls /vendor/firmware/*wlan* /vendor/firmware/*wifi* /vendor/firmware/*brcm* /vendor/etc/wifi/* /system/etc/firmware/*wlan* 2>/dev/null | head -8 | tr '\\n' ' '); V=$(getprop ro.vendor.wlan.chip 2>/dev/null); D=$(getprop vendor.wlan.driver.version 2>/dev/null); [ -z \"$F\" ] && [ -z \"$V$D\" ] && echo NO_WIFI_FIRMWARE_VISIBLE || echo \"files=${F:-none} chip=${V:-unset} driver=${D:-unset}\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Inventories the Wi-Fi firmware blobs and driver version strings on the device. Wi-Fi chipset firmware runs on a separate processor with DMA access to host memory and parses attacker-supplied frames before the host stack ever sees them, which is the class of bug behind Broadpwn and the Broadcom and Qualcomm over-the-air remote code execution findings. It updates on the SoC vendor cadence, not the Android bulletin cadence. The Bluetooth controller has one check; Wi-Fi firmware had none. Informational: this records the version for correlation against vendor advisories, since no shell probe can attest the blob.",
+      "remediation": "Record the firmware and driver versions and check them against the SoC vendor security advisories, which are published separately from the Android bulletin. Wi-Fi firmware fixes frequently do not reach a device through the monthly patch level alone."
     }
   ]
 }

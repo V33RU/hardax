@@ -325,6 +325,30 @@
       "level": "critical",
       "description": "/metadata must be nosuid; it is writable and a setuid binary placed there must not gain privilege. NA means the device has no metadata partition.",
       "remediation": "Add 'nosuid' to the fstab entry for /metadata and remount: 'mount -o remount,nosuid /metadata'."
+    },
+    {
+      "id": "PART-APEXVER-001",
+      "category": "PARTITION",
+      "label": "APEX Active Versions and Rollback State",
+      "command": "A=$(cmd -w apexservice getActivePackages 2>/dev/null | head -12); [ -z \"$A\" ] && A=$(ls -d /apex/*/ 2>/dev/null | sed 's#/apex/##;s#/##' | grep -v '@' | head -12 | tr '\\n' ' '); S=$(ls -d /apex/*@* 2>/dev/null | wc -l); [ -z \"$A\" ] && echo NO_APEX || echo \"active=$A versioned_mounts=${S:-0}\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Lists the active APEX modules and how many versioned mount points are present. APEX delivers updatable system components (ART, conscrypt, media, DNS resolver, tethering) outside the full OTA, each signed independently and verified at activation. The security question is which version is actually active: a module rolled back or pinned to an older build reintroduces whatever it had been patched for, and a versioned mount left behind indicates a staged or reverted activation. The existing APEX checks cover signing and mount state; none covered the active version set.",
+      "remediation": "Compare the active module versions against the expected set for this build and security patch level. Investigate any module pinned below the platform version, since APEX modules carry their own security fixes independent of the OTA."
+    },
+    {
+      "id": "PART-FSCK-001",
+      "category": "PARTITION",
+      "label": "Filesystem Repair Tool Permissions",
+      "command": "T=''; for b in /system/bin/e2fsck /system/bin/fsck.f2fs /system/bin/fsck_msdos /system/bin/tune2fs /system/bin/make_f2fs /system/bin/mke2fs; do [ -e \"$b\" ] && T=\"$T $(ls -l $b 2>/dev/null | awk '{print $1\" \"$NF}')\"; done; W=$(find /system/bin -maxdepth 1 \\( -name 'fsck*' -o -name '*e2fs*' -o -name '*f2fs*' \\) -perm -o+w 2>/dev/null | tr '\\n' ' '); [ -n \"$W\" ] && echo \"FSCK_TOOL_WORLD_WRITABLE $W\" || { [ -z \"$T\" ] && echo NO_FSCK_TOOLS || echo \"FSCK_TOOLS_PRESENT$T\"; }",
+      "safe_pattern": "^(NO_FSCK_TOOLS|FSCK_TOOLS_PRESENT)",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "Reports the filesystem repair and formatting tools present on the system partition and whether any is world-writable. These binaries run early in boot with high privilege and parse attacker-influenceable on-disk structures, so a malformed superblock on removable media or on a partition an attacker can reach becomes a parsing bug in a privileged context. A world-writable repair tool is a direct code-replacement path into early boot.",
+      "remediation": "Remove write permission from any tool listed and confirm the system partition is mounted read-only. Remove formatting tools such as mke2fs and make_f2fs from production images that never reformat.",
+      "why": "Repair tools parse untrusted on-disk structures with high privilege during early boot.",
+      "risk_if_fail": "A writable repair binary is executed with privilege during boot, giving code execution before Android starts."
     }
   ]
 }
