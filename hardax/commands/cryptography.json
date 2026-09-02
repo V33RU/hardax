@@ -143,12 +143,12 @@
     },
     {
       "category": "CRYPTOGRAPHY",
-      "label": "Database Files with Potential Secrets",
-      "command": "find /data -name '*.db' -o -name '*.sqlite' 2>/dev/null | head -10",
+      "label": "Credential Strings in Local Databases",
+      "command": "find /data /sdcard -type f \\( -name '*.db' -o -name '*.sqlite' -o -name '*.sqlite3' \\) 2>/dev/null | head -40 | while IFS= read -r f; do grep -laiE 'password|passwd|api[_-]?key|client[_-]?secret|bearer |refresh[_-]?token' \"$f\" 2>/dev/null; done | head -10",
       "safe_pattern": "^$",
-      "level": "info",
-      "description": "Database files - may contain sensitive data",
-      "remediation": "Audit database files for sensitive data. Encrypt databases using SQLCipher or restrict access with strict permissions.",
+      "level": "warning",
+      "description": "Searches the first 40 SQLite databases found under /data and /sdcard for credential-looking strings (password, api_key, client_secret, bearer, refresh_token) and lists the files that contain them. SQLite stores text unencrypted in the page data, so a credential written into a table is readable straight out of the file by anyone who can read it. The earlier version of this check carried the same label but only listed .db filenames and never inspected their contents, which duplicated the database inventory in privacy.json. Capped at 40 files scanned and 10 reported so the scan stays bounded on a device with a large /data.",
+      "remediation": "Inspect each listed database. Move credentials into the Android Keystore or EncryptedSharedPreferences instead of a plain SQLite table, and confirm the file is not world-readable.",
       "empty_is_safe": true
     },
     {

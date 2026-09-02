@@ -105,21 +105,21 @@
     {
       "category": "STORAGE",
       "label": "Writable System Partition",
-      "command": "mount 2>/dev/null | grep '/system' | grep -v 'ro,'",
+      "command": "mount 2>/dev/null | grep ' /system ' | grep -v 'ro,'",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "System partition writable - firmware can be modified!",
-      "remediation": "Remount /system as read-only immediately: 'mount -o remount,ro /system'. Investigate for tampering.",
+      "description": "Detects the /system partition mounted read-write, which allows firmware modification. The mount point is matched with surrounding spaces so it cannot also match /system_ext, /system/vendor or any other path containing the string. The earlier version grepped for '/system' unanchored, so a writable /system_ext was reported here as a writable /system, producing a second critical finding for a partition that was actually read-only and duplicating the dedicated System_ext check.",
+      "remediation": "Remount read-only with 'mount -o remount,ro /system' and investigate why it was writable. On a production build /system should never be mounted rw.",
       "empty_is_safe": true
     },
     {
       "category": "STORAGE",
       "label": "Vendor Partition Writable",
-      "command": "mount 2>/dev/null | grep '/vendor' | grep -v 'ro,'",
+      "command": "mount 2>/dev/null | grep ' /vendor ' | grep -v 'ro,'",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "Vendor partition writable - can be modified!",
-      "remediation": "Remount /vendor as read-only: 'mount -o remount,ro /vendor'. Check for unauthorized modifications.",
+      "description": "Detects the /vendor partition mounted read-write. The mount point is matched with surrounding spaces so it cannot also match /vendor_dlkm, /vendor/odm or any other path containing the string, which the earlier unanchored grep did.",
+      "remediation": "Remount read-only with 'mount -o remount,ro /vendor' and check for unauthorised modification.",
       "empty_is_safe": true
     },
     {

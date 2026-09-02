@@ -70,16 +70,6 @@
     },
     {
       "category": "SYSTEM",
-      "label": "Credential Storage Contents",
-      "command": "ls /data/misc/keystore/user_0 2>/dev/null | wc -l",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Number of credential files in keystore user_0 - informational evidence collector.",
-      "remediation": "Review keystore contents if unexpectedly large. Run: adb shell ls /data/misc/keystore/user_0 (requires root).",
-      "empty_is_safe": true
-    },
-    {
-      "category": "SYSTEM",
       "label": "Kernel Hardening (PAN/UAO)",
       "command": "if [ ! -e /proc/config.gz ]; then echo 'NOT_OBSERVABLE /proc/config.gz absent (CONFIG_IKCONFIG_PROC disabled)'; else K=$( (zcat /proc/config.gz 2>/dev/null || gzip -dc /proc/config.gz 2>/dev/null) | grep -cE '^CONFIG_ARM64_(PAN|UAO)=y' ); echo \"PAN_UAO_COUNT=${K:-0}\"; fi",
       "safe_pattern": "^(PAN_UAO_COUNT=2|NOT_OBSERVABLE)",
