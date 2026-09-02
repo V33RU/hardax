@@ -8,7 +8,7 @@
   <a href="https://pypi.org/project/hardax/">
     <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg" alt="Python 3.10 | 3.11 | 3.12">
   </a>
-  <img src="https://img.shields.io/badge/checks-822-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-816-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-29-purple.svg" alt="Categories">
   <a href="https://github.com/V33RU/hardax/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
@@ -34,7 +34,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **822 security checks** across **29 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **816 security checks** across **29 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -49,7 +49,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **822 Security Checks** | Comprehensive coverage across 29 security categories |
+| **816 Security Checks** | Comprehensive coverage across 29 security categories |
 | **Deterministic Analysis Engine** | Offline risk score (0-100), attack-chain correlation, prioritised remediation - reasons only over confirmed findings, no LLM, no network, no hallucination |
 | **Optional AI Narrative** | Opt-in `--ai` LLM summary on top of the deterministic engine (local Ollama, or Anthropic/OpenAI with your own key). Sends only the redacted analysis summary, never raw device output. Off by default |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
@@ -319,23 +319,23 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **822 checks** into **29 security categories**:
+HARDAX organizes **816 checks** into **29 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
 | **SYSTEM** | 99 | Kernel, memory, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, time, power, build properties, emulator detection, SIM status, device provisioning, WebView, Scudo/GWP-ASan allocator hardening, GKI kernel and module loading, kernel/fs hardening sysctls, SGID and world-writable binaries |
 | **BLUETOOTH** | 69 | BLE/Classic, pairing, profiles (PAN, HFP, A2DP, HID, SPP, OPP, MAP), L2CAP, ATT, SMP, GAP, attack surfaces |
 | **NETWORK** | 78 | Ports, WiFi, cellular (incl. Allow 2G), VPN, MQTT, CoAP, CAN bus, HL7, DICOM, hotspot WPA mode, active connections, eSIM/eUICC provisioning, IPv4/IPv6 network hardening sysctls (ICMP redirects, source routing, SYN cookies, RA acceptance) |
-| **PRIVACY** | 43 | Screen lock, location, sensors, clipboard, audio, Android 13+ Restricted Settings, Credential Manager / passkey provider |
+| **PRIVACY** | 42 | Screen lock, location, sensors, clipboard, audio, Android 13+ Restricted Settings, Credential Manager / passkey provider |
 | **APPS** | 57 | Permissions, overlay attacks, install sources, backup audit, APK signature scheme, QUERY_ALL_PACKAGES, REQUEST_INSTALL_PACKAGES, SDK Runtime (Privacy Sandbox) |
 | **BINARY_HARDENING** | 36 | PIE, NX, RELRO, stack canaries, stripped symbols, ASLR, kptr_restrict |
 | **KERNEL_DRIVERS** | 7 | Device node permissions, DMA-BUF/ION heaps, DSP/FastRPC exposure (CVE-2024-43047 surface), GPU node permissions, binder node permissions |
 | **PARTITION** | 37 | dm-verity, OverlayFS, A/B slots, FBE/FDE, mount flags (noexec / nosuid / nodev on /data, /storage/emulated, /mnt/media_rw, /cache, /metadata), block device permissions |
 | **SELINUX** | 30 | SELinux enforcement, policy version, audit, context, boot flags |
-| **CERTIFICATE_AUDIT** | 25 | CA certificates, user certs, pinning bypass, keystore, expiry analysis |
+| **CERTIFICATE_AUDIT** | 22 | CA certificates, user certs, pinning bypass, keystore, expiry analysis |
 | **POS_SECURITY** | 23 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper, NFC relay, PAX CVE |
 | **STORAGE** | 24 | Filesystem, backup, encryption, partitions |
-| **FORENSIC_INDICATORS** | 23 | Crash history, kernel panics, logcat anomalies, temp artifacts, clipboard forensics |
+| **FORENSIC_INDICATORS** | 21 | Crash history, kernel panics, logcat anomalies, temp artifacts, clipboard forensics |
 | **ATTESTATION** | 26 | SafetyNet/Play Integrity, Knox warranty bit, TIMA, RKP, Titan M, fs-verity, bypass detection, KeyMint HAL, remote key provisioning, TrickyStore/keybox spoofing |
 | **AUTOMOTIVE** | 20 | Vehicle-specific checks, CAN bus, infotainment |
 | **BOOT_SECURITY** | 31 | Verified boot, AVB (VBMeta digest/hash-alg/size/version), dm-verity error modes (incl. restart, bootconfig-aware), custom root of trust (verifiedbootstate=yellow), bootloader, integrity, boot-state property vs kernel cmdline consistency |
@@ -435,7 +435,7 @@ HARDAX/
     ├── ai.py              # Optional opt-in LLM narrative (Ollama/Anthropic/OpenAI, stdlib only)
     ├── templates/
     │   └── report.html    # Interactive HTML report template
-    └── commands/          # Security check definitions (822 checks, 29 categories)
+    └── commands/          # Security check definitions (816 checks, 29 categories)
         ├── system.json        #  86 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator, WebView
         ├── bluetooth.json     #  82 checks - BLE/Classic, pairing, all profiles
         ├── network.json       #  61 checks - Ports, WiFi, VPN, IoT protocols, Allow 2G, hotspot WPA
@@ -498,14 +498,34 @@ HARDAX/
 - [x] CLI visual redesign: one rounded-corner box family reserved for panels that print once or redraw in place (banner, live HUD, final summary, final analysis), boxless hairline-rule category headers instead of a 3-line box repeated per category, a `❯_ HARDAX` wordmark, a strict two-role colour discipline (structure vs. severity), a guaranteed space between every status icon and its count (some terminal fonts render icons like ⚠ at double width), and terminal-width-aware truncation for `--show-commands` command/remediation lines so nothing needs horizontal scrolling - chosen from an independently-judged panel of 3 redesign directions and verified on both native Windows console and git-bash/mintty (v5.19.0)
 - [x] 10 new checks from a 2025-2026 Android security feature gap analysis: null cipher protection (A14+) and cellular identifier disclosure notifications (A16+) - the first cellular-security checks in `network.json`; Certificate Transparency platform flags (A16+); Private Space profile (A15+); Intrusion Logging / Advanced Protection service state (A16+); Advanced Protection subfeature audit and KeyMint post-quantum readiness (A17+); io_uring restriction and 16KB page-size build (kernel); pKVM/AVF protected-VM support (v5.20.0)
 - [x] 3 new exploited-in-the-wild CVE indicators: LANDFALL Samsung spyware chain (CVE-2025-21042/21043, CISA KEV, zero-click via DNG images, Samsung-gated), the December 2025 Framework zero-day pair (CVE-2025-48633/48572), and the June 2026 zero-interaction remote privesc (CVE-2025-48595); plus a fix to the Screenshot Prevention check which mistakenly read the unrelated `screensaver_enabled` setting instead of the DevicePolicyManager screen-capture-disabled policy (v5.21.0)
+- [x] 8 new detections for uncovered surfaces: hardware-backed keystore / KeyMint HAL presence (the root every other ATTESTATION claim depends on), remote key provisioning, Scudo/GWP-ASan allocator hardening, GKI kernel and module-loading restriction, Credential Manager / passkey provider, eSIM/eUICC provisioning, Sandboxed SDK Runtime, Health Connect (v5.22.0)
+- [x] Attestation spoofing detection: TrickyStore framework and its target/patch config, keybox key material on disk, KernelSU and APatch root frameworks, plus verified-boot state consistency (`ro.boot.verifiedbootstate` compared against `/proc/cmdline` and `/proc/bootconfig`, which `resetprop` cannot rewrite, so a mismatch is proof of forgery) (v6.0.0)
+- [x] New `KERNEL_DRIVERS` category (29th): non-standard world-writable device nodes, DSP/FastRPC exposure (the CVE-2024-43047 CISA KEV surface), DMA-BUF and legacy ION heaps, GPU and binder node permissions. Plus tracefs, procfs hidepid, native daemon capability sets, binder service inventory, hidden API enforcement, system-UID packages, priv-app allowlist, dalvik-cache writability, abstract unix and netlink socket inventories, and RPMB availability. `CVE-033` now probes the FastRPC node instead of reading only a patch date (v6.0.1)
+- [x] 16 kernel, filesystem and network hardening sysctls: unprivileged eBPF, SUID core dumps, protected FIFOs and regular files, magic SysRq, panic-on-oops, SGID binaries, world-writable executables, ICMP redirects (v4 and v6), source routing, SYN cookies, broadcast echo, reverse path filtering and IPv6 router advertisement acceptance (v6.0.1)
+- [x] 29 duplicate and dead checks removed, 7 false positives fixed. Three scored CRITICAL on every device: `$((` parsed as arithmetic expansion so the ADB loopback script never ran, three kernel checks turned a `zcat` error into a finding, and the patch-currency check failed a current patch wherever `date -d` was unavailable. Plus `grep '/system'` matching `/system_ext`, and `CONFIG_SECCOMP=Y` which could never match a lowercase kernel config (v6.0.1)
+- [x] `tests/test_command_hygiene.py`: 10 invariants pinning defect classes that shipped, including `sh -n` on every command, stderr redirected on optional path reads, failable checks must be capable of failing, no shared commands, no confusable labels, and config.gz checks must declare `NOT_OBSERVABLE` (v6.0.1)
+- [x] Package install chain and remaining surfaces: exported components without permission, secret-code dialer receivers (OEM service menus), split APK and staged install sessions, APK signature scheme distribution, package rollback, biometric template storage, Gatekeeper lockout state, APEX active versions, filesystem repair tool permissions, eBPF network policy maps, Wi-Fi chipset firmware, USB-C port roles, secure boot fuse state, cgroup hierarchy, crash artifact accumulation, OTA signing certificates (AOSP test key detection), radio DIAG/AT interface exposure, property context labelling, boot mode and fastbootd, UWB, sensor privacy toggles, bugreport artifacts and metadata encryption (v6.1.0)
 
 ### Open
 
 Grouped by theme. Order within a group is rough priority.
 
+#### Verification (highest priority)
+- [ ] **Run against a physical Android device.** 55 checks added across v5.22.0 to v6.1.0 have never executed on real hardware. Their absent-branch behaviour is proven and their present-branch behaviour is not
+- [ ] Resolve 11 unverified toybox portability constructs (`xargs -0`, `timeout`, `comm`) which modern toybox probably supports but nothing has confirmed
+- [ ] Extend `tests/fixtures/device_outputs.json` with output captured from real devices across several OEMs, not only from reasoning about the shell
+
+#### Check metadata completeness
+- [ ] Stable `id` on every check. Only 38% carry one, so reports are keyed on labels and a rename breaks downstream consumers
+- [ ] `baseline_key` on the boot and identity checks. Only 7 of 822 carry one, so `--save-baseline` watches almost nothing
+- [ ] `why` and `risk_if_fail` beyond the current 8%. The XLSX and HTML reports fall back to `description` for the rest
+- [ ] `expected_secure_state` beyond the current 2%, which is the field a Test ID / Component / Expected State methodology format needs
+- [ ] Collapse the seven severity levels. `low`, `medium` and `high` are historical and map onto the same three buckets as `info`, `warning` and `critical`
+
 #### Analysis features
 - [ ] Full scan-to-scan diff (compare two complete audits, surface all finding regressions; integrity-value baselines already shipped via `--baseline` in v5.13.0)
 - [ ] CVE correlation (map findings to relevant CVE IDs automatically)
+- [ ] Extend the CVE checks that read only a patch date to also probe the reachable attack surface, as `CVE-033` now does for FastRPC
 
 #### Additional security checks
 - [ ] TLS protocol minimum / cipher policy on the device
@@ -513,11 +533,12 @@ Grouped by theme. Order within a group is rough priority.
 - [ ] TrustZone / TEE OS specific version (beyond presence detection)
 - [ ] Hidden SSID hotspot detection
 - [ ] Samsung Knox Container / Workspace state
+- [ ] Deepen the domains still at a single check: eSIM/LPA, SMS/MMS, GNSS, Thread/Matter, HDCP, IMS/VoLTE, Bluetooth controller firmware
 
 #### Compliance mappings
-- [ ] CIS Android Benchmark v1.6.0: fill the remaining 11% to 100% coverage
+- [ ] CIS Android Benchmark v1.6.0: fill the remaining 11% to 100% coverage. The current claim is not independently verified
 - [ ] OWASP MASVS / MSTG mapping per check
-- [ ] NIST 800-53 / 800-171 mapping per check
+- [ ] NIST 800-53 / 800-171 mapping per check (31 of 822 checks carry one today)
 - [ ] PCI-DSS 4.0 detailed mapping (POS terminals)
 
 #### Tooling and ergonomics
@@ -528,9 +549,30 @@ Grouped by theme. Order within a group is rough priority.
 - [ ] Web dashboard (Flask / FastAPI) for centralised audit storage and history
 
 #### Code quality
-- [ ] Split the 2400-line `hardax/__init__.py` into modules (transports, engine, reporters, cli)
+- [ ] Split the 3200-line `hardax/__init__.py` into modules (transports, engine, reporters, cli). `ai.py` and `analysis.py` are already separate; the core is not
 - [ ] Type hints throughout, clean under `mypy --strict`
+- [ ] macOS CI job. Windows was added in the pytest matrix; `pyproject.toml` also advertises macOS
 
 #### External integration
 - [ ] APK static analysis (apktool / jadx integration)
 - [ ] SARIF output (for GitHub code scanning and similar tools)
+
+---
+
+## Scope boundary
+
+HARDAX audits device **configuration** over a shell transport (ADB, SSH, UART). Some parts of a complete Android security assessment are not reachable from that position and are deliberately not claimed. They need a different tool class:
+
+| Out of scope | Needs |
+|---|---|
+| Boot ROM and first-stage bootloader vulnerabilities | Silicon analysis |
+| Fault injection (voltage, clock, EM glitching) | Hardware lab |
+| Power, EM and timing side channels | Hardware lab |
+| Chip-off, eMMC/UFS extraction, cold-boot attacks | Physical forensics |
+| TEE internals: Trusted Applications, secure-world IPC, SMC, EL3 | Secure-world access |
+| Baseband and peripheral firmware authenticity | Firmware extraction |
+| GPU shader compilers and command parsers | Fuzzing harness |
+| Binder, ioctl, parser and protocol fuzzing | Fuzzing harness |
+| Source review, SAST, SBOM, build provenance | Source and CI access |
+
+There is also a hard platform limit: there is **no shell path to the Keystore attestation API**. HARDAX cannot generate an attested key, so it cannot parse a real `KeyDescription`, read `RootOfTrust` from a certificate, or verify an attestation chain. It reads the underlying properties the secure hardware would report instead. Attestation chain validation belongs on a backend, not on the device being audited.
