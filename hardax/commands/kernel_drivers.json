@@ -1,0 +1,61 @@
+{
+  "checks": [
+    {
+      "id": "KDRV-DEVPERM-001",
+      "category": "KERNEL_DRIVERS",
+      "label": "World-Writable Device Nodes (Non-Standard)",
+      "command": "find /dev -maxdepth 2 -type c -perm -o+w 2>/dev/null | grep -vE '/dev/(null|zero|full|random|urandom|tty[0-9]*|ptmx|console|pts/.*|binder|hwbinder|vndbinder|ashmem|ion|hwrng|kgsl-3d0|mali[0-9]*|xt_qtaguid|qtaguid|pmsg0|kmsg|fuse|uinput|snd/.*)$' | head -15",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": true,
+      "description": "Lists character device nodes writable by any process, excluding the set Android makes world-writable by design (null, zero, urandom, tty, ptmx, the binder family, ashmem, ion, the primary GPU node and the sound nodes). Every remaining entry is an ioctl surface reachable from an unprivileged app or from an untrusted native process, and vendor driver ioctls are where a large share of Android kernel privilege escalations live. Reported as an inventory rather than pass or fail because the legitimate set is SoC-specific: a Qualcomm device exposes different nodes from a MediaTek or Exynos one, and failing on any entry would fire on every device.",
+      "remediation": "For each node listed, confirm the SELinux policy restricts it to the domains that need it and that the DAC permissions are not broader than the policy. Remove world write access from any node no app needs to reach directly."
+    },
+    {
+      "id": "KDRV-FASTRPC-001",
+      "category": "KERNEL_DRIVERS",
+      "label": "DSP / FastRPC Node Exposure",
+      "command": "N=$(ls -d /dev/adsprpc-smd /dev/cdsprpc-smd /dev/fastrpc-adsp /dev/fastrpc-cdsp /dev/fastrpc* 2>/dev/null | sort -u | tr '\\n' ' '); if [ -z \"$N\" ]; then echo NO_FASTRPC_NODE; else P=$(ls -l $N 2>/dev/null | awk '{print $1\" \"$NF}' | tr '\\n' ' '); W=$(find /dev -maxdepth 1 -type c -perm -o+w -name '*rpc*' 2>/dev/null | tr '\\n' ' '); echo \"FASTRPC_PRESENT perms=$P world_writable=${W:-none}\"; fi",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "Reports whether the Qualcomm FastRPC remote-procedure nodes to the ADSP and CDSP are present and how they are permissioned. CVE-2024-43047 is a use-after-free in this driver that appeared on the CISA Known Exploited Vulnerabilities list, and it was reachable because the node is accessible to applications by design on Qualcomm hardware. The existing CVE-033 check evaluates only the security patch date; this reports the attack surface itself, so an auditor can see whether the driver is actually reachable on the device in front of them rather than inferring it from a date. Presence is normal on Qualcomm SoCs and is not a finding on its own.",
+      "remediation": "Confirm the security patch level covers CVE-2024-43047 (see CVE-033) and that SELinux confines the fastrpc nodes to the domains that legitimately use the DSP. On a device with no DSP workload, remove app access to the node entirely."
+    },
+    {
+      "id": "KDRV-DMABUF-001",
+      "category": "KERNEL_DRIVERS",
+      "label": "DMA-BUF Heaps and Legacy ION Exposure",
+      "command": "H=$(ls /dev/dma_heap/ 2>/dev/null | tr '\\n' ' '); I=$([ -e /dev/ion ] && ls -l /dev/ion 2>/dev/null | awk '{print $1}'); echo \"dma_heap=${H:-none} legacy_ion=${I:-absent}\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Reports the DMA-BUF heaps exposed under /dev/dma_heap and whether the legacy /dev/ion node is still present. Both provide shared buffers between userspace, the GPU, the camera and the DSP, so a bug in a heap exporter or in the importing driver is reachable from an app that can open the node. The legacy ION allocator was removed from mainline in favour of DMA-BUF heaps and its continued presence indicates an older vendor kernel. Informational: the exposed heap set is SoC-specific and having heaps is normal.",
+      "remediation": "Prefer DMA-BUF heaps over legacy ION when the kernel supports both, and confirm SELinux restricts each heap to the domains that need it. A device still exposing /dev/ion is running a kernel old enough to be worth checking against the ION CVE history."
+    },
+    {
+      "id": "KDRV-GPU-001",
+      "category": "KERNEL_DRIVERS",
+      "label": "GPU Device Node Permissions",
+      "command": "N=$(ls -d /dev/kgsl-3d0 /dev/mali0 /dev/dri/card0 /dev/dri/renderD128 2>/dev/null | tr '\\n' ' '); if [ -z \"$N\" ]; then echo NO_GPU_NODE; else ls -l $N 2>/dev/null | awk '{print $1\" \"$3\":\"$4\" \"$NF}'; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Reports the ownership and permissions of the GPU device nodes. The GPU driver is one of the largest ioctl surfaces reachable from an unprivileged app, because every app that renders must be able to open it, and it has a long CVE history across Adreno (kgsl), Mali and the DRM render nodes. App access is required for normal operation, so this is an inventory for review rather than a pass or fail; what matters is that the node is confined by SELinux and that the kernel carries current patches.",
+      "remediation": "Confirm the GPU driver is current against the SoC vendor advisories, and that SELinux confines the node to app and system domains rather than leaving it globally reachable."
+    },
+    {
+      "id": "KDRV-BINDER-001",
+      "category": "KERNEL_DRIVERS",
+      "label": "Binder Device Node Permissions",
+      "command": "N=$(ls -d /dev/binder /dev/hwbinder /dev/vndbinder /dev/binderfs/* 2>/dev/null | tr '\\n' ' '); if [ -z \"$N\" ]; then echo NO_BINDER_NODE; else ls -l $N 2>/dev/null | awk '{print $NF\" \"$1}' | tr '\\n' ' '; echo; fi",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "Reports the permissions of the binder, hwbinder and vndbinder nodes. Binder is the transport for essentially every privileged operation on Android, and the driver itself has produced several exploited use-after-free vulnerabilities including CVE-2019-2215 and CVE-2023-20938. The nodes are world-accessible by design because every app needs binder, so the permissions are expected to be broad; this check records them so an auditor can confirm they match the platform default rather than having been widened, and so a device using binderfs is visible.",
+      "remediation": "Nothing to change under normal conditions. Confirm the permissions match the stock image for this build, and that the kernel carries the binder CVE fixes tracked in the CVE_INDICATORS category."
+    }
+  ]
+}

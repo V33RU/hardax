@@ -708,6 +708,28 @@
       "requires_manual_review": true,
       "description": "net.ipv6.conf.all.accept_redirects is the IPv6 counterpart of the IPv4 redirect check and carries the same man-in-the-middle risk. Reported for review rather than as a failure because 1 is the kernel default and is tied to accept_ra being enabled, so a device operating IPv6 normally will report 1 and failing on that would produce a finding on nearly every device.",
       "remediation": "Set net.ipv6.conf.all.accept_redirects to 0 wherever accept_ra is also disabled, that is on a statically addressed appliance."
+    },
+    {
+      "id": "NET-UNIXSOCK-001",
+      "category": "NETWORK",
+      "label": "Abstract Unix Domain Socket Inventory",
+      "command": "T=$(grep -c . /proc/net/unix 2>/dev/null); A=$(grep -c '@' /proc/net/unix 2>/dev/null); L=$(awk '$NF ~ /^@/ {print $NF}' /proc/net/unix 2>/dev/null | sort -u | head -10 | tr '\\n' ' '); [ -z \"$T\" ] && echo NO_PROC_NET_UNIX || echo \"total=$T abstract=${A:-0} names=${L:-none}\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Inventories unix domain sockets, separating out those in the abstract namespace (names beginning with @). Abstract sockets have no filesystem path and therefore no DAC permissions: access is controlled by SELinux alone, and any process the policy does not explicitly block can connect. They are a local IPC channel that a filesystem permission review will not show, which makes them a recurring blind spot. Informational because Android uses abstract sockets legitimately throughout the platform.",
+      "remediation": "For each abstract socket name listed, confirm SELinux restricts connect access to the intended domains. Prefer filesystem-backed sockets with explicit permissions for any new vendor IPC."
+    },
+    {
+      "id": "NET-NETLINK-001",
+      "category": "NETWORK",
+      "label": "Netlink Socket Family Inventory",
+      "command": "[ -r /proc/net/netlink ] || { echo NO_PROC_NET_NETLINK; exit 0; }; F=$(awk 'NR>1{print $2}' /proc/net/netlink 2>/dev/null | sort -un | tr '\\n' ',' | sed 's/,$//'); N=$(awk 'NR>1' /proc/net/netlink 2>/dev/null | wc -l); echo \"netlink_sockets=$N families=${F:-none}\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Inventories open netlink sockets and the protocol families in use. Netlink is the main configuration channel between userspace and the kernel, covering routing, netfilter, udev events, SELinux notifications and generic vendor protocols, and its parsers have produced kernel vulnerabilities reachable from any process holding the relevant capability. Family 0 is route, 9 is netfilter, 15 is kobject_uevent, 16 is generic. Informational: netlink is used constantly by the platform and its presence is expected.",
+      "remediation": "Check that vendor daemons using generic netlink (family 16) validate message contents, and that SELinux restricts which domains may create netlink sockets of each family."
     }
   ]
 }
