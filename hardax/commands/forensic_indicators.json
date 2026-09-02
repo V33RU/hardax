@@ -75,16 +75,6 @@
     },
     {
       "category": "FORENSIC_INDICATORS",
-      "label": "Temp Directory Artifacts count",
-      "command": "ls /data/local/tmp/ 2>/dev/null | grep -iE '\\.so$|\\.dex$|\\.apk$|\\.sh$|\\.elf$|frida|inject|hook|payload|gadget' | wc -l",
-      "safe_pattern": "^0$",
-      "level": "critical",
-      "description": "Suspicious files in /data/local/tmp may indicate active exploitation",
-      "remediation": "Delete all suspicious files from /data/local/tmp. Investigate which process created them.",
-      "empty_is_safe": true
-    },
-    {
-      "category": "FORENSIC_INDICATORS",
       "label": "Temp Directory Artifacts files",
       "command": "ls /data/local/tmp/ 2>/dev/null | grep -iE '\\.so$|\\.dex$|\\.apk$|\\.sh$|\\.elf$|frida|inject|hook|payload|gadget'",
       "safe_pattern": "^$",
@@ -110,16 +100,6 @@
       "level": "info",
       "description": "Number of email accounts - more accounts increase attack surface",
       "remediation": "Remove unused email accounts to reduce attack surface and exposure risk."
-    },
-    {
-      "category": "FORENSIC_INDICATORS",
-      "label": "Email Accounts files",
-      "command": "dumpsys account 2>/dev/null | grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}'",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Email accounts detected - more accounts increase attack surface",
-      "remediation": "Review listed accounts and remove any that are unused or unrecognized.",
-      "empty_is_safe": true
     },
     {
       "category": "FORENSIC_INDICATORS",

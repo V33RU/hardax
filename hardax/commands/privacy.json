@@ -316,10 +316,10 @@
     {
       "category": "PRIVACY",
       "label": "Backup Files on Device",
-      "command": "find /sdcard /data -name '*.bak' -o -name '*.backup' -o -name '*.old' 2>/dev/null | head -5",
+      "command": "find /sdcard /data \\( -name '*.bak' -o -name '*.backup' -o -name '*.old' -o -name '*export*' \\) 2>/dev/null | head -10",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Backup files may contain sensitive data",
+      "description": "Finds backup and export artifacts under /sdcard and /data. These are commonly plaintext copies of data the application otherwise stores encrypted, and they survive uninstall. Covers the .bak, .backup, .old and *export* name patterns; the four were previously split across two near-identical checks that reported the same files twice. The globs are grouped so the find applies to both roots rather than only the last one.",
       "remediation": "Delete unnecessary backup files or move them to encrypted storage.",
       "empty_is_safe": true
     },
@@ -359,16 +359,6 @@
       "level": "info",
       "description": "Database files count - may contain PHI, verify encryption",
       "remediation": "Ensure databases are encrypted with SQLCipher or equivalent. Audit for PHI."
-    },
-    {
-      "category": "PRIVACY",
-      "label": "Backup Files Present",
-      "command": "find /sdcard /data -name '*.bak' -o -name '*.backup' -o -name '*export*' 2>/dev/null | head -5",
-      "safe_pattern": "^$",
-      "level": "warning",
-      "description": "Backup files may contain unencrypted PHI",
-      "remediation": "Delete unencrypted backup and export files, or encrypt them before storing.",
-      "empty_is_safe": true
     },
     {
       "category": "PRIVACY",

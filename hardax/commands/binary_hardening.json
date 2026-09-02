@@ -189,20 +189,20 @@
       "id": "BIN-019",
       "category": "BINARY_HARDENING",
       "label": "FORTIFY_SOURCE - app_process",
-      "command": "(readelf -s /system/bin/app_process64 2>/dev/null || readelf -s /system/bin/app_process 2>/dev/null) | grep -c '__.*_chk'",
+      "command": "(readelf -s /system/bin/app_process64 2>/dev/null || readelf -s /system/bin/app_process 2>/dev/null) | grep -oE '__[A-Za-z0-9_]+_chk' | grep -v '^__stack_chk' | sort -u | wc -l",
       "safe_pattern": "^[1-9][0-9]*$",
       "level": "high",
-      "description": "FORTIFY_SOURCE replaces unsafe C functions (memcpy, strcpy) with bounds-checked versions at compile time. The grep must apply to whichever readelf call succeeds; without the grouping parentheses the `||` binds before the pipe, so a successful first call bypasses grep -c entirely and returns the full unfiltered symbol table instead of a fortify-symbol count.",
+      "description": "FORTIFY_SOURCE replaces unsafe C functions (memcpy, strcpy) with bounds-checked versions at compile time. The grep must apply to whichever readelf call succeeds; without the grouping parentheses the `||` binds before the pipe, so a successful first call bypasses grep -c entirely and returns the full unfiltered symbol table instead of a fortify-symbol count. Counts distinct fortified libc wrappers (__memcpy_chk, __strcpy_chk and similar) with __stack_chk excluded. The earlier command grepped '__.*_chk', which matches __stack_chk as well, so this check could only fail when the companion Stack Canary check had already failed and it produced no independent signal.",
       "remediation": "Rebuild app_process with -D_FORTIFY_SOURCE=2 compiler flag."
     },
     {
       "id": "BIN-020",
       "category": "BINARY_HARDENING",
       "label": "FORTIFY_SOURCE - surfaceflinger",
-      "command": "readelf -s /system/bin/surfaceflinger 2>/dev/null | grep -c '__.*_chk'",
+      "command": "readelf -s /system/bin/surfaceflinger 2>/dev/null | grep -oE '__[A-Za-z0-9_]+_chk' | grep -v '^__stack_chk' | sort -u | wc -l",
       "safe_pattern": "[1-9]",
       "level": "high",
-      "description": "SurfaceFlinger must use fortified C library functions to prevent buffer overflow exploitation.",
+      "description": "SurfaceFlinger must use fortified C library functions to prevent buffer overflow exploitation. Counts distinct fortified libc wrappers (__memcpy_chk, __strcpy_chk and similar) with __stack_chk excluded. The earlier command grepped '__.*_chk', which matches __stack_chk as well, so this check could only fail when the companion Stack Canary check had already failed and it produced no independent signal.",
       "remediation": "Rebuild surfaceflinger with -D_FORTIFY_SOURCE=2 flag."
     },
     {

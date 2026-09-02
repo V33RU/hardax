@@ -110,15 +110,6 @@
     },
     {
       "category": "CERTIFICATE_AUDIT",
-      "label": "User-Installed Certificate Count (user 0)",
-      "command": "ls /data/misc/user/0/cacerts-added/ 2>/dev/null | wc -l",
-      "safe_pattern": "^0$",
-      "level": "critical",
-      "description": "User-installed CA certificates for primary user (should be 0)",
-      "remediation": "Remove user-installed CAs via Settings > Security > Trusted credentials > User tab."
-    },
-    {
-      "category": "CERTIFICATE_AUDIT",
       "label": "User-Installed Certificate List (user 0)",
       "command": "ls /data/misc/user/0/cacerts-added/ 2>/dev/null",
       "safe_pattern": "^$",
@@ -128,30 +119,12 @@
     },
     {
       "category": "CERTIFICATE_AUDIT",
-      "label": "User-Installed Certificate Count (all users)",
-      "command": "find /data/misc/user -type f -path '*/cacerts-added/*' 2>/dev/null | wc -l",
-      "safe_pattern": "^0$",
-      "level": "critical",
-      "description": "Total user-installed CA certificates across all users (should be 0)",
-      "remediation": "Remove all user-installed CAs from every user profile on the device."
-    },
-    {
-      "category": "CERTIFICATE_AUDIT",
       "label": "User-Installed Certificate List (all users)",
       "command": "find /data/misc/user -type f -path '*/cacerts-added/*' 2>/dev/null",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "List user-installed CA certificates across all users (should be empty)",
       "remediation": "Delete listed certificate files or remove them via Settings for each user profile."
-    },
-    {
-      "category": "CERTIFICATE_AUDIT",
-      "label": "Legacy User-Installed Certificate Count (/data/misc/keychain/cacerts-added/)",
-      "command": "ls /data/misc/keychain/cacerts-added/ 2>/dev/null | wc -l",
-      "safe_pattern": "^0$",
-      "level": "critical",
-      "description": "Legacy path for user-installed CAs (older Android) - should be 0",
-      "remediation": "Remove legacy user-installed CAs by deleting files in /data/misc/keychain/cacerts-added/."
     },
     {
       "category": "CERTIFICATE_AUDIT",
