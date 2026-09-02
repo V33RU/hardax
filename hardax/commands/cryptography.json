@@ -181,6 +181,19 @@
       "null_is_safe": false,
       "description": "Widevine DRM security level: L1 = hardware-backed (TEE), L2 = TEE for crypto only, L3 = software-only. Payment and streaming apps relying on Widevine assume L1; L3 indicates weakened hardware trust (often after root or custom ROM). Informational; the report shows the captured level for triage.",
       "remediation": "L3 on a device that ships with L1 hardware suggests the TEE attestation is broken, the bootloader is unlocked, or the device is custom-ROM'd. Investigate the cause; reflash stock firmware if integrity is required."
+    },
+    {
+      "id": "CRY-METAENC-001",
+      "category": "CRYPTOGRAPHY",
+      "label": "Metadata Encryption and Cryptographic Erase Support",
+      "command": "S=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$S\" ]; then echo NOT_ANDROID; else M=$(getprop ro.crypto.metadata.enabled 2>/dev/null); T=$(getprop ro.crypto.type 2>/dev/null); V=$(ls -d /metadata/vold/metadata_encryption 2>/dev/null); echo \"metadata_enabled=${M:-unset} crypto_type=${T:-unset} keydir=${V:+present}${V:-absent}\"; fi",
+      "safe_pattern": "^NOT_ANDROID$|metadata_enabled=true|crypto_type=file",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "Reports whether metadata encryption is in use alongside file-based encryption. FBE leaves filesystem metadata, including directory structure and file sizes, unencrypted unless metadata encryption is also enabled, and the metadata encryption key is what a factory reset destroys to make the userdata partition cryptographically unrecoverable. Without it a factory reset does not reliably render extracted flash unreadable, which is the guarantee an enterprise or payment deployment depends on when devices are decommissioned or resold. Passes when metadata encryption is enabled or when file-based encryption is at least confirmed active. Reports NOT_ANDROID and passes on a non-Android target reached over SSH or UART, where the ro.crypto properties do not exist and failing on their absence would be a false positive.",
+      "remediation": "Enable metadata encryption in the device fstab with the keydirectory option on /metadata, and confirm a factory reset destroys the key rather than only deleting files.",
+      "why": "Without metadata encryption a factory reset does not cryptographically erase userdata, so extracted flash may remain recoverable.",
+      "risk_if_fail": "A decommissioned or stolen device can yield recoverable data from raw flash despite a factory reset."
     }
   ]
 }

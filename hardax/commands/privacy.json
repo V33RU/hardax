@@ -391,6 +391,17 @@
       "description": "Android 14 introduced Credential Manager, the unified API that brokers passkeys, passwords, and federated sign-in. The selected providers are recorded in the secure settings credential_service and autofill_service keys as component names. A credential or autofill provider sees every credential the user is offered at sign-in time, so an attacker-installed provider is a full credential interception channel that needs no accessibility service and no root. Reported for review rather than as pass or fail because the legitimate provider differs by deployment (Google Password Manager, an enterprise password manager, an OEM vault), so only an operator can say which component name is expected. A value of 'null' means no provider is selected.",
       "remediation": "Confirm every component name listed resolves to an approved package. Remove unrecognised providers, and on managed fleets restrict credential and autofill providers through the DPC allowlist so a sideloaded app cannot register as one.",
       "requires_manual_review": true
+    },
+    {
+      "id": "PRIV-SENSORTOGGLE-001",
+      "category": "PRIVACY",
+      "label": "Sensor Privacy Toggles (Camera and Microphone)",
+      "command": "D=$(dumpsys sensor_privacy 2>/dev/null | head -12); if [ -z \"$D\" ]; then C=$(settings get secure camera_toggle_enabled 2>/dev/null); M=$(settings get secure mic_toggle_enabled 2>/dev/null); echo \"NO_SENSOR_PRIVACY_SERVICE camera=${C:-null} mic=${M:-null}\"; else printf '%s\\n' \"$D\"; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Reports the state of the platform camera and microphone privacy toggles introduced in Android 12. When enabled, the toggle cuts the sensor at a level below the permission model, so an app holding CAMERA or RECORD_AUDIO receives blank frames or silence rather than data. On devices with a hardware kill switch the cut is physical. This matters for a POS terminal or kiosk in a sensitive environment, where the correct posture is often to have the sensors disabled outright rather than merely unpermissioned. Reported as evidence because the desired state depends entirely on whether the deployment uses the camera or microphone at all.",
+      "remediation": "On a kiosk, POS or fixed-function device with no camera or microphone use case, enable both privacy toggles or use device policy to disable the camera outright, which is stronger than relying on runtime permission grants."
     }
   ]
 }

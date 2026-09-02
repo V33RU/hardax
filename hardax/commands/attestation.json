@@ -267,6 +267,32 @@
       "empty_is_safe": false,
       "description": "Reports whether a Replay Protected Memory Block partition is visible. RPMB is the authenticated, replay-resistant storage that the TEE uses for rollback counters, Keymaster and KeyMint key metadata, and Gatekeeper failed-attempt counters. Without it, the counters that enforce lockout after failed unlock attempts and that prevent rollback of encrypted state have no tamper-resistant home. RPMB_NOT_VISIBLE is common and not itself a finding: on many devices the block is claimed by the secure world and never exposed to the Linux side, which is the stronger configuration. Informational for that reason.",
       "remediation": "Nothing to act on directly. Confirm with the SoC vendor that RPMB is provisioned and that Gatekeeper and KeyMint use it for counter storage, since lockout enforcement and rollback resistance depend on it."
+    },
+    {
+      "id": "ATT-027",
+      "category": "ATTESTATION",
+      "label": "OTA Update Signing Certificates",
+      "command": "F=$(ls /system/etc/security/otacerts.zip /vendor/etc/security/otacerts.zip 2>/dev/null | head -2 | tr '\\n' ' '); if [ -z \"$F\" ]; then echo NO_OTACERTS; else T=$(grep -al 'android@android.com' $F /system/etc/security/*.x509.pem 2>/dev/null | head -2 | tr '\\n' ' '); H=$(sha256sum $F 2>/dev/null | awk '{print substr($1,1,16)}' | tr '\\n' ' '); [ -n \"$T\" ] && echo \"AOSP_TESTKEY_PRESENT in=$T\" || echo \"OTACERTS_PRESENT sha256_prefix=${H:-unknown}\"; fi",
+      "safe_pattern": "^(OTACERTS_PRESENT|NO_OTACERTS)",
+      "level": "critical",
+      "empty_is_safe": false,
+      "baseline_key": "otacerts",
+      "description": "Reports the OTA update signing certificate bundle and searches it for the AOSP test key. Android verifies update packages against the certificates in otacerts.zip, so a device shipping the public AOSP test key accepts any OTA an attacker can sign with a key everybody has, which is full persistent compromise delivered through the normal update path. Detection greps for the android@android.com subject that the AOSP testkey carries. This is best effort: if the zip stores the certificate deflated rather than stored, the string will not match, so a clean result is not proof the testkey is absent. The certificate hash is reported and carries a baseline_key so a change to the OTA trust anchor is caught by --baseline. Companion to the existing Build Tags check, which reads ro.build.tags rather than the certificates themselves.",
+      "remediation": "Reflash with an image signed by production release keys and confirm otacerts.zip contains only the vendor's own OTA certificate. Never ship a device whose OTA trust anchor is the AOSP test key.",
+      "why": "An OTA trust anchor set to a publicly available key lets anyone sign an update the device will install.",
+      "risk_if_fail": "Persistent full-system compromise delivered through the normal update mechanism."
+    },
+    {
+      "id": "ATT-028",
+      "category": "ATTESTATION",
+      "label": "Secure Boot Fuse and Provisioning State",
+      "command": "S=$(getprop ro.boot.secureboot 2>/dev/null); F=$(getprop ro.boot.fuse.secure 2>/dev/null); H=$(getprop ro.boot.hwc 2>/dev/null); D=$(getprop ro.boot.hw.revision 2>/dev/null); E=$(getprop ro.boot.enable_dm_verity 2>/dev/null); echo \"secureboot=${S:-unset} secure_fuse=${F:-unset} hwc=${H:-unset} hw_rev=${D:-unset} dm_verity=${E:-unset}\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "Reports the boot properties that OEMs use to expose secure boot fuse and hardware provisioning state. On a production device the secure boot fuse is blown, permanently binding the boot ROM to the vendor's root key, and an unblown fuse means the entire chain of trust that Verified Boot and key attestation rest on can be bypassed by flashing an unsigned bootloader. Property names are entirely OEM-specific and many vendors expose none of this to Linux, so this is a best-effort evidence collector reported for review rather than a pass or fail. Definitive fuse state requires vendor tooling or hardware inspection and cannot be established from a shell.",
+      "remediation": "Confirm with the SoC vendor that the secure boot fuse is blown on production units and that engineering samples with unblown fuses are tracked and never shipped. Treat any device where this cannot be established as untrusted for attestation purposes."
     }
   ]
 }

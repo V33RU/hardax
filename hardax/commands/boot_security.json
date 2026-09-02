@@ -297,6 +297,17 @@
       "description": "Attestation and integrity spoofing tooling commonly forges the security patch level alongside the boot state, so that a device running an outdated build advertises a current patch date. This collects the system patch level, the vendor patch level, and the build date for comparison. Two signals matter on review. A security patch level dated after the build date is impossible on an honest device, because a build cannot ship a patch that did not exist when it was compiled. A large gap between the system and vendor patch levels indicates a partial or forged update. Reported at verify level rather than as an automatic failure because the comparison needs date arithmetic that is not portable across the shells found on Android, and because a modest system-to-vendor skew is normal on real firmware.",
       "remediation": "Compare system_spl against build_date. If the patch level is newer than the build date, the value is forged: locate and remove the spoofing module. If both are genuine but old, apply the vendor OTA to bring the device to a current patch level.",
       "requires_manual_review": true
+    },
+    {
+      "id": "BOOT-FASTBOOTD-001",
+      "category": "BOOT_SECURITY",
+      "label": "Boot Mode and fastbootd Availability",
+      "command": "M=$(getprop ro.boot.mode 2>/dev/null); B=$(getprop ro.bootmode 2>/dev/null); F=$(ls /system/bin/fastbootd 2>/dev/null); R=$(ls /system/bin/recovery 2>/dev/null); echo \"boot_mode=${M:-unset} bootmode=${B:-unset} fastbootd=${F:+present} recovery=${R:+present}\"",
+      "safe_pattern": "boot_mode=(normal|unset)",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "Reports the boot mode the device came up in and whether the userspace fastboot and recovery binaries are present. A production device should report normal. A device booted into recovery, fastboot or charger mode during an audit is not in the state the rest of the checks assume, and fastbootd in particular exposes flashing of dynamic partitions from userspace, which is the path used to modify the super partition without a full bootloader unlock. The existing Recovery Partition Access check covers the block device; nothing covered the boot mode or the userspace flashing binary.",
+      "remediation": "Audit the device in normal boot mode. Confirm fastbootd only accepts commands when the bootloader is unlocked, and that the recovery binary is not reachable from a normal boot."
     }
   ]
 }

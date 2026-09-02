@@ -8,7 +8,7 @@
   <a href="https://pypi.org/project/hardax/">
     <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg" alt="Python 3.10 | 3.11 | 3.12">
   </a>
-  <img src="https://img.shields.io/badge/checks-798-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-822-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-29-purple.svg" alt="Categories">
   <a href="https://github.com/V33RU/hardax/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
@@ -34,7 +34,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **798 security checks** across **29 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **822 security checks** across **29 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -49,7 +49,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **798 Security Checks** | Comprehensive coverage across 29 security categories |
+| **822 Security Checks** | Comprehensive coverage across 29 security categories |
 | **Deterministic Analysis Engine** | Offline risk score (0-100), attack-chain correlation, prioritised remediation - reasons only over confirmed findings, no LLM, no network, no hallucination |
 | **Optional AI Narrative** | Opt-in `--ai` LLM summary on top of the deterministic engine (local Ollama, or Anthropic/OpenAI with your own key). Sends only the redacted analysis summary, never raw device output. Off by default |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
@@ -319,30 +319,30 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **798 checks** into **29 security categories**:
+HARDAX organizes **822 checks** into **29 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
-| **SYSTEM** | 97 | Kernel, memory, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, time, power, build properties, emulator detection, SIM status, device provisioning, WebView, Scudo/GWP-ASan allocator hardening, GKI kernel and module loading, kernel/fs hardening sysctls, SGID and world-writable binaries |
+| **SYSTEM** | 99 | Kernel, memory, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, time, power, build properties, emulator detection, SIM status, device provisioning, WebView, Scudo/GWP-ASan allocator hardening, GKI kernel and module loading, kernel/fs hardening sysctls, SGID and world-writable binaries |
 | **BLUETOOTH** | 69 | BLE/Classic, pairing, profiles (PAN, HFP, A2DP, HID, SPP, OPP, MAP), L2CAP, ATT, SMP, GAP, attack surfaces |
-| **NETWORK** | 75 | Ports, WiFi, cellular (incl. Allow 2G), VPN, MQTT, CoAP, CAN bus, HL7, DICOM, hotspot WPA mode, active connections, eSIM/eUICC provisioning, IPv4/IPv6 network hardening sysctls (ICMP redirects, source routing, SYN cookies, RA acceptance) |
-| **PRIVACY** | 42 | Screen lock, location, sensors, clipboard, audio, Android 13+ Restricted Settings, Credential Manager / passkey provider |
-| **APPS** | 52 | Permissions, overlay attacks, install sources, backup audit, APK signature scheme, QUERY_ALL_PACKAGES, REQUEST_INSTALL_PACKAGES, SDK Runtime (Privacy Sandbox) |
+| **NETWORK** | 78 | Ports, WiFi, cellular (incl. Allow 2G), VPN, MQTT, CoAP, CAN bus, HL7, DICOM, hotspot WPA mode, active connections, eSIM/eUICC provisioning, IPv4/IPv6 network hardening sysctls (ICMP redirects, source routing, SYN cookies, RA acceptance) |
+| **PRIVACY** | 43 | Screen lock, location, sensors, clipboard, audio, Android 13+ Restricted Settings, Credential Manager / passkey provider |
+| **APPS** | 57 | Permissions, overlay attacks, install sources, backup audit, APK signature scheme, QUERY_ALL_PACKAGES, REQUEST_INSTALL_PACKAGES, SDK Runtime (Privacy Sandbox) |
 | **BINARY_HARDENING** | 36 | PIE, NX, RELRO, stack canaries, stripped symbols, ASLR, kptr_restrict |
-| **KERNEL_DRIVERS** | 5 | Device node permissions, DMA-BUF/ION heaps, DSP/FastRPC exposure (CVE-2024-43047 surface), GPU node permissions, binder node permissions |
-| **PARTITION** | 35 | dm-verity, OverlayFS, A/B slots, FBE/FDE, mount flags (noexec / nosuid / nodev on /data, /storage/emulated, /mnt/media_rw, /cache, /metadata), block device permissions |
-| **SELINUX** | 29 | SELinux enforcement, policy version, audit, context, boot flags |
+| **KERNEL_DRIVERS** | 7 | Device node permissions, DMA-BUF/ION heaps, DSP/FastRPC exposure (CVE-2024-43047 surface), GPU node permissions, binder node permissions |
+| **PARTITION** | 37 | dm-verity, OverlayFS, A/B slots, FBE/FDE, mount flags (noexec / nosuid / nodev on /data, /storage/emulated, /mnt/media_rw, /cache, /metadata), block device permissions |
+| **SELINUX** | 30 | SELinux enforcement, policy version, audit, context, boot flags |
 | **CERTIFICATE_AUDIT** | 25 | CA certificates, user certs, pinning bypass, keystore, expiry analysis |
 | **POS_SECURITY** | 23 | PCI-DSS compliance, payment apps, kiosk mode, RAM scraper, NFC relay, PAX CVE |
 | **STORAGE** | 24 | Filesystem, backup, encryption, partitions |
-| **FORENSIC_INDICATORS** | 22 | Crash history, kernel panics, logcat anomalies, temp artifacts, clipboard forensics |
-| **ATTESTATION** | 24 | SafetyNet/Play Integrity, Knox warranty bit, TIMA, RKP, Titan M, fs-verity, bypass detection, KeyMint HAL, remote key provisioning, TrickyStore/keybox spoofing |
+| **FORENSIC_INDICATORS** | 23 | Crash history, kernel panics, logcat anomalies, temp artifacts, clipboard forensics |
+| **ATTESTATION** | 26 | SafetyNet/Play Integrity, Knox warranty bit, TIMA, RKP, Titan M, fs-verity, bypass detection, KeyMint HAL, remote key provisioning, TrickyStore/keybox spoofing |
 | **AUTOMOTIVE** | 20 | Vehicle-specific checks, CAN bus, infotainment |
-| **BOOT_SECURITY** | 30 | Verified boot, AVB (VBMeta digest/hash-alg/size/version), dm-verity error modes (incl. restart, bootconfig-aware), custom root of trust (verifiedbootstate=yellow), bootloader, integrity, boot-state property vs kernel cmdline consistency |
-| **CRYPTOGRAPHY** | 19 | Encryption, keys, credentials, API keys, certificates, kernel entropy, Widevine DRM level |
+| **BOOT_SECURITY** | 31 | Verified boot, AVB (VBMeta digest/hash-alg/size/version), dm-verity error modes (incl. restart, bootconfig-aware), custom root of trust (verifiedbootstate=yellow), bootloader, integrity, boot-state property vs kernel cmdline consistency |
+| **CRYPTOGRAPHY** | 20 | Encryption, keys, credentials, API keys, certificates, kernel entropy, Widevine DRM level |
 | **MALWARE** | 20 | Root/Magisk/SuperSU, Frida, Xposed/LSPosed, RATs, keyloggers, memory scrapers, root cloaking, KernelSU/APatch |
 | **CIS_BENCHMARK** | 17 | CIS Android Benchmark v1.6.0 controls (89% coverage) |
-| **USB_SECURITY** | 16 | USB debugging, interfaces, serial ports, gadget mode |
+| **USB_SECURITY** | 17 | USB debugging, interfaces, serial ports, gadget mode |
 | **CVE_INDICATORS** | 35 | Dirty Pipe, Bad Binder, Dirty COW, MTK-su, Exynos baseband, Mali GPU, kernel CVE ranges, WebView debugging |
 | **DEVICE_MANAGEMENT** | 9 | MDM, accounts, developer options |
 | **INPUT** | 12 | Keyboards, accessibility, input methods, IME INTERNET audit, kbd layout, clipboard auto-clear |
@@ -351,7 +351,7 @@ HARDAX organizes **798 checks** into **29 security categories**:
 | **ADB_SECURITY** | 8 | ADB keys, network ADB allowlist, debugging, shell privilege, USB-debug notify, adbd integrity hash |
 | **MODERN_ANDROID** | 13 | Android 13/14/15/16/17 surface: Photo Picker, READ_MEDIA_*, POST_NOTIFICATIONS, FGS type, Theft Detection Lock, Identity Check, Restricted Networking, Advanced Protection, A17 Local Network Access |
 | **MDM_POLICY** | 15 | DevicePolicyManager state via dumpsys device_policy: management state, keyguard/camera policy, lock/wipe, password, audit logging, USB signaling, Common Criteria, MTE, app control, permission policy, Wi-Fi lockdown, A15 privacy, system update, permitted accessibility/input |
-| **BIOMETRIC** | 5 | Fingerprint/face enrollment, biometric strength (Class 3 Strong vs Weak), biometric keyguard, auto-lock after biometric |
+| **BIOMETRIC** | 7 | Fingerprint/face enrollment, biometric strength (Class 3 Strong vs Weak), biometric keyguard, auto-lock after biometric |
 
 ---
 
@@ -435,7 +435,7 @@ HARDAX/
     ├── ai.py              # Optional opt-in LLM narrative (Ollama/Anthropic/OpenAI, stdlib only)
     ├── templates/
     │   └── report.html    # Interactive HTML report template
-    └── commands/          # Security check definitions (798 checks, 29 categories)
+    └── commands/          # Security check definitions (822 checks, 29 categories)
         ├── system.json        #  86 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator, WebView
         ├── bluetooth.json     #  82 checks - BLE/Classic, pairing, all profiles
         ├── network.json       #  61 checks - Ports, WiFi, VPN, IoT protocols, Allow 2G, hotspot WPA

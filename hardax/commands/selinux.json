@@ -451,6 +451,17 @@
       "remediation": "Remove the listed binaries. Investigate how they were placed: ADB push by a developer, a malicious app extracting them from assets, or a leftover from a security-testing session. On a production device, none of these should ever exist.",
       "why": "These tools have no legitimate purpose on a production device. Their presence demonstrates intent or active capability to modify SELinux policy at runtime.",
       "risk_if_fail": "SELinux policy may have been (or may currently be being) modified to allow privileged operations that the original policy denies."
+    },
+    {
+      "id": "SEL-PROPCTX-001",
+      "category": "SELINUX",
+      "label": "Property Context Labelling Coverage",
+      "command": "F=$(ls /system/etc/selinux/*property_contexts* /vendor/etc/selinux/*property_contexts* /plat_property_contexts /vendor_property_contexts 2>/dev/null | tr '\\n' ' '); if [ -z \"$F\" ]; then echo NO_PROPERTY_CONTEXTS; else T=$(cat $F 2>/dev/null | grep -cvE '^\\s*(#|$)'); D=$(cat $F 2>/dev/null | grep -c 'default_prop'); echo \"files=$(echo $F | wc -w) entries=$T default_prop_entries=$D\"; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Counts the SELinux property context definitions and how many map to default_prop. Android's property service enforces write access by SELinux label, so a property left at the catch-all default_prop label is writable by any domain the policy grants default_prop write to, which is usually broader than intended. Vendor-added properties that control privileged behaviour and are left unlabelled are a recurring source of privilege escalation through init service triggers. Reported as an inventory because a nonzero default_prop count is normal and only a policy reviewer can judge which entries matter.",
+      "remediation": "Give every vendor property an explicit SELinux type rather than leaving it at default_prop, and confirm no property that triggers an init action is writable by an untrusted domain."
     }
   ]
 }

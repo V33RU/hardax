@@ -505,6 +505,65 @@
       "remediation": "Remove world write permission from every entry listed and investigate how it was set. Wipe and regenerate the cache with 'cmd package compile -r bg-dexopt -a' after correcting the permissions.",
       "why": "Replacing a compiled ART artifact substitutes code that a privileged process executes at startup.",
       "risk_if_fail": "Arbitrary code execution in the context of any process whose compiled artifacts were replaced."
+    },
+    {
+      "id": "APP-SIGV4-001",
+      "category": "APPS",
+      "label": "APK Signature Scheme Distribution",
+      "command": "V=$(dumpsys package 2>/dev/null | grep -oE 'apkSigningVersion=[0-9]+' | sort | uniq -c | awk '{printf \"v%s=%s \", substr($2,18), $1}'); I=$(find /data/app -maxdepth 4 -name '*.idsig' 2>/dev/null | wc -l); [ -z \"$V\" ] && echo \"NO_SIGNING_INFO idsig_files=${I:-0}\" || echo \"$V idsig_files=${I:-0}\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Reports how many installed packages use each APK signature scheme and how many carry a v4 .idsig file. Scheme v2 and v3 sign the archive itself rather than individual entries, closing the Janus and Master Key class of forgery that v1 permitted. Scheme v4 pairs with fs-verity to allow incremental installation while still verifying every block on read. This complements the existing v1-only check by showing the whole distribution rather than only the worst case, so an auditor can see how much of the install base predates modern signing.",
+      "remediation": "Ensure in-house apps are signed with v2 or later, and prefer v3 so signing-key rotation is possible without breaking updates. Investigate any package still relying on v1 alone."
+    },
+    {
+      "id": "APP-ROLLBACK-001",
+      "category": "APPS",
+      "label": "Package Rollback and Downgrade Protection",
+      "command": "R=$(dumpsys rollback 2>/dev/null | head -20); if [ -z \"$R\" ]; then echo NO_ROLLBACK_SERVICE; else A=$(printf '%s' \"$R\" | grep -ci 'rollbackId'); echo \"rollback_service=present available_rollbacks=${A:-0}\"; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Reports the state of the RollbackManager, which stages the previous version of an app or APEX so a bad update can be reverted. The security question is the inverse of the reliability one: a staged rollback is a copy of an older, potentially vulnerable build kept on the device, and a downgrade path that does not verify the target version lets an attacker reintroduce a patched vulnerability. Informational because rollback availability is a deliberate platform feature and its presence is not a misconfiguration.",
+      "remediation": "Confirm rollbacks expire as expected and that no rollback retains a build with a known unpatched vulnerability. On a managed fleet, prefer disabling user-initiated rollback."
+    },
+    {
+      "id": "APP-SPLITAPK-001",
+      "category": "APPS",
+      "label": "Split APK and Staged Install Sessions",
+      "command": "S=$(find /data/app -maxdepth 4 -name 'split_*.apk' 2>/dev/null | wc -l); T=$(pm list staged-sessions 2>/dev/null | grep -c 'sessionId'); [ -z \"$T\" ] && T=0; echo \"split_apks=${S:-0} staged_sessions=$T\"",
+      "safe_pattern": "staged_sessions=0",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "Counts split APK files and staged install sessions. A split APK is verified as part of its base package, but a session left staged is a pending install that will be applied at next reboot, and on a device being audited it means code is queued to run that is not yet reflected in the installed package list. A staged session is normal briefly during an OTA or a Play update, so a non-zero count on an idle device is worth explaining rather than assuming benign.",
+      "remediation": "Inspect any staged session with 'pm list staged-sessions' and abandon unexpected ones with 'pm install-abandon <id>'. Re-audit after the pending install has been applied.",
+      "why": "A staged session is code queued to install at next boot that no package listing yet reflects.",
+      "risk_if_fail": "The device will apply an install after reboot that the audit did not evaluate."
+    },
+    {
+      "id": "APP-EXPORTED-001",
+      "category": "APPS",
+      "label": "Exported Components Without Permission (Third-Party)",
+      "command": "D=$(dumpsys package 2>/dev/null); if [ -z \"$D\" ]; then echo NO_PACKAGE_DUMP; else E=$(printf '%s' \"$D\" | grep -c 'exported=true'); P=$(printf '%s' \"$D\" | grep -c 'permission='); echo \"exported_components=${E:-0} with_permission_decl=${P:-0}\"; fi",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "Counts components declared exported and how many permission declarations appear alongside them. An exported activity, service, receiver or provider is an IPC entry point any other app can reach, and one without a permission guard is reachable by any installed app with no user consent. This is the entry point for the intent redirection, deep link hijacking and confused deputy classes. Reported as a count for review rather than a pass or fail because every app legitimately exports its launcher activity and the ratio is meaningless without knowing which packages are involved. Use 'dumpsys package <pkg>' to drill into any package of concern.",
+      "remediation": "For every third-party or in-house package, review its exported components and add a signature-level permission or set exported=false where cross-app access is not required. Pay particular attention to exported providers with grantUriPermissions."
+    },
+    {
+      "id": "APP-SECRETCODE-001",
+      "category": "APPS",
+      "label": "Secret Code Dialer Receivers (OEM Service Menus)",
+      "command": "D=$(dumpsys package 2>/dev/null | grep -B8 -i 'SECRET_CODE' | grep -oE '^[ ]*[a-zA-Z0-9_.]+/[a-zA-Z0-9_.$]+' | sort -u | head -15); [ -z \"$D\" ] && echo NO_SECRET_CODE_RECEIVERS || printf '%s\\n' \"$D\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": true,
+      "requires_manual_review": true,
+      "description": "Lists components registered for the android.provider.Telephony.SECRET_CODE broadcast, which is how dialer codes of the form *#*#nnnn#*#* reach an application. OEMs use these to open service menus, field test modes, radio diagnostics, factory test suites and hidden logging controls. Anyone who can reach the dialer, including someone with brief physical access to a locked-down kiosk or POS terminal that still exposes a dialer, can trigger them, and the receiving component often runs with system privilege. Reported for review because the legitimate set is entirely OEM-specific.",
+      "remediation": "Enumerate each receiver and determine what its code exposes. Remove or disable factory test, field test and diagnostic receivers on production and kiosk builds, and confirm none can be reached without authentication."
     }
   ]
 }

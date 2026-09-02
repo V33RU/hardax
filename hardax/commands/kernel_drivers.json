@@ -56,6 +56,30 @@
       "requires_manual_review": true,
       "description": "Reports the permissions of the binder, hwbinder and vndbinder nodes. Binder is the transport for essentially every privileged operation on Android, and the driver itself has produced several exploited use-after-free vulnerabilities including CVE-2019-2215 and CVE-2023-20938. The nodes are world-accessible by design because every app needs binder, so the permissions are expected to be broad; this check records them so an auditor can confirm they match the platform default rather than having been widened, and so a device using binderfs is visible.",
       "remediation": "Nothing to change under normal conditions. Confirm the permissions match the stock image for this build, and that the kernel carries the binder CVE fixes tracked in the CVE_INDICATORS category."
+    },
+    {
+      "id": "KDRV-DIAG-001",
+      "category": "KERNEL_DRIVERS",
+      "label": "Radio Diagnostic Interface Exposure",
+      "command": "N=$(ls -d /dev/diag /dev/diag_router /dev/smd0 /dev/smd11 /dev/smdcntl0 /dev/at_usb0 /dev/ttyGS0 2>/dev/null | tr '\\n' ' '); if [ -z \"$N\" ]; then echo NO_DIAG_NODE; else W=$(find /dev -maxdepth 1 \\( -name 'diag*' -o -name 'smd*' -o -name 'at_*' -o -name 'ttyGS*' \\) -perm -o+rw 2>/dev/null | tr '\\n' ' '); [ -n \"$W\" ] && echo \"DIAG_WORLD_ACCESSIBLE $W\" || echo \"DIAG_PRESENT_RESTRICTED $N\"; fi",
+      "safe_pattern": "^(NO_DIAG_NODE|DIAG_PRESENT_RESTRICTED)",
+      "level": "critical",
+      "empty_is_safe": false,
+      "description": "Detects the Qualcomm DIAG, shared-memory and AT command interfaces and whether they are readable and writable by any process. The DIAG interface speaks directly to the modem and exposes memory peek and poke, NV item read and write, and logging of every call and message. When /dev/diag is world-accessible a local app reaches the baseband without any permission, and when it is exposed over USB it is reachable with physical access alone. NO_DIAG_NODE is treated as passing: most production builds remove these nodes and their absence is the correct state.",
+      "remediation": "Remove the DIAG and AT nodes from production builds. Where a node must exist for manufacturing, restrict it to root with SELinux confinement and ensure it is not enumerated over USB in the shipping USB configuration.",
+      "why": "DIAG gives direct modem access including memory read and write and NV item manipulation, with no Android permission involved.",
+      "risk_if_fail": "A local app or anyone with physical USB access can read and alter modem state, intercept traffic and extract identifiers."
+    },
+    {
+      "id": "KDRV-THERMAL-001",
+      "category": "KERNEL_DRIVERS",
+      "label": "Thermal Control Interface Permissions",
+      "command": "W=$(find /sys/class/thermal /sys/devices/virtual/thermal -maxdepth 3 -type f -perm -o+w 2>/dev/null | head -10); [ -z \"$W\" ] && echo NO_WORLD_WRITABLE_THERMAL || printf '%s\\n' \"$W\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": true,
+      "description": "Lists thermal zone and cooling device sysfs files writable by any process. Writable trip points and cooling device states let an unprivileged process disable throttling, which on a fanless POS terminal, kiosk or embedded device is a route to sustained overheating, thermal shutdown or hardware damage, and on a phone is a battery and performance denial of service. Reported as an inventory rather than pass or fail because some platforms legitimately expose specific cooling controls to a privileged system group and the layout is entirely SoC-specific.",
+      "remediation": "Restrict thermal sysfs writes to the system or thermal service UID and confirm SELinux labels the nodes so only the thermal HAL may write them."
     }
   ]
 }
