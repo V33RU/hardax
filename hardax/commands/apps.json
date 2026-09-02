@@ -456,6 +456,55 @@
       "level": "info",
       "description": "The SDK Runtime, part of Privacy Sandbox on Android, moves third-party advertising and analytics SDKs out of the host app process into a separate sandboxed process with its own restricted permissions and no access to the host app's storage or non-sandboxed permissions. This reports whether the SDK Runtime and AdServices packages are installed. It matters for audit scope: when the runtime is active, an SDK's data access is no longer implied by the host app's manifest permissions, so an app permission review alone no longer describes what a bundled SDK can reach. Informational, since the runtime's presence depends on the Android version and whether the build ships GMS.",
       "remediation": "Nothing to fix on-device. When reviewing app permissions on a device with the SDK Runtime present, audit sandboxed SDK permissions separately from host app permissions rather than assuming the host manifest covers both."
+    },
+    {
+      "id": "APP-HIDDENAPI-001",
+      "category": "APPS",
+      "label": "Hidden API Enforcement Not Disabled",
+      "command": "V=$(settings get global hidden_api_policy 2>/dev/null); P=$(settings get global hidden_api_policy_p_apps 2>/dev/null); echo \"policy=${V:-null} p_apps=${P:-null}\"",
+      "safe_pattern": "policy=(null|0)",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "Android restricts app access to non-SDK framework interfaces. The hidden_api_policy setting overrides that: 0 or unset keeps the default enforcement, 1 warns only, 2 and 3 permit access to dark-grey and blacklisted APIs. It is a developer and instrumentation aid, and a production device with it set to a non-zero value has had the restriction lifted for every app, widening the framework surface any installed app can reach. A non-null, non-zero value is also a strong indicator the device has been prepared for reverse engineering.",
+      "remediation": "Reset with 'settings delete global hidden_api_policy' and confirm no MDM or init script re-applies it. Investigate why it was set on a production device.",
+      "why": "Disabling hidden API enforcement gives every installed app access to non-SDK framework interfaces that the platform deliberately restricts.",
+      "risk_if_fail": "Any app can reach internal framework APIs, widening the attack surface and defeating a platform containment control."
+    },
+    {
+      "id": "APP-SYSTEMUID-001",
+      "category": "APPS",
+      "label": "Packages Running As System UID",
+      "command": "pm list packages -U 2>/dev/null | grep -E 'uid:1000$|uid:1000 ' | sed 's/package://' | head -15; [ $? -ne 0 ] && dumpsys package 2>/dev/null | grep -B2 'userId=1000' | grep -oE 'Package \\[[^]]+\\]' | head -15",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": true,
+      "requires_manual_review": true,
+      "description": "Lists packages sharing the system UID (1000). A package running as system holds the privileges of the platform itself and must be signed with the platform key, so the set should be small and consist only of core OEM system components. Each additional package running as system is a full-privilege attack surface: a vulnerability in any of them is a system compromise, with no sandbox boundary to cross. Reported for review because the legitimate set is entirely OEM-specific.",
+      "remediation": "Review each package against the OEM's documented system components. Any third-party or unexpected package running as system UID should be treated as a critical finding and investigated for how it obtained platform signing."
+    },
+    {
+      "id": "APP-PRIVAPP-001",
+      "category": "APPS",
+      "label": "Privileged App Permission Allowlist",
+      "command": "F=$(ls /system/etc/permissions/privapp-permissions*.xml /vendor/etc/permissions/privapp-permissions*.xml /product/etc/permissions/privapp-permissions*.xml 2>/dev/null | wc -l); N=$(cat /system/etc/permissions/privapp-permissions*.xml /vendor/etc/permissions/privapp-permissions*.xml 2>/dev/null | grep -c '<permission'); echo \"allowlist_files=${F:-0} granted_permissions=${N:-0}\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Counts the privapp-permissions allowlist files and the privileged permissions they grant. Since Android 9 a privileged app in /system/priv-app only receives a signature-or-privileged permission if it is explicitly allowlisted in one of these XML files, which makes them the authoritative record of which OEM apps hold elevated permissions. A large or vendor-heavy allowlist is where over-privileged OEM software becomes visible. Informational because every device has one and the size is build-specific.",
+      "remediation": "Read the allowlist files and check each granted permission against what the app genuinely needs, paying particular attention to vendor and product partition entries which receive less scrutiny than the AOSP set."
+    },
+    {
+      "id": "APP-DEXCACHE-001",
+      "category": "APPS",
+      "label": "Dalvik Cache Not World-Writable",
+      "command": "find /data/dalvik-cache -maxdepth 2 -perm -o+w 2>/dev/null | head -10",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "empty_is_safe": true,
+      "description": "Finds world-writable entries in the dalvik-cache, which holds the ahead-of-time compiled ART artifacts (odex, vdex, art) that the runtime maps and executes. A writable cache entry means an unprivileged process can replace compiled code that a privileged process will execute on next start, which is arbitrary code execution across a privilege boundary without needing a memory corruption bug. On a healthy device this returns nothing.",
+      "remediation": "Remove world write permission from every entry listed and investigate how it was set. Wipe and regenerate the cache with 'cmd package compile -r bg-dexopt -a' after correcting the permissions.",
+      "why": "Replacing a compiled ART artifact substitutes code that a privileged process executes at startup.",
+      "risk_if_fail": "Arbitrary code execution in the context of any process whose compiled artifacts were replaced."
     }
   ]
 }

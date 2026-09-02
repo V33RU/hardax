@@ -921,6 +921,53 @@
       "remediation": "Remove write permission with 'chmod o-w' on each file listed, confirm the partition is mounted read-only, and treat the device as potentially tampered with until the image is verified against the stock build.",
       "why": "A world-writable executable on a system partition lets any local process replace code that privileged processes run.",
       "risk_if_fail": "Arbitrary code execution in the context of whatever process invokes the modified binary."
+    },
+    {
+      "id": "SYS-TRACEFS-001",
+      "category": "SYSTEM",
+      "label": "Kernel Tracing Interface Not World-Accessible",
+      "command": "D=''; for p in /sys/kernel/tracing /sys/kernel/debug/tracing; do [ -d \"$p\" ] && D=\"$D $p:$(ls -ld $p 2>/dev/null | awk '{print $1}')\"; done; [ -z \"$D\" ] && echo NO_TRACEFS || { echo \"$D\" | grep -qE ':d[rwx-]{6}r|:d[rwx-]{6}[rwx-]{2}[rwx]' && echo \"TRACEFS_WORLD_ACCESSIBLE$D\" || echo \"TRACEFS_RESTRICTED$D\"; }",
+      "safe_pattern": "^(NO_TRACEFS|TRACEFS_RESTRICTED)",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "tracefs exposes ftrace, kprobes and the kernel trace buffer. When readable by an unprivileged process it leaks kernel pointers and timing that defeat KASLR, and when writable it allows arbitrary kernel tracing. Production Android should either not mount it or keep it root-only. NO_TRACEFS is treated as passing because a kernel built without ftrace is the strongest outcome and must not be failed for absence of evidence.",
+      "remediation": "Unmount tracefs on production builds, or restrict it to root with mode 0700. Confirm no init script mounts /sys/kernel/debug with permissive modes.",
+      "why": "Readable tracefs leaks kernel addresses and timing, which is the information an exploit needs to defeat KASLR.",
+      "risk_if_fail": "An unprivileged process can read kernel pointers and trace kernel execution."
+    },
+    {
+      "id": "SYS-HIDEPID-001",
+      "category": "SYSTEM",
+      "label": "procfs hidepid Setting",
+      "command": "mount 2>/dev/null | grep -m1 ' /proc ' | sed 's/.*(\\(.*\\))/\\1/'",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "Reports the mount options on /proc, in particular whether hidepid is set. Without hidepid any process can enumerate every other process, read its command line and environment, and observe its memory maps, which is a reconnaissance primitive for local privilege escalation. Android relies on SELinux and per-app UIDs rather than hidepid, so its absence is the platform norm and not by itself a finding, which is why this is reported for review rather than failed.",
+      "remediation": "On a hardened appliance build, mount /proc with hidepid=2 and a suitable gid so processes cannot enumerate one another. On stock Android, verify SELinux is enforcing instead, since that is the control the platform actually relies on."
+    },
+    {
+      "id": "SYS-CAPSWEEP-001",
+      "category": "SYSTEM",
+      "label": "Native Daemon Capability Sets",
+      "command": "for p in 1 $(ls /proc 2>/dev/null | grep -E '^[0-9]+$' | head -40); do n=$(cat /proc/$p/comm 2>/dev/null); e=$(grep -m1 '^CapEff' /proc/$p/status 2>/dev/null | awk '{print $2}'); [ -n \"$e\" ] && [ \"$e\" != \"0000000000000000\" ] && echo \"$n $e\"; done | sort -u | head -20",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": true,
+      "description": "Lists running processes that hold a non-empty effective capability set, with the capability bitmask. SELinux confines what a domain may do, but capabilities decide what the kernel will let a process attempt in the first place, and a daemon holding CAP_SYS_ADMIN or CAP_SYS_PTRACE remains dangerous even under a tight policy. A full bitmask of 0000001fffffffff indicates all capabilities. Reported as an inventory for review because the legitimate set is entirely build-specific, and capped at 40 processes so the sweep stays bounded.",
+      "remediation": "For each daemon listed, check the capability set against what it actually needs and drop the rest in its init service definition. CAP_SYS_ADMIN on a vendor daemon is worth particular scrutiny since it is close to full root."
+    },
+    {
+      "id": "SYS-BINDERSVC-001",
+      "category": "SYSTEM",
+      "label": "Registered Binder Service Inventory",
+      "command": "S=$(service list 2>/dev/null | grep -c ':'); V=$(service list 2>/dev/null | grep -ciE 'vendor|oem|qti|mtk|samsung|huawei'); [ \"${S:-0}\" = \"0\" ] && echo NO_SERVICE_LIST || echo \"binder_services=$S vendor_services=$V\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Counts the services registered with servicemanager and how many carry a vendor or OEM prefix. Every registered binder service is an IPC entry point reachable by any process the SELinux policy allows to find it, and vendor services are the ones least likely to have had the scrutiny the AOSP framework services get. This provides the attack-surface inventory count that a Binder-focused review starts from. Informational: the count is build-specific and a high number is normal on an OEM device.",
+      "remediation": "Enumerate the vendor services with 'service list' and review each for exposed transactions that do not check the caller UID or permission. Remove services that are not needed on a production build."
     }
   ]
 }

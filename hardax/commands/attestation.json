@@ -256,6 +256,17 @@
       "why": "The target list names which services were given a forged device-integrity verdict, and the patch file names the fake security patch level advertised to them.",
       "risk_if_fail": "Named services accepted a fabricated attestation and a fabricated security patch level from a rooted device.",
       "empty_is_safe": true
+    },
+    {
+      "id": "ATT-026",
+      "category": "ATTESTATION",
+      "label": "Replay Protected Memory Block (RPMB) Availability",
+      "command": "R=$(ls -d /dev/block/mmcblk0rpmb /dev/block/by-name/rpmb /dev/block/sda* 2>/dev/null | grep -i rpmb | tr '\\n' ' '); S=$(ls /sys/block/mmcblk0rpmb 2>/dev/null | head -1); [ -z \"$R\" ] && [ -z \"$S\" ] && echo RPMB_NOT_VISIBLE || echo \"RPMB_PRESENT nodes=${R:-none} sysfs=${S:-none}\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Reports whether a Replay Protected Memory Block partition is visible. RPMB is the authenticated, replay-resistant storage that the TEE uses for rollback counters, Keymaster and KeyMint key metadata, and Gatekeeper failed-attempt counters. Without it, the counters that enforce lockout after failed unlock attempts and that prevent rollback of encrypted state have no tamper-resistant home. RPMB_NOT_VISIBLE is common and not itself a finding: on many devices the block is claimed by the secure world and never exposed to the Linux side, which is the stronger configuration. Informational for that reason.",
+      "remediation": "Nothing to act on directly. Confirm with the SoC vendor that RPMB is provisioned and that Gatekeeper and KeyMint use it for counter storage, since lockout enforcement and rollback resistance depend on it."
     }
   ]
 }

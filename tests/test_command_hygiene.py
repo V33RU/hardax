@@ -143,6 +143,6 @@ def test_category_set_is_intact():
     this guards the shape instead: no category may silently empty out, and a
     category must not shrink to a single check without being noticed."""
     counts = Counter(c["category"] for c in load_all_checks())
-    assert len(counts) == 28, f"category count changed: {sorted(counts)}"
+    assert len(counts) == 29, f"category count changed: {sorted(counts)}"
     thin = {cat: n for cat, n in counts.items() if n < 3}
     assert not thin, f"categories reduced to almost nothing: {thin}"
