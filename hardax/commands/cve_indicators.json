@@ -161,16 +161,6 @@
       "empty_is_safe": true
     },
     {
-      "id": "CVE-016",
-      "category": "CVE_INDICATORS",
-      "label": "Security Patch Currency Check",
-      "command": "getprop ro.build.version.security_patch 2>/dev/null | awk -F'-' '{y=$1+0; m=$2+0; \"date +%Y\" | getline curr_y; \"date +%m\" | getline curr_m; curr_y+=0; curr_m+=0; diff=(curr_y-y)*12+(curr_m-m); if(diff>6) print \"OUTDATED by \"diff\" months: \"$0; else if(diff>3) print \"WARNING \"diff\" months old: \"$0; else print \"CURRENT \"$0}'",
-      "safe_pattern": "^CURRENT",
-      "level": "warning",
-      "description": "Security patch level currency. Devices more than 6 months behind accumulate unpatched CVEs across all categories.",
-      "remediation": "Update device security patch level. More than 6 months outdated represents significant accumulated CVE risk."
-    },
-    {
       "category": "CVE_INDICATORS",
       "label": "WebView Debugging Enabled (debug.webview)",
       "command": "getprop debug.webview.debug 2>/dev/null; getprop persist.webview.debug 2>/dev/null",
@@ -338,12 +328,13 @@
       "category": "CVE_INDICATORS",
       "label": "Android Security Bulletin compliance against known-exploited kernel CVEs",
       "command": "sh -c 'sp=$(getprop ro.build.version.security_patch 2>/dev/null | tr -d -); if [ -z \"$sp\" ]; then echo \"UNKNOWN no ro.build.version.security_patch\"; exit 0; fi; gap=\"\"; chk() { d=$1; cve=$2; [ \"$sp\" -lt \"$d\" ] && gap=\"${gap} ${cve}(${d})\"; }; chk 20160501 CVE-2016-2431; chk 20160701 CVE-2016-5342; chk 20161101 CVE-2016-5195; chk 20191001 CVE-2019-2215; chk 20200301 CVE-2020-0041; chk 20210301 CVE-2021-0399; chk 20211101 CVE-2021-1048; chk 20220401 CVE-2022-0847; chk 20230201 CVE-2023-20938; chk 20250901 CVE-2025-38352; chk 20260301 CVE-2026-21385; chk 20240501 CVE-2024-1086; chk 20240601 CVE-2024-32896; chk 20240801 CVE-2024-36971; chk 20241001 CVE-2024-43047; if [ -z \"$gap\" ]; then echo \"COMPLIANT patch=$sp all listed exploited-CVE bulletins applied\"; else echo \"BEHIND patch=$sp missing:${gap}\"; fi'",
-      "safe_pattern": "^COMPLIANT",
-      "level": "critical",
+      "safe_pattern": ".",
+      "level": "verify",
       "empty_is_safe": false,
       "null_is_safe": false,
-      "description": "Reads ro.build.version.security_patch and names every actively-exploited or CISA-KEV-listed kernel CVE that the device's bulletin date is behind on. Complements the per-CVE checks: this one captures the patch-level signal across the full known-exploited catalogue in one place. List is curated, updated per release.",
-      "remediation": "Take the latest Android vendor OTA. The 'missing' field names each unpatched CVE."
+      "description": "Roll-up of the security patch level against the fix dates of the known-exploited CVEs tracked in this category. Every CVE it lists also has its own dedicated check, most of which additionally gate on the affected hardware and can therefore return NOT_AFFECTED where this roll-up cannot. It is reported at verify level so that it summarises rather than adding one more critical finding on top of the individual ones: an outdated device would otherwise raise this plus every CVE check behind it for the same underlying fact.",
+      "remediation": "Read this as an index. Act on the individual CVE checks, which carry the per-CVE hardware gating and remediation.",
+      "requires_manual_review": true
     },
     {
       "id": "CVE-030",

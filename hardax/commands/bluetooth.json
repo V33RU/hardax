@@ -65,25 +65,6 @@
       "severity": "LOW"
     },
     {
-      "id": "BT-005",
-      "category": "BLUETOOTH",
-      "label": "cmd bluetooth_manager state snapshot (if supported)",
-      "command": "cmd bluetooth_manager dump 2>/dev/null | head -n 80",
-      "safe_pattern": "Bluetooth|enabled|state",
-      "level": "low",
-      "description": "cmd bluetooth_manager can provide structured state on some Android versions.",
-      "remediation": "Review output manually. If unexpected state is found, disable Bluetooth: settings put global bluetooth_on 0.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§3.1",
-      "why": "cmd bluetooth_manager can provide structured state on some Android versions.",
-      "risk_if_fail": "If supported, it may reveal additional security-relevant state not visible in settings.",
-      "notes": "Not all Android versions expose 'cmd bluetooth_manager dump'.",
-      "control_area": "BT enabled state and auto-enable",
-      "expected_secure_state": "Inventory only",
-      "severity": "LOW"
-    },
-    {
       "id": "BT-006",
       "category": "BLUETOOTH",
       "label": "BLE scan always available",
@@ -316,68 +297,6 @@
       "severity": "LOW"
     },
     {
-      "id": "BT-021",
-      "category": "BLUETOOTH",
-      "label": "Bonded devices listing",
-      "command": "dumpsys bluetooth_manager | grep -A 120 -i 'Bonded devices'",
-      "safe_pattern": "Bonded",
-      "level": "high",
-      "description": "Auditing bonded devices ensures only approved peripherals retain trust.",
-      "remediation": "Remove unknown bonded devices via Settings > Bluetooth > paired devices, or: bt_unpair <mac> via ADB.",
-      "empty_is_safe": false,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§5.2",
-      "why": "Auditing bonded devices ensures only approved peripherals retain trust.",
-      "risk_if_fail": "Unknown bonds can silently reconnect and access sensitive services.",
-      "tags": [
-        "bonds"
-      ],
-      "control_area": "Bonded/paired device audit",
-      "expected_secure_state": "Only authorized devices bonded (minimal list)",
-      "severity": "HIGH"
-    },
-    {
-      "id": "BT-023",
-      "category": "BLUETOOTH",
-      "label": "Count bonded devices (heuristic)",
-      "command": "dumpsys bluetooth_manager | grep -A 80 -i 'Bonded devices' | grep -iE 'Device|address|name' | wc -l",
-      "safe_pattern": "^0$",
-      "level": "medium",
-      "description": "A smaller bonded list reduces persistent trust and reconnection risk.",
-      "remediation": "Reduce bonded devices to minimum. Unpair unused devices via Settings > Bluetooth > Forget device.",
-      "empty_is_safe": false,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§5.2",
-      "why": "A smaller bonded list reduces persistent trust and reconnection risk.",
-      "risk_if_fail": "Large numbers of bonds increase the likelihood of stale/compromised devices remaining trusted.",
-      "notes": "This count is noisy across OEMs; treat as trend indicator not exact count.",
-      "control_area": "Bonded/paired device audit",
-      "expected_secure_state": "0 is best for high-security devices; otherwise keep minimal",
-      "severity": "MEDIUM"
-    },
-    {
-      "id": "BT-024",
-      "category": "BLUETOOTH",
-      "label": "Bond state keywords (inventory)",
-      "command": "dumpsys bluetooth_manager | grep -iE 'bond state|bonded|bonding'",
-      "safe_pattern": "bond",
-      "level": "low",
-      "description": "Bond state lines can reveal unexpected bonding activity.",
-      "remediation": "Review bond state lines. If unexpected bonding activity is found, unpair unknown devices immediately.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§5.2",
-      "why": "Bond state lines can reveal unexpected bonding activity.",
-      "risk_if_fail": "Unexpected bonding can indicate user confusion or malicious pairing attempts.",
-      "tags": [
-        "bonds",
-        "inventory"
-      ],
-      "control_area": "Bonded/paired device audit",
-      "expected_secure_state": "Inventory",
-      "severity": "LOW"
-    },
-    {
       "id": "BT-025",
       "category": "BLUETOOTH",
       "label": "Adapter scan mode",
@@ -442,25 +361,6 @@
       "severity": "LOW"
     },
     {
-      "id": "BT-028",
-      "category": "BLUETOOTH",
-      "label": "Active connections encrypted (generic)",
-      "command": "dumpsys bluetooth_manager | grep -iE 'isEncrypted|encrypted'",
-      "safe_pattern": "(isEncrypted=true|encrypted: true|Encrypted: true|ENCRYPTED)",
-      "level": "critical",
-      "description": "NIST recommends encryption to protect confidentiality of Bluetooth communications.",
-      "remediation": "Ensure all active connections use encryption. Unpair and re-pair devices that show unencrypted links.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§4.4",
-      "why": "NIST recommends encryption to protect confidentiality of Bluetooth communications.",
-      "risk_if_fail": "Unencrypted links allow passive sniffing and data recovery within radio range.",
-      "notes": "Many devices only show encryption flags when a connection is active.",
-      "control_area": "Encryption enforcement",
-      "expected_secure_state": "All active links encrypted",
-      "severity": "CRITICAL"
-    },
-    {
       "id": "BT-030",
       "category": "BLUETOOTH",
       "label": "Encryption key length (KNOB risk heuristic)",
@@ -500,138 +400,6 @@
       "control_area": "Exposed Bluetooth profiles",
       "expected_secure_state": "Unused profiles should be disabled; if present, must be justified",
       "severity": "MEDIUM"
-    },
-    {
-      "id": "BT-033",
-      "category": "BLUETOOTH",
-      "label": "Profile keywords present: HID (Input)",
-      "command": "dumpsys bluetooth_manager | grep -iE 'hid'",
-      "safe_pattern": "^$",
-      "level": "critical",
-      "description": "Disabling unused profiles reduces attack surface.",
-      "remediation": "Disable HID profile if no BT input devices are used. Revoke HID service permissions if possible.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§3.3",
-      "why": "Disabling unused profiles reduces attack surface.",
-      "risk_if_fail": "Extra profiles can expose sensitive data/services to paired devices.",
-      "notes": "If output is non-empty, confirm whether profile is enabled/connected and whether it is required.",
-      "tags": [
-        "profiles"
-      ],
-      "control_area": "Exposed Bluetooth profiles",
-      "expected_secure_state": "Unused profiles should be disabled; if present, must be justified",
-      "severity": "CRITICAL"
-    },
-    {
-      "id": "BT-034",
-      "category": "BLUETOOTH",
-      "label": "Profile keywords present: MAP (Message Access)",
-      "command": "dumpsys bluetooth_manager | grep -iE 'map|message'",
-      "safe_pattern": "^$",
-      "level": "high",
-      "description": "Disabling unused profiles reduces attack surface.",
-      "remediation": "Disable MAP profile if not needed: revoke message access for BT devices in Settings > Connected devices.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§3.3",
-      "why": "Disabling unused profiles reduces attack surface.",
-      "risk_if_fail": "Extra profiles can expose sensitive data/services to paired devices.",
-      "notes": "If output is non-empty, confirm whether profile is enabled/connected and whether it is required.",
-      "tags": [
-        "profiles"
-      ],
-      "control_area": "Exposed Bluetooth profiles",
-      "expected_secure_state": "Unused profiles should be disabled; if present, must be justified",
-      "severity": "HIGH"
-    },
-    {
-      "id": "BT-035",
-      "category": "BLUETOOTH",
-      "label": "Profile keywords present: OPP (Object Push)",
-      "command": "dumpsys bluetooth_manager | grep -iE 'opp|obex'",
-      "safe_pattern": "^$",
-      "level": "high",
-      "description": "Disabling unused profiles reduces attack surface.",
-      "remediation": "Disable OPP profile if not needed. Block OBEX push in Bluetooth settings or firewall rules.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§3.3",
-      "why": "Disabling unused profiles reduces attack surface.",
-      "risk_if_fail": "Extra profiles can expose sensitive data/services to paired devices.",
-      "notes": "If output is non-empty, confirm whether profile is enabled/connected and whether it is required.",
-      "tags": [
-        "profiles"
-      ],
-      "control_area": "Exposed Bluetooth profiles",
-      "expected_secure_state": "Unused profiles should be disabled; if present, must be justified",
-      "severity": "HIGH"
-    },
-    {
-      "id": "BT-036",
-      "category": "BLUETOOTH",
-      "label": "Profile keywords present: PAN (Network)",
-      "command": "dumpsys bluetooth_manager | grep -iE 'pan'",
-      "safe_pattern": "^$",
-      "level": "high",
-      "description": "Disabling unused profiles reduces attack surface.",
-      "remediation": "Disable PAN profile if not needed. Turn off BT tethering in Settings > Network > Tethering.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§3.3",
-      "why": "Disabling unused profiles reduces attack surface.",
-      "risk_if_fail": "Extra profiles can expose sensitive data/services to paired devices.",
-      "notes": "If output is non-empty, confirm whether profile is enabled/connected and whether it is required.",
-      "tags": [
-        "profiles"
-      ],
-      "control_area": "Exposed Bluetooth profiles",
-      "expected_secure_state": "Unused profiles should be disabled; if present, must be justified",
-      "severity": "HIGH"
-    },
-    {
-      "id": "BT-037",
-      "category": "BLUETOOTH",
-      "label": "Profile keywords present: PBAP (Phonebook)",
-      "command": "dumpsys bluetooth_manager | grep -iE 'pbap|phonebook'",
-      "safe_pattern": "^$",
-      "level": "high",
-      "description": "Disabling unused profiles reduces attack surface.",
-      "remediation": "Disable PBAP if not needed. Revoke phonebook access for BT devices in Settings > Connected devices.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§3.3",
-      "why": "Disabling unused profiles reduces attack surface.",
-      "risk_if_fail": "Extra profiles can expose sensitive data/services to paired devices.",
-      "notes": "If output is non-empty, confirm whether profile is enabled/connected and whether it is required.",
-      "tags": [
-        "profiles"
-      ],
-      "control_area": "Exposed Bluetooth profiles",
-      "expected_secure_state": "Unused profiles should be disabled; if present, must be justified",
-      "severity": "HIGH"
-    },
-    {
-      "id": "BT-038",
-      "category": "BLUETOOTH",
-      "label": "All profile/service lines (inventory)",
-      "command": "dumpsys bluetooth_manager | grep -iE 'profile|service' | head -n 200",
-      "safe_pattern": "profile|service",
-      "level": "low",
-      "description": "A profile inventory helps validate whether only required services are exposed.",
-      "remediation": "Review listed profiles. Disable any unnecessary services via Bluetooth app settings or developer options.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§3.3",
-      "why": "A profile inventory helps validate whether only required services are exposed.",
-      "risk_if_fail": "Unexpected services can indicate OEM additions or extra attack surface.",
-      "tags": [
-        "profiles",
-        "inventory"
-      ],
-      "control_area": "Exposed Bluetooth profiles",
-      "expected_secure_state": "Inventory (manual review)",
-      "severity": "LOW"
     },
     {
       "id": "BT-039",
@@ -737,28 +505,6 @@
       ],
       "control_area": "Security mode and SSP",
       "expected_secure_state": "SC used where supported",
-      "severity": "CRITICAL"
-    },
-    {
-      "id": "BT-047",
-      "category": "BLUETOOTH",
-      "label": "SSP indicators in stack dump",
-      "command": "dumpsys bluetooth_manager | grep -iE 'secure simple pairing|\\bssp\\b'",
-      "safe_pattern": "(Enabled|enabled|true)",
-      "level": "critical",
-      "description": "SSP provides stronger association than legacy PIN pairing.",
-      "remediation": "Ensure SSP is enabled. Update firmware or ROM if SSP is disabled or unavailable on the device.",
-      "empty_is_safe": true,
-      "requires_manual_review": true,
-      "nist_sp_800_121_rev2": "§4.3",
-      "why": "SSP provides stronger association than legacy PIN pairing.",
-      "risk_if_fail": "If SSP is disabled/downgraded, pairing is more MITM/bruteforce-prone.",
-      "notes": "Absence doesn't prove SSP is off; output is OEM-dependent.",
-      "tags": [
-        "pairing"
-      ],
-      "control_area": "Security mode and SSP",
-      "expected_secure_state": "SSP enabled",
       "severity": "CRITICAL"
     },
     {
@@ -883,18 +629,6 @@
       "description": "Disable unused profiles (CM-7)",
       "remediation": "Disable unnecessary profiles via Settings > Connected devices or pm disable relevant BT service components.",
       "empty_is_safe": true
-    },
-    {
-      "id": "BT-063",
-      "category": "BLUETOOTH",
-      "label": "Paired Device Count",
-      "command": "dumpsys bluetooth_manager | grep -A 10 'Bonded devices:' | grep 'Device:' | wc -l",
-      "safe_pattern": "^0$",
-      "level": "medium",
-      "description": "The number of paired devices should be zero; each pair is a persistent trust and potential attack vector.",
-      "remediation": "Unpair all unnecessary devices: Settings > Bluetooth > Forget device for each unused entry.",
-      "nist_800_53": "AC-3, CM-8",
-      "nist_800_121": "§5.2"
     },
     {
       "id": "BT-064",

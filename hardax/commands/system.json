@@ -3,11 +3,13 @@
     {
       "category": "SYSTEM",
       "label": "Security Patch Level",
-      "command": "PATCH_DATE=$(getprop ro.build.version.security_patch 2>/dev/null); if [ -z \"$PATCH_DATE\" ]; then echo 'UNKNOWN'; exit 1; fi; PATCH_EPOCH=$(date -d \"$PATCH_DATE\" +%s 2>/dev/null || echo 0); CURRENT_EPOCH=$(date +%s); DAYS_OLD=$(( ($CURRENT_EPOCH - $PATCH_EPOCH) / 86400 )); if [ $DAYS_OLD -lt 90 ]; then echo \"RECENT: $PATCH_DATE ($DAYS_OLD days old)\"; else echo \"OUTDATED: $PATCH_DATE ($DAYS_OLD days old)\"; fi",
-      "safe_pattern": "^RECENT:",
+      "command": "SP=$(getprop ro.build.version.security_patch 2>/dev/null); if [ -z \"$SP\" ]; then echo \"UNKNOWN no security_patch property\"; else P=$(printf '%s' \"$SP\" | tr -d '-' | cut -c1-6); N=$(date +%Y%m); PY=$(( ${P%??} + 0 )); PM=$(( 1${P#????} - 100 )); NY=$(( ${N%??} + 0 )); NM=$(( 1${N#????} - 100 )); D=$(( (NY-PY)*12 + (NM-PM) )); if [ \"$D\" -lt 0 ]; then echo \"FUTURE_SPL spl=$SP months_ahead=$(( -D ))\"; elif [ \"$D\" -le 3 ]; then echo \"RECENT spl=$SP months_old=$D\"; elif [ \"$D\" -le 6 ]; then echo \"AGING spl=$SP months_old=$D\"; else echo \"OUTDATED spl=$SP months_old=$D\"; fi; fi",
+      "safe_pattern": "^(RECENT|AGING)",
       "level": "critical",
-      "description": "Security patch must be less than 90 days old",
-      "remediation": "Apply the latest OTA security update or flash an updated system image with a patch level less than 90 days old."
+      "description": "Single authoritative answer to how old the device security patch level is. Reports months_old relative to the current month: RECENT at 3 months or less, AGING at 4 to 6, OUTDATED beyond 6, and FUTURE_SPL when the patch date is ahead of today, which no honest build produces and which spoofing tooling does. The arithmetic is integer YYYYMM subtraction and does not call 'date -d'. The earlier version did, and when 'date -d' was unavailable (toybox and busybox builds vary) it fell back to epoch 0, computed an age of roughly 20000 days and scored CRITICAL on a device with a perfectly current patch. This check replaces two other currency checks that answered the same question with different thresholds and different severities.",
+      "remediation": "Apply the vendor OTA. If FUTURE_SPL is reported, the patch level is forged: locate the spoofing module and treat the device as compromised.",
+      "baseline_key": "security_patch",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
@@ -40,15 +42,6 @@
     },
     {
       "category": "SYSTEM",
-      "label": "Wi-Fi SSID",
-      "command": "dumpsys netstats 2>/dev/null | grep -i 'iface=wlan0'",
-      "safe_pattern": ".+",
-      "level": "info",
-      "description": "Shows current Wi-Fi network",
-      "remediation": "Informational only. Verify the device is connected to an authorized network."
-    },
-    {
-      "category": "SYSTEM",
       "label": "Zygote Process Check",
       "command": "ps 2>/dev/null | grep zygote",
       "safe_pattern": "zygote",
@@ -77,22 +70,13 @@
     },
     {
       "category": "SYSTEM",
-      "label": "Credential Storage Contents",
-      "command": "ls /data/misc/keystore/user_0 2>/dev/null | wc -l",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Number of credential files in keystore user_0 - informational evidence collector.",
-      "remediation": "Review keystore contents if unexpectedly large. Run: adb shell ls /data/misc/keystore/user_0 (requires root).",
-      "empty_is_safe": true
-    },
-    {
-      "category": "SYSTEM",
       "label": "Kernel Hardening (PAN/UAO)",
-      "command": "zcat /proc/config.gz 2>/dev/null | grep -cE 'CONFIG_ARM64_(PAN|UAO)=y'",
-      "safe_pattern": "^2$",
-      "level": "critical",
-      "description": "Privileged Access Never (PAN) and User Access Override (UAO) should be enabled for memory protection",
-      "remediation": "Rebuild the kernel with CONFIG_ARM64_PAN=y and CONFIG_ARM64_UAO=y in the defconfig, then reflash."
+      "command": "if [ ! -e /proc/config.gz ]; then echo 'NOT_OBSERVABLE /proc/config.gz absent (CONFIG_IKCONFIG_PROC disabled)'; else K=$( (zcat /proc/config.gz 2>/dev/null || gzip -dc /proc/config.gz 2>/dev/null) | grep -cE '^CONFIG_ARM64_(PAN|UAO)=y' ); echo \"PAN_UAO_COUNT=${K:-0}\"; fi",
+      "safe_pattern": "^(PAN_UAO_COUNT=2|NOT_OBSERVABLE)",
+      "level": "warning",
+      "description": "Privileged Access Never and User Access Override stop the kernel from dereferencing userspace pointers outside the accessor helpers, which blocks a large family of privilege escalation primitives. Both are compile-time kernel options, observable only through /proc/config.gz. That file requires CONFIG_IKCONFIG_PROC and is absent on the majority of production Android builds, so this check now reports NOT_OBSERVABLE explicitly instead of silently producing an empty result. NOT_OBSERVABLE is treated as passing because failing a device for the absence of evidence would be a false positive, not a finding.",
+      "remediation": "Where the kernel config is readable, confirm CONFIG_ARM64_PAN=y and CONFIG_ARM64_UAO=y. Where it is not, obtain the defconfig from the vendor kernel source drop for the exact build and verify there.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
@@ -172,30 +156,33 @@
     },
     {
       "category": "SYSTEM",
-      "label": "Stack Canaries",
-      "command": "zcat /proc/config.gz | grep CONFIG_CC_STACKPROTECTOR_STRONG",
-      "safe_pattern": "CONFIG_CC_STACKPROTECTOR_STRONG=y",
-      "level": "critical",
-      "description": "Stack canaries should be enabled to prevent buffer overflows",
-      "remediation": "Rebuild the kernel with CONFIG_CC_STACKPROTECTOR_STRONG=y in the defconfig, then reflash."
+      "label": "Kernel Stack Protector (Strong)",
+      "command": "if [ ! -e /proc/config.gz ]; then echo 'NOT_OBSERVABLE /proc/config.gz absent (CONFIG_IKCONFIG_PROC disabled)'; else (zcat /proc/config.gz 2>/dev/null || gzip -dc /proc/config.gz 2>/dev/null) | grep -E '^CONFIG_(CC_)?STACKPROTECTOR_STRONG=' | head -1 | grep . || echo STACKPROTECTOR_STRONG_ABSENT; fi",
+      "safe_pattern": "STACKPROTECTOR_STRONG=y|^NOT_OBSERVABLE",
+      "level": "warning",
+      "description": "The strong stack protector places a canary in every kernel function with a local array or address-taken local, so a stack buffer overflow is detected before the saved return address is used. It is a compile-time option observable only through /proc/config.gz, which needs CONFIG_IKCONFIG_PROC and is absent on most production Android builds. The check now reports NOT_OBSERVABLE rather than failing on absence of evidence, and matches both the modern CONFIG_STACKPROTECTOR_STRONG and the legacy CONFIG_CC_STACKPROTECTOR_STRONG spelling. This replaces an earlier version that ran zcat with no stderr redirect and scored CRITICAL from the resulting gzip error on every device lacking the file.",
+      "remediation": "Where the kernel config is readable, confirm CONFIG_STACKPROTECTOR_STRONG=y. Where it is not, verify against the vendor defconfig for the exact build.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
-      "label": "ROP Mitigation (PAC)",
-      "command": "zcat /proc/config.gz | grep CONFIG_ARM64_PTR_AUTH",
-      "safe_pattern": "CONFIG_ARM64_PTR_AUTH=y",
-      "level": "critical",
-      "description": "Pointer Authentication (PAC) should be enabled to prevent ROP attacks",
-      "remediation": "Rebuild the kernel with CONFIG_ARM64_PTR_AUTH=y in the defconfig. Requires ARMv8.3+ hardware."
+      "label": "Pointer Authentication (PAC) CPU Support",
+      "command": "A=$(uname -m 2>/dev/null); C=$(grep -m1 -iE '^Features' /proc/cpuinfo 2>/dev/null); P=$(printf '%s' \"$C\" | grep -owE 'paca|pacg' | tr '\\n' ' '); if [ \"$A\" != \"aarch64\" ]; then echo \"NOT_ARM64 arch=${A:-unknown}\"; elif [ -n \"$P\" ]; then echo \"PAC_CPU_SUPPORTED features=$P\"; else echo PAC_CPU_ABSENT; fi",
+      "safe_pattern": "^(PAC_CPU_SUPPORTED|NOT_ARM64)",
+      "level": "warning",
+      "description": "Pointer Authentication signs return addresses and function pointers with a hardware key, so an attacker who corrupts a saved return address cannot forge a valid signature. This defeats most classical ROP chains. The kernel advertises support in the /proc/cpuinfo Features list as 'paca' (address authentication) and 'pacg' (generic authentication). PAC is an ARMv8.3 feature present on essentially all ARM64 Android silicon from 2019 onward, so its absence on a modern device is a genuine hardening gap. This replaces an earlier version that read 'zcat /proc/config.gz' with no stderr redirect, which emitted a gzip error and scored CRITICAL on every device where that file is absent.",
+      "remediation": "PAC cannot be added in software. On ARMv8.3+ hardware, confirm the kernel is built with CONFIG_ARM64_PTR_AUTH=y and that userspace is compiled with -mbranch-protection=standard. On pre-ARMv8.3 silicon the only remedy is a hardware refresh.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
       "label": "Memory Tagging (MTE)",
-      "command": "zcat /proc/config.gz | grep CONFIG_ARM64_MTE",
-      "safe_pattern": "CONFIG_ARM64_MTE=y",
-      "level": "critical",
-      "description": "Memory Tagging Extension (MTE) should be enabled for JIT hardening",
-      "remediation": "Rebuild the kernel with CONFIG_ARM64_MTE=y in the defconfig. Requires ARMv8.5+ hardware."
+      "command": "A=$(uname -m 2>/dev/null); C=$(grep -m1 -iE '^Features' /proc/cpuinfo 2>/dev/null); H=$(printf '%s' \"$C\" | grep -owE 'mte' | head -1); BC=$(getprop arm64.memtag.bootctl 2>/dev/null); DF=$(getprop persist.arm64.memtag.default 2>/dev/null); if [ \"$A\" != \"aarch64\" ]; then echo \"NOT_ARM64 arch=${A:-unknown}\"; elif [ -n \"$H\" ]; then echo \"MTE_CPU_SUPPORTED bootctl=${BC:-unset} default=${DF:-unset}\"; else echo \"MTE_CPU_ABSENT bootctl=${BC:-unset} default=${DF:-unset}\"; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Memory Tagging Extension is an ARMv8.5 hardware feature that tags heap allocations and traps mismatched accesses, converting most heap overflow and use-after-free bugs into faults. Support is reported in the /proc/cpuinfo Features list as 'mte'; the arm64.memtag.bootctl and persist.arm64.memtag.default properties report whether Android is actually asking for it at boot. Informational because MTE requires ARMv8.5 silicon that most fleet hardware through 2026 does not have, so absence is a hardware fact rather than a misconfiguration. This replaces an earlier version that ran 'zcat /proc/config.gz' with no stderr redirect, which emitted a gzip error and scored CRITICAL on every device where that file is absent.",
+      "remediation": "MTE cannot be enabled on hardware that lacks it. On ARMv8.5+ devices, enable it for the system or for specific processes via arm64.memtag.bootctl and the per-app memtagMode manifest attribute. Prefer MTE-capable silicon when refreshing fleet hardware.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
@@ -364,38 +351,42 @@
     {
       "category": "SYSTEM",
       "label": "Core Dumps Disabled",
-      "command": "cat /proc/sys/kernel/core_pattern",
-      "safe_pattern": "^(\\|/dev/null|/dev/null)$",
+      "command": "V=$(cat /proc/sys/kernel/core_pattern 2>/dev/null); [ -z \"$V\" ] && echo CORE_PATTERN_UNREADABLE || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^(\\|/dev/null|/dev/null)$|^CORE_PATTERN_UNREADABLE$",
       "level": "warning",
-      "description": "Core dumps should be disabled to prevent sensitive data leakage.",
-      "remediation": "Disable core dumps. Run: echo '|/dev/null' > /proc/sys/kernel/core_pattern. Persist via sysctl.conf."
+      "description": "Core dumps should be disabled to prevent sensitive data leakage. The sysctl is read with stderr suppressed and reports CORE_PATTERN_UNREADABLE when the node is absent, so a kernel that does not expose it is not failed on absence of evidence. The earlier version ran cat without redirecting stderr, so a missing node put the 'No such file or directory' text into the result, which failed the pattern and scored a finding.",
+      "remediation": "Disable core dumps. Run: echo '|/dev/null' > /proc/sys/kernel/core_pattern. Persist via sysctl.conf.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
-      "label": "SECCOMP Enabled",
-      "command": "zcat /proc/config.gz | grep CONFIG_SECCOMP=",
-      "safe_pattern": "CONFIG_SECCOMP=Y",
+      "label": "SECCOMP Kernel Support",
+      "command": "if grep -qi '^Seccomp:' /proc/self/status 2>/dev/null; then M=$(grep -i '^Seccomp:' /proc/self/status 2>/dev/null | awk '{print $2}'); F=$(grep -i '^Seccomp_filters:' /proc/self/status 2>/dev/null | awk '{print $2}'); echo \"KERNEL_SECCOMP_PRESENT shell_mode=${M:-unknown} shell_filters=${F:-0}\"; else echo KERNEL_SECCOMP_ABSENT; fi",
+      "safe_pattern": "^KERNEL_SECCOMP_PRESENT",
       "level": "warning",
-      "description": "SECCOMP must be enabled to restrict system calls.",
-      "remediation": "Rebuild the kernel with CONFIG_SECCOMP=y in the defconfig, then reflash the device."
+      "description": "The kernel exposes a 'Seccomp:' field in /proc/<pid>/status only when CONFIG_SECCOMP is compiled in, so the presence of that field is direct proof of kernel seccomp support and needs no access to /proc/config.gz. Android uses seccomp-bpf to restrict the syscall surface of app processes and of the media and network stacks. The reported shell_mode is the mode of the auditing shell itself (0 disabled, 1 strict, 2 filter) and is expected to be 0, because adb shell is not sandboxed; it is context, not a verdict. This replaces an earlier version that read 'zcat /proc/config.gz' with safe_pattern 'CONFIG_SECCOMP=Y', which could never match because kernel config values are lowercase, and which emitted a gzip error into the result on the majority of devices where /proc/config.gz is absent.",
+      "remediation": "Rebuild the kernel with CONFIG_SECCOMP=y and CONFIG_SECCOMP_FILTER=y. Android CDD requires seccomp-bpf support; a kernel without it cannot enforce the platform syscall filters.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
       "label": "Protected Symlinks Enabled",
-      "command": "cat /proc/sys/fs/protected_symlinks",
-      "safe_pattern": "^1$",
+      "command": "V=$(cat /proc/sys/fs/protected_symlinks 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_UNREADABLE || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^1$|^SYSCTL_UNREADABLE$",
       "level": "warning",
-      "description": "Symlink protection should be enabled to prevent symlink-based privilege escalation.",
-      "remediation": "Run: echo 1 > /proc/sys/fs/protected_symlinks. Persist by adding fs.protected_symlinks=1 to sysctl.conf."
+      "description": "Symlink protection should be enabled to prevent symlink-based privilege escalation. The sysctl is read with stderr suppressed and reports SYSCTL_UNREADABLE when the node is absent, so a kernel that does not expose it is not failed on absence of evidence. The earlier version ran cat without redirecting stderr, so a missing node put the 'No such file or directory' text into the result, which failed the pattern and scored a finding.",
+      "remediation": "Run: echo 1 > /proc/sys/fs/protected_symlinks. Persist by adding fs.protected_symlinks=1 to sysctl.conf.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
       "label": "Protected Hardlinks Enabled",
-      "command": "cat /proc/sys/fs/protected_hardlinks",
-      "safe_pattern": "^1$",
+      "command": "V=$(cat /proc/sys/fs/protected_hardlinks 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_UNREADABLE || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^1$|^SYSCTL_UNREADABLE$",
       "level": "warning",
-      "description": "Hardlink protection should be enabled to prevent unauthorized file access.",
-      "remediation": "Run: echo 1 > /proc/sys/fs/protected_hardlinks. Persist by adding fs.protected_hardlinks=1 to sysctl.conf."
+      "description": "Hardlink protection should be enabled to prevent unauthorized file access. The sysctl is read with stderr suppressed and reports SYSCTL_UNREADABLE when the node is absent, so a kernel that does not expose it is not failed on absence of evidence. The earlier version ran cat without redirecting stderr, so a missing node put the 'No such file or directory' text into the result, which failed the pattern and scored a finding.",
+      "remediation": "Run: echo 1 > /proc/sys/fs/protected_hardlinks. Persist by adding fs.protected_hardlinks=1 to sysctl.conf.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
@@ -432,15 +423,6 @@
       "level": "critical",
       "description": "ADB shell should NOT run as root (uid=0)",
       "remediation": "Use a user build (ro.build.type=user) which drops ADB to shell user. Run: adb unroot to demote."
-    },
-    {
-      "category": "SYSTEM",
-      "label": "dm-verity Mode",
-      "command": "getprop ro.boot.veritymode 2>/dev/null",
-      "safe_pattern": "^(enforcing|eio|restart|panicking)$",
-      "level": "critical",
-      "description": "dm-verity must fail closed to protect system partitions. Secure modes are 'enforcing', 'eio' (AVB-recommended managed mode), 'restart' and 'panicking'. 'ignore_corruption'/'logging' may return corrupt data and 'disabled' means no verity.",
-      "remediation": "Run: adb enable-verity and reboot. Ensure ro.boot.veritymode is enforcing or eio (managed). Avoid ignore_corruption/logging/disabled."
     },
     {
       "category": "SYSTEM",
@@ -666,17 +648,6 @@
       "remediation": "Compare against a known baseline. If count is abnormally high, investigate unknown processes with ps -A."
     },
     {
-      "id": "SYS-SECCOMP-001",
-      "category": "SYSTEM",
-      "label": "SECCOMP-BPF Kernel Support",
-      "command": "cat /proc/config.gz 2>/dev/null | zcat 2>/dev/null | grep -E 'CONFIG_SECCOMP' | head -5",
-      "safe_pattern": "CONFIG_SECCOMP=y|CONFIG_SECCOMP_FILTER=y",
-      "level": "warning",
-      "description": "SECCOMP-BPF (Secure Computing with Berkeley Packet Filter) restricts syscall access per-process. Required for Android app sandbox hardening. Missing CONFIG_SECCOMP_FILTER is a kernel hardening gap.",
-      "remediation": "Ensure kernel is compiled with CONFIG_SECCOMP=y and CONFIG_SECCOMP_FILTER=y. Required for Android app process sandboxing.",
-      "empty_is_safe": false
-    },
-    {
       "id": "SYS-SECCOMP-002",
       "category": "SYSTEM",
       "label": "SECCOMP Status of Init (PID 1)",
@@ -787,17 +758,6 @@
       "empty_is_safe": true
     },
     {
-      "id": "SYS-FORTIFY-001",
-      "category": "SYSTEM",
-      "label": "FORTIFY_SOURCE via libc",
-      "command": "grep -r 'FORTIFY' /proc/1/maps 2>/dev/null | head -3 || getprop ro.build.version.release 2>/dev/null",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "FORTIFY_SOURCE adds compile-time buffer overflow checks to libc functions. All Android system binaries should be built with -D_FORTIFY_SOURCE=2.",
-      "remediation": "Informational. Android 4.2+ enables FORTIFY_SOURCE for system binaries by default. Verify custom binaries are also compiled with FORTIFY_SOURCE.",
-      "empty_is_safe": true
-    },
-    {
       "category": "SYSTEM",
       "label": "Device Provisioned (Setup Wizard Complete)",
       "command": "settings get global device_provisioned 2>/dev/null",
@@ -861,6 +821,106 @@
       "description": "Reports the kernel release string, whether it is a Generic Kernel Image build (GKI releases carry an -androidNN- suffix and receive Android security patches directly from Google rather than waiting on an SoC vendor backport), and the state of the kernel.modules_disabled sysctl. When modules_disabled is 1 the kernel refuses all further module loads for the rest of the boot, which closes the most direct path from a root shell to persistent kernel-level code. Reported for review rather than as a failure because most Android devices legitimately leave the sysctl at 0 to support late-loading vendor modules, and a NON_GKI kernel is normal on older or heavily customised platforms.",
       "remediation": "Prefer GKI-based kernels so security patches arrive on the Android bulletin cadence instead of the SoC vendor cadence. On locked-down appliance builds where every module is loaded during early boot, set kernel.modules_disabled to 1 once boot completes to block later module loads.",
       "requires_manual_review": true
+    },
+    {
+      "id": "SYS-BPF-001",
+      "category": "SYSTEM",
+      "label": "Unprivileged eBPF Disabled",
+      "command": "V=$(cat /proc/sys/kernel/unprivileged_bpf_disabled 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^[12]$|^SYSCTL_ABSENT$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "kernel.unprivileged_bpf_disabled controls whether an unprivileged process may load eBPF programs. 0 permits it, 1 disables it permanently for the boot, 2 disables it but allows a privileged process to re-enable. Unprivileged eBPF has produced a long run of local privilege escalations because the verifier is a large attack surface reachable without any capability. Either 1 or 2 is acceptable. SYSCTL_ABSENT is treated as passing because a kernel built without eBPF does not expose the node and must not be failed for absence of evidence.",
+      "remediation": "Set kernel.unprivileged_bpf_disabled to 1 in the device sysctl configuration, or build the kernel with CONFIG_BPF_UNPRIV_DEFAULT_OFF=y so the restriction survives reboot.",
+      "why": "The eBPF verifier is reachable from an unprivileged process and has repeatedly been the root of local privilege escalation.",
+      "risk_if_fail": "Any local process or app can load eBPF programs, reaching a kernel attack surface that should require privilege."
+    },
+    {
+      "id": "SYS-SUIDDUMP-001",
+      "category": "SYSTEM",
+      "label": "SUID Core Dumps Restricted",
+      "command": "V=$(cat /proc/sys/fs/suid_dumpable 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^[02]$|^SYSCTL_ABSENT$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "fs.suid_dumpable controls whether a setuid process may produce a core dump. 0 never dumps, 2 dumps but the file is readable only by root, and 1 dumps with normal ownership, which lets an unprivileged user read the memory image of a privileged process. Only 1 is dangerous, so both 0 and 2 pass.",
+      "remediation": "Set fs.suid_dumpable to 0, or to 2 if crash collection from privileged processes is required.",
+      "why": "A dumpable setuid process writes its memory, including any secrets it holds, to a file an unprivileged user can read.",
+      "risk_if_fail": "Credentials and keys held by privileged processes can be recovered from core dumps by any local user."
+    },
+    {
+      "id": "SYS-PROTFIFO-001",
+      "category": "SYSTEM",
+      "label": "Protected FIFOs Enabled",
+      "command": "V=$(cat /proc/sys/fs/protected_fifos 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^[12]$|^SYSCTL_ABSENT$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "fs.protected_fifos stops a process from opening a FIFO it does not own inside a world-writable sticky directory, closing a class of attack where a privileged process is tricked into writing to an attacker-controlled pipe placed in a shared temp directory. 1 protects FIFOs in world-writable sticky directories, 2 extends that to group-writable ones. This complements the protected_symlinks and protected_hardlinks checks already present.",
+      "remediation": "Set fs.protected_fifos to 2 in the device sysctl configuration.",
+      "why": "Without it, an attacker can plant a FIFO in a shared temp directory and block or redirect a privileged writer.",
+      "risk_if_fail": "A privileged process can be induced to write into an attacker-controlled pipe."
+    },
+    {
+      "id": "SYS-PROTREG-001",
+      "category": "SYSTEM",
+      "label": "Protected Regular Files Enabled",
+      "command": "V=$(cat /proc/sys/fs/protected_regular 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^[12]$|^SYSCTL_ABSENT$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "fs.protected_regular is the regular-file counterpart of protected_fifos: it prevents a process from opening a regular file it does not own for writing inside a world-writable sticky directory. It closes the file-squatting variant of the shared temp directory attack, where an attacker pre-creates a filename a privileged process is about to write.",
+      "remediation": "Set fs.protected_regular to 2 in the device sysctl configuration.",
+      "why": "Pre-creating a file in a shared directory redirects a privileged writer into a file the attacker controls.",
+      "risk_if_fail": "A privileged process can be induced to write into an attacker-owned file."
+    },
+    {
+      "id": "SYS-SYSRQ-001",
+      "category": "SYSTEM",
+      "label": "Magic SysRq Key Configuration",
+      "command": "V=$(cat /proc/sys/kernel/sysrq 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "kernel.sysrq is a bitmask controlling the magic SysRq key, which can dump kernel memory and register state, kill processes, remount filesystems and reboot the device from a physical key combination or by writing to /proc/sysrq-trigger. 0 disables it entirely and is the hardened setting for an appliance. Reported for review rather than as a failure because production Android builds and desktop Linux ship very different defaults (0 versus 176), so a fixed pass value would produce a finding on one platform or the other regardless of the real posture.",
+      "remediation": "On a kiosk, POS or appliance build with any physical access exposure, set kernel.sysrq to 0. Where debugging access is genuinely needed, restrict the bitmask to the specific functions required rather than leaving it fully enabled."
+    },
+    {
+      "id": "SYS-PANICOOPS-001",
+      "category": "SYSTEM",
+      "label": "Panic On Oops",
+      "command": "V=$(cat /proc/sys/kernel/panic_on_oops 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "kernel.panic_on_oops makes the kernel panic rather than continue after an oops. Continuing after an oops leaves the kernel in an undefined state that an exploit can work with, so 1 is the hardened setting and is what Android sets on many production builds. Reported for review because the value legitimately differs between production and engineering builds and between platforms, so failing on a fixed value would misreport one of them.",
+      "remediation": "Set kernel.panic_on_oops to 1 on production builds so a kernel fault halts the device instead of leaving it running in an inconsistent state."
+    },
+    {
+      "id": "SYS-SGID-001",
+      "category": "SYSTEM",
+      "label": "SGID Binaries Inventory",
+      "command": "find /system /vendor /product /apex -xdev -type f -perm -2000 2>/dev/null | head -20",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": true,
+      "description": "Lists set-group-ID binaries on the read-only system partitions. Android ships very few, so the list should be short and stable across builds of the same firmware. An SGID binary runs with the group of its owner regardless of who invokes it, so an unexpected entry is a privilege boundary worth examining. Reported as an inventory rather than pass or fail because a small set of legitimate SGID binaries is normal and the exact set is OEM-specific. The companion SUID Binaries check covers the set-user-ID case; nothing covered SGID before.",
+      "remediation": "Compare the list against the same firmware build on a known-good device. Investigate any binary that is not part of the stock image, and remove the SGID bit from anything that does not require it."
+    },
+    {
+      "id": "SYS-WWEXEC-001",
+      "category": "SYSTEM",
+      "label": "World-Writable Executables On System Partitions",
+      "command": "find /system /vendor /product /apex -xdev -type f -perm -0002 -perm -0111 2>/dev/null | head -10",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "empty_is_safe": true,
+      "description": "Finds files on the read-only system partitions that are both world-writable and executable. On a healthy device this must return nothing: the system partitions are mounted read-only and no stock binary carries write permission for other. A hit means either the partition has been remounted read-write and modified, or the image was built with broken permissions, and in both cases any local process can replace the contents of a binary that other processes execute.",
+      "remediation": "Remove write permission with 'chmod o-w' on each file listed, confirm the partition is mounted read-only, and treat the device as potentially tampered with until the image is verified against the stock build.",
+      "why": "A world-writable executable on a system partition lets any local process replace code that privileged processes run.",
+      "risk_if_fail": "Arbitrary code execution in the context of whatever process invokes the modified binary."
     }
   ]
 }

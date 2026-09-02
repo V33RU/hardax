@@ -25,11 +25,12 @@
       "id": "BIN-003",
       "category": "BINARY_HARDENING",
       "label": "KASLR (Kernel ASLR)",
-      "command": "zcat /proc/config.gz 2>/dev/null | grep 'CONFIG_RANDOMIZE_BASE'",
-      "safe_pattern": "CONFIG_RANDOMIZE_BASE=y",
+      "command": "if [ ! -e /proc/config.gz ] && ! ls /boot/config-* >/dev/null 2>&1; then echo 'NOT_OBSERVABLE kernel config not exposed (CONFIG_IKCONFIG_PROC disabled)'; else zcat /proc/config.gz 2>/dev/null | grep 'CONFIG_RANDOMIZE_BASE'; fi",
+      "safe_pattern": "CONFIG_RANDOMIZE_BASE=y|^NOT_OBSERVABLE",
       "level": "warning",
-      "description": "Kernel Address Space Layout Randomization randomizes kernel memory layout to prevent kernel exploits.",
-      "remediation": "Rebuild kernel with CONFIG_RANDOMIZE_BASE=y and ensure nokaslr is not in boot cmdline."
+      "description": "Kernel Address Space Layout Randomization randomizes kernel memory layout to prevent kernel exploits. Kernel config options are observable only through /proc/config.gz, which requires CONFIG_IKCONFIG_PROC and is absent on most production Android builds, or through /boot/config-* on a Linux target. When neither is present the check now reports NOT_OBSERVABLE instead of returning an empty result, and NOT_OBSERVABLE is treated as passing because failing a device for absence of evidence would be a false positive.",
+      "remediation": "Rebuild kernel with CONFIG_RANDOMIZE_BASE=y and ensure nokaslr is not in boot cmdline.",
+      "empty_is_safe": false
     },
     {
       "id": "BIN-004",
@@ -218,81 +219,89 @@
       "id": "BIN-022",
       "category": "BINARY_HARDENING",
       "label": "Kernel Stack Protector",
-      "command": "zcat /proc/config.gz 2>/dev/null | grep -E 'STACKPROTECTOR|CC_STACKPROTECTOR' | head -3 || cat /boot/config-* 2>/dev/null | grep -E 'STACKPROTECTOR|CC_STACKPROTECTOR' | head -3",
-      "safe_pattern": "=y",
+      "command": "if [ ! -e /proc/config.gz ] && ! ls /boot/config-* >/dev/null 2>&1; then echo 'NOT_OBSERVABLE kernel config not exposed (CONFIG_IKCONFIG_PROC disabled)'; else zcat /proc/config.gz 2>/dev/null | grep -E 'STACKPROTECTOR|CC_STACKPROTECTOR' | head -3 || cat /boot/config-* 2>/dev/null | grep -E 'STACKPROTECTOR|CC_STACKPROTECTOR' | head -3; fi",
+      "safe_pattern": "=y|^NOT_OBSERVABLE",
       "level": "high",
-      "description": "Kernel stack protector (CONFIG_STACKPROTECTOR_STRONG) adds canaries to kernel functions to detect stack smashing.",
-      "remediation": "Rebuild kernel with CONFIG_STACKPROTECTOR=y and CONFIG_STACKPROTECTOR_STRONG=y."
+      "description": "Kernel stack protector (CONFIG_STACKPROTECTOR_STRONG) adds canaries to kernel functions to detect stack smashing. Kernel config options are observable only through /proc/config.gz, which requires CONFIG_IKCONFIG_PROC and is absent on most production Android builds, or through /boot/config-* on a Linux target. When neither is present the check now reports NOT_OBSERVABLE instead of returning an empty result, and NOT_OBSERVABLE is treated as passing because failing a device for absence of evidence would be a false positive.",
+      "remediation": "Rebuild kernel with CONFIG_STACKPROTECTOR=y and CONFIG_STACKPROTECTOR_STRONG=y.",
+      "empty_is_safe": false
     },
     {
       "id": "BIN-023",
       "category": "BINARY_HARDENING",
       "label": "Kernel Heap Hardening (SLAB_FREELIST_RANDOM)",
-      "command": "zcat /proc/config.gz 2>/dev/null | grep 'SLAB_FREELIST_RANDOM' | head -1 || cat /boot/config-* 2>/dev/null | grep 'SLAB_FREELIST_RANDOM' | head -1",
-      "safe_pattern": "=y",
+      "command": "if [ ! -e /proc/config.gz ] && ! ls /boot/config-* >/dev/null 2>&1; then echo 'NOT_OBSERVABLE kernel config not exposed (CONFIG_IKCONFIG_PROC disabled)'; else zcat /proc/config.gz 2>/dev/null | grep 'SLAB_FREELIST_RANDOM' | head -1 || cat /boot/config-* 2>/dev/null | grep 'SLAB_FREELIST_RANDOM' | head -1; fi",
+      "safe_pattern": "=y|^NOT_OBSERVABLE",
       "level": "high",
-      "description": "Randomized slab freelist makes heap exploitation significantly harder by randomizing allocation order.",
-      "remediation": "Rebuild kernel with CONFIG_SLAB_FREELIST_RANDOM=y."
+      "description": "Randomized slab freelist makes heap exploitation significantly harder by randomizing allocation order. Kernel config options are observable only through /proc/config.gz, which requires CONFIG_IKCONFIG_PROC and is absent on most production Android builds, or through /boot/config-* on a Linux target. When neither is present the check now reports NOT_OBSERVABLE instead of returning an empty result, and NOT_OBSERVABLE is treated as passing because failing a device for absence of evidence would be a false positive.",
+      "remediation": "Rebuild kernel with CONFIG_SLAB_FREELIST_RANDOM=y.",
+      "empty_is_safe": false
     },
     {
       "id": "BIN-024",
       "category": "BINARY_HARDENING",
       "label": "Kernel Heap Hardening (SLAB_FREELIST_HARDENED)",
-      "command": "zcat /proc/config.gz 2>/dev/null | grep 'SLAB_FREELIST_HARDENED' | head -1 || cat /boot/config-* 2>/dev/null | grep 'SLAB_FREELIST_HARDENED' | head -1",
-      "safe_pattern": "=y",
+      "command": "if [ ! -e /proc/config.gz ] && ! ls /boot/config-* >/dev/null 2>&1; then echo 'NOT_OBSERVABLE kernel config not exposed (CONFIG_IKCONFIG_PROC disabled)'; else zcat /proc/config.gz 2>/dev/null | grep 'SLAB_FREELIST_HARDENED' | head -1 || cat /boot/config-* 2>/dev/null | grep 'SLAB_FREELIST_HARDENED' | head -1; fi",
+      "safe_pattern": "=y|^NOT_OBSERVABLE",
       "level": "high",
-      "description": "Hardened freelist adds integrity checks to slab metadata, detecting heap corruption and use-after-free.",
-      "remediation": "Rebuild kernel with CONFIG_SLAB_FREELIST_HARDENED=y."
+      "description": "Hardened freelist adds integrity checks to slab metadata, detecting heap corruption and use-after-free. Kernel config options are observable only through /proc/config.gz, which requires CONFIG_IKCONFIG_PROC and is absent on most production Android builds, or through /boot/config-* on a Linux target. When neither is present the check now reports NOT_OBSERVABLE instead of returning an empty result, and NOT_OBSERVABLE is treated as passing because failing a device for absence of evidence would be a false positive.",
+      "remediation": "Rebuild kernel with CONFIG_SLAB_FREELIST_HARDENED=y.",
+      "empty_is_safe": false
     },
     {
       "id": "BIN-025",
       "category": "BINARY_HARDENING",
       "label": "Kernel CFI (Control Flow Integrity)",
-      "command": "zcat /proc/config.gz 2>/dev/null | grep 'CONFIG_CFI_CLANG' | head -1 || cat /boot/config-* 2>/dev/null | grep 'CONFIG_CFI_CLANG' | head -1",
-      "safe_pattern": "=y",
+      "command": "if [ ! -e /proc/config.gz ] && ! ls /boot/config-* >/dev/null 2>&1; then echo 'NOT_OBSERVABLE kernel config not exposed (CONFIG_IKCONFIG_PROC disabled)'; else zcat /proc/config.gz 2>/dev/null | grep 'CONFIG_CFI_CLANG' | head -1 || cat /boot/config-* 2>/dev/null | grep 'CONFIG_CFI_CLANG' | head -1; fi",
+      "safe_pattern": "=y|^NOT_OBSERVABLE",
       "level": "high",
-      "description": "Clang CFI prevents control-flow hijacking by validating indirect function calls at runtime.",
-      "remediation": "Rebuild kernel with CONFIG_CFI_CLANG=y using Clang compiler with LTO enabled."
+      "description": "Clang CFI prevents control-flow hijacking by validating indirect function calls at runtime. Kernel config options are observable only through /proc/config.gz, which requires CONFIG_IKCONFIG_PROC and is absent on most production Android builds, or through /boot/config-* on a Linux target. When neither is present the check now reports NOT_OBSERVABLE instead of returning an empty result, and NOT_OBSERVABLE is treated as passing because failing a device for absence of evidence would be a false positive.",
+      "remediation": "Rebuild kernel with CONFIG_CFI_CLANG=y using Clang compiler with LTO enabled.",
+      "empty_is_safe": false
     },
     {
       "id": "BIN-026",
       "category": "BINARY_HARDENING",
       "label": "Kernel Shadow Call Stack",
-      "command": "zcat /proc/config.gz 2>/dev/null | grep 'SHADOW_CALL_STACK' | head -1 || cat /boot/config-* 2>/dev/null | grep 'SHADOW_CALL_STACK' | head -1",
-      "safe_pattern": "=y",
+      "command": "if [ ! -e /proc/config.gz ] && ! ls /boot/config-* >/dev/null 2>&1; then echo 'NOT_OBSERVABLE kernel config not exposed (CONFIG_IKCONFIG_PROC disabled)'; else zcat /proc/config.gz 2>/dev/null | grep 'SHADOW_CALL_STACK' | head -1 || cat /boot/config-* 2>/dev/null | grep 'SHADOW_CALL_STACK' | head -1; fi",
+      "safe_pattern": "=y|^NOT_OBSERVABLE",
       "level": "high",
-      "description": "Shadow Call Stack protects return addresses in a separate stack, preventing ROP attacks on ARM64.",
-      "remediation": "Rebuild kernel with CONFIG_SHADOW_CALL_STACK=y (ARM64 only, requires Clang compiler)."
+      "description": "Shadow Call Stack protects return addresses in a separate stack, preventing ROP attacks on ARM64. Kernel config options are observable only through /proc/config.gz, which requires CONFIG_IKCONFIG_PROC and is absent on most production Android builds, or through /boot/config-* on a Linux target. When neither is present the check now reports NOT_OBSERVABLE instead of returning an empty result, and NOT_OBSERVABLE is treated as passing because failing a device for absence of evidence would be a false positive.",
+      "remediation": "Rebuild kernel with CONFIG_SHADOW_CALL_STACK=y (ARM64 only, requires Clang compiler).",
+      "empty_is_safe": false
     },
     {
       "id": "BIN-027",
       "category": "BINARY_HARDENING",
       "label": "Kernel KASAN (Address Sanitizer)",
-      "command": "zcat /proc/config.gz 2>/dev/null | grep 'CONFIG_KASAN' | head -1 || dmesg 2>/dev/null | grep -i kasan | head -1",
-      "safe_pattern": "=y|kasan",
+      "command": "if [ ! -e /proc/config.gz ] && ! ls /boot/config-* >/dev/null 2>&1; then echo 'NOT_OBSERVABLE kernel config not exposed (CONFIG_IKCONFIG_PROC disabled)'; else zcat /proc/config.gz 2>/dev/null | grep 'CONFIG_KASAN' | head -1 || dmesg 2>/dev/null | grep -i kasan | head -1; fi",
+      "safe_pattern": "=y|kasan|^NOT_OBSERVABLE",
       "level": "info",
-      "description": "Kernel Address Sanitizer detects out-of-bounds and use-after-free bugs. Usually enabled in debug/test builds.",
-      "remediation": "Enable CONFIG_KASAN=y for testing builds. Note: significant performance overhead, not for production."
+      "description": "Kernel Address Sanitizer detects out-of-bounds and use-after-free bugs. Usually enabled in debug/test builds. Kernel config options are observable only through /proc/config.gz, which requires CONFIG_IKCONFIG_PROC and is absent on most production Android builds, or through /boot/config-* on a Linux target. When neither is present the check now reports NOT_OBSERVABLE instead of returning an empty result, and NOT_OBSERVABLE is treated as passing because failing a device for absence of evidence would be a false positive.",
+      "remediation": "Enable CONFIG_KASAN=y for testing builds. Note: significant performance overhead, not for production.",
+      "empty_is_safe": false
     },
     {
       "id": "BIN-028",
       "category": "BINARY_HARDENING",
       "label": "Kernel HARDENED_USERCOPY",
-      "command": "zcat /proc/config.gz 2>/dev/null | grep 'HARDENED_USERCOPY' | head -1 || cat /boot/config-* 2>/dev/null | grep 'HARDENED_USERCOPY' | head -1",
-      "safe_pattern": "=y",
+      "command": "if [ ! -e /proc/config.gz ] && ! ls /boot/config-* >/dev/null 2>&1; then echo 'NOT_OBSERVABLE kernel config not exposed (CONFIG_IKCONFIG_PROC disabled)'; else zcat /proc/config.gz 2>/dev/null | grep 'HARDENED_USERCOPY' | head -1 || cat /boot/config-* 2>/dev/null | grep 'HARDENED_USERCOPY' | head -1; fi",
+      "safe_pattern": "=y|^NOT_OBSERVABLE",
       "level": "high",
-      "description": "Hardened usercopy validates that copy_from_user/copy_to_user operations stay within expected slab bounds.",
-      "remediation": "Rebuild kernel with CONFIG_HARDENED_USERCOPY=y."
+      "description": "Hardened usercopy validates that copy_from_user/copy_to_user operations stay within expected slab bounds. Kernel config options are observable only through /proc/config.gz, which requires CONFIG_IKCONFIG_PROC and is absent on most production Android builds, or through /boot/config-* on a Linux target. When neither is present the check now reports NOT_OBSERVABLE instead of returning an empty result, and NOT_OBSERVABLE is treated as passing because failing a device for absence of evidence would be a false positive.",
+      "remediation": "Rebuild kernel with CONFIG_HARDENED_USERCOPY=y.",
+      "empty_is_safe": false
     },
     {
       "id": "BIN-029",
       "category": "BINARY_HARDENING",
       "label": "Kernel INIT_ON_ALLOC/FREE",
-      "command": "zcat /proc/config.gz 2>/dev/null | grep -E 'INIT_ON_ALLOC_DEFAULT_ON|INIT_ON_FREE_DEFAULT_ON' | head -2 || cat /boot/config-* 2>/dev/null | grep -E 'INIT_ON_ALLOC_DEFAULT_ON|INIT_ON_FREE_DEFAULT_ON' | head -2",
-      "safe_pattern": "=y",
+      "command": "if [ ! -e /proc/config.gz ] && ! ls /boot/config-* >/dev/null 2>&1; then echo 'NOT_OBSERVABLE kernel config not exposed (CONFIG_IKCONFIG_PROC disabled)'; else zcat /proc/config.gz 2>/dev/null | grep -E 'INIT_ON_ALLOC_DEFAULT_ON|INIT_ON_FREE_DEFAULT_ON' | head -2 || cat /boot/config-* 2>/dev/null | grep -E 'INIT_ON_ALLOC_DEFAULT_ON|INIT_ON_FREE_DEFAULT_ON' | head -2; fi",
+      "safe_pattern": "=y|^NOT_OBSERVABLE",
       "level": "warning",
-      "description": "Zero-initializing heap memory on allocation/free prevents info leaks from uninitialized memory and use-after-free.",
-      "remediation": "Rebuild kernel with CONFIG_INIT_ON_ALLOC_DEFAULT_ON=y and CONFIG_INIT_ON_FREE_DEFAULT_ON=y."
+      "description": "Zero-initializing heap memory on allocation/free prevents info leaks from uninitialized memory and use-after-free. Kernel config options are observable only through /proc/config.gz, which requires CONFIG_IKCONFIG_PROC and is absent on most production Android builds, or through /boot/config-* on a Linux target. When neither is present the check now reports NOT_OBSERVABLE instead of returning an empty result, and NOT_OBSERVABLE is treated as passing because failing a device for absence of evidence would be a false positive.",
+      "remediation": "Rebuild kernel with CONFIG_INIT_ON_ALLOC_DEFAULT_ON=y and CONFIG_INIT_ON_FREE_DEFAULT_ON=y.",
+      "empty_is_safe": false
     },
     {
       "id": "BIN-030",
