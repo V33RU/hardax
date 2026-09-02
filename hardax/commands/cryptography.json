@@ -21,11 +21,12 @@
     {
       "category": "CRYPTOGRAPHY",
       "label": "Data Partition Encryption Check",
-      "command": "mount | grep ' /data '",
-      "safe_pattern": "dm-",
+      "command": "T=$(getprop ro.crypto.type 2>/dev/null); S=$(getprop ro.crypto.state 2>/dev/null); M=$(mount 2>/dev/null | grep ' /data ' | grep -oE '^[^ ]+'); echo \"state=${S:-unset} type=${T:-unset} dev=${M:-unknown}\"",
+      "safe_pattern": "state=encrypted",
       "level": "critical",
-      "description": "Safe ONLY if /data is mounted on a 'dm-*' device, which indicates encryption. Raw eMMC partitions ('mmcblk0pXX') mean unencrypted storage. This match is stable because dm- devices cannot appear in plain, unencrypted mounts.",
-      "remediation": "Enable device encryption so /data is mounted via dm-crypt. Back up data first, then encrypt from Settings or recovery."
+      "description": "Confirms /data is encrypted, reading ro.crypto.state and ro.crypto.type rather than looking for a dm- device in the mount table. The earlier version required the /data mount source to match 'dm-', which is only true for full-disk or metadata encryption. File-based encryption, the default since Android 10, encrypts per file and mounts the raw partition directly, so on a correctly encrypted FBE device the mount source is something like /dev/block/mmcblk0p78 and the check reported a critical finding on a device whose ro.crypto.state was encrypted. Verified on a Samsung SM-M025F with type=file and state=encrypted.",
+      "remediation": "Enable device encryption so /data is mounted via dm-crypt. Back up data first, then encrypt from Settings or recovery.",
+      "empty_is_safe": false
     },
     {
       "category": "CRYPTOGRAPHY",

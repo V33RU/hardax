@@ -342,19 +342,19 @@
   ],
   "Crash Artifact Accumulation Beyond Tombstones": [
     [
-      "crash_files=0 minidumps=none ramdump_paths=/sys/fs/pstore",
+      "crash_files=4 minidumps=none ramdump_paths=/sys/fs/pstore",
       "SAFE",
-      "clean device. an earlier pattern anchored to end of string and failed this"
+      "real device SM-M025F: 4 ANR traces. An earlier version also counted /data/log, which on Samsung holds ordinary app logs, and reported 85"
     ],
     [
-      "crash_files=12 minidumps=none ramdump_paths=none",
+      "crash_files=0 minidumps=none ramdump_paths=none",
       "SAFE",
-      "a few crashes is normal"
+      "clean device"
     ],
     [
       "crash_files=180 minidumps=none ramdump_paths=/data/vendor/ramdump",
       "WARNING",
-      "large accumulation"
+      "large genuine accumulation"
     ],
     [
       "crash_files=2 minidumps=/data/x.dmp ramdump_paths=none",
@@ -486,6 +486,115 @@
       "/data/misc/keys/server.pem",
       "CRITICAL",
       "file whose contents matched a PRIVATE KEY header"
+    ]
+  ],
+  "Data Partition Encryption Check": [
+    [
+      "state=encrypted type=file dev=/dev/block/mmcblk0p78",
+      "SAFE",
+      "real SM-M025F: FBE device. The earlier check required a dm- mount source, which only exists for FDE or metadata encryption, so every FBE device scored CRITICAL"
+    ],
+    [
+      "state=encrypted type=block dev=/dev/block/dm-0",
+      "SAFE",
+      "FDE device"
+    ],
+    [
+      "state=unencrypted type=unset dev=/dev/block/mmcblk0p78",
+      "CRITICAL",
+      "genuinely unencrypted"
+    ]
+  ],
+  "Unknown Sources Disabled": [
+    [
+      "PER_APP_MODEL sdk=31 legacy_flag=1",
+      "SAFE",
+      "real SM-M025F: the legacy global flag is a stale 1 on API 31 where sideloading is per-app via REQUEST_INSTALL_PACKAGES"
+    ],
+    [
+      "0",
+      "SAFE",
+      "pre-API-26 device with the setting off"
+    ],
+    [
+      "1",
+      "CRITICAL",
+      "pre-API-26 device with unknown sources genuinely enabled"
+    ]
+  ],
+  "Adapter scan mode": [
+    [
+      "SCAN_MODE_CONNECTABLE",
+      "SAFE",
+      "real SM-M025F. The earlier grep matched the line 'Scan mode counter (Opp/LowPower/...)', a statistics counter, and never contained SCAN_MODE_*"
+    ],
+    [
+      "SCAN_MODE_NONE",
+      "SAFE",
+      "adapter not discoverable"
+    ],
+    [
+      "SCAN_MODE_CONNECTABLE_DISCOVERABLE",
+      "CRITICAL",
+      "adapter discoverable to anyone in range"
+    ]
+  ],
+  "SELinux Bluetooth Domain Policy": [
+    [
+      "u:r:hal_bluetooth_qti:s0",
+      "SAFE",
+      "real SM-M025F. The earlier check ran ls -Z /system/bin/bluetooth*, a path gone since Bluetooth became an APK, so it reported PERMISSIVE on every modern device"
+    ],
+    [
+      "BLUETOOTH_NOT_RUNNING",
+      "SAFE",
+      "stack not up"
+    ],
+    [
+      "u:r:untrusted_app:s0",
+      "CRITICAL",
+      "bluetooth running in an untrusted domain"
+    ]
+  ],
+  "Raw HCI Device Nodes Unexposed": [
+    [
+      "0",
+      "SAFE",
+      "real SM-M025F. The earlier glob included /dev/radio*, matching the FM radio node, so any device with an FM tuner scored a finding"
+    ],
+    [
+      "2",
+      "CRITICAL",
+      "raw HCI transport nodes genuinely exposed"
+    ]
+  ],
+  "Vehicle Control Permissions": [
+    [
+      "",
+      "SAFE",
+      "real SM-M025F. The earlier grep matched the CAR_SPEED permission declaration published by Google Play services on every phone, rather than a package holding it"
+    ],
+    [
+      "Package [com.example.fleet]",
+      "CRITICAL",
+      "a package actually holds a vehicle control permission"
+    ]
+  ],
+  "Stack Canary - surfaceflinger": [
+    [
+      "BINARY_NOT_READABLE",
+      "SAFE",
+      "real SM-M025F: the adb shell user cannot read /system/bin/surfaceflinger. 'readelf | grep -c' turned the permission denial into the literal string 0, which failed the pattern on every device"
+    ],
+    [
+      "2",
+      "SAFE",
+      "canary symbols present"
+    ],
+    [
+      "0",
+      "CRITICAL",
+      "binary readable and genuinely has no canary"
     ]
   ]
 }

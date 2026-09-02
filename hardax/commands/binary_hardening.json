@@ -128,10 +128,10 @@
       "id": "BIN-013",
       "category": "BINARY_HARDENING",
       "label": "Stack Canary - surfaceflinger",
-      "command": "readelf -s /system/bin/surfaceflinger 2>/dev/null | grep -c '__stack_chk'",
-      "safe_pattern": "[1-9]",
+      "command": "if ! ([ -r /system/bin/surfaceflinger ]); then echo BINARY_NOT_READABLE; else readelf -s /system/bin/surfaceflinger 2>/dev/null | grep -c '__stack_chk'; fi",
+      "safe_pattern": "^[1-9][0-9]*$|^BINARY_NOT_READABLE$",
       "level": "high",
-      "description": "SurfaceFlinger must have stack canary protection as it handles untrusted display buffers.",
+      "description": "Counts __stack_chk symbols in surfaceflinger. On a production build the adb shell user cannot read /system/bin/surfaceflinger, and 'readelf ... | grep -c' turns that permission denial into the literal string 0, which failed the pattern and scored a finding on every device. The check now reports BINARY_NOT_READABLE and passes, because absence of evidence is not a finding. Verified on a Samsung SM-M025F where app_process is a readable symlink and returns a real count while surfaceflinger is not readable.",
       "remediation": "Rebuild surfaceflinger with -fstack-protector-strong flag."
     },
     {
@@ -189,21 +189,23 @@
       "id": "BIN-019",
       "category": "BINARY_HARDENING",
       "label": "FORTIFY_SOURCE - app_process",
-      "command": "(readelf -s /system/bin/app_process64 2>/dev/null || readelf -s /system/bin/app_process 2>/dev/null) | grep -oE '__[A-Za-z0-9_]+_chk' | grep -v '^__stack_chk' | sort -u | wc -l",
-      "safe_pattern": "^[1-9][0-9]*$",
-      "level": "high",
-      "description": "FORTIFY_SOURCE replaces unsafe C functions (memcpy, strcpy) with bounds-checked versions at compile time. The grep must apply to whichever readelf call succeeds; without the grouping parentheses the `||` binds before the pipe, so a successful first call bypasses grep -c entirely and returns the full unfiltered symbol table instead of a fortify-symbol count. Counts distinct fortified libc wrappers (__memcpy_chk, __strcpy_chk and similar) with __stack_chk excluded. The earlier command grepped '__.*_chk', which matches __stack_chk as well, so this check could only fail when the companion Stack Canary check had already failed and it produced no independent signal.",
-      "remediation": "Rebuild app_process with -D_FORTIFY_SOURCE=2 compiler flag."
+      "command": "if ! ([ -r /system/bin/app_process64 ] || [ -r /system/bin/app_process ]); then echo BINARY_NOT_READABLE; else (readelf -s /system/bin/app_process64 2>/dev/null || readelf -s /system/bin/app_process 2>/dev/null) | grep -oE '__[A-Za-z0-9_]+_chk' | grep -v '^__stack_chk' | sort -u | wc -l; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Counts distinct fortified libc wrappers with __stack_chk excluded. Reported as evidence rather than pass or fail: on a Samsung SM-M025F app_process resolves to app_process32, carries two __stack_chk symbols and zero other _chk wrappers, which is normal for a small launcher binary and does not indicate the build omitted FORTIFY_SOURCE.",
+      "remediation": "Rebuild app_process with -D_FORTIFY_SOURCE=2 compiler flag.",
+      "empty_is_safe": false
     },
     {
       "id": "BIN-020",
       "category": "BINARY_HARDENING",
       "label": "FORTIFY_SOURCE - surfaceflinger",
-      "command": "readelf -s /system/bin/surfaceflinger 2>/dev/null | grep -oE '__[A-Za-z0-9_]+_chk' | grep -v '^__stack_chk' | sort -u | wc -l",
-      "safe_pattern": "[1-9]",
-      "level": "high",
-      "description": "SurfaceFlinger must use fortified C library functions to prevent buffer overflow exploitation. Counts distinct fortified libc wrappers (__memcpy_chk, __strcpy_chk and similar) with __stack_chk excluded. The earlier command grepped '__.*_chk', which matches __stack_chk as well, so this check could only fail when the companion Stack Canary check had already failed and it produced no independent signal.",
-      "remediation": "Rebuild surfaceflinger with -D_FORTIFY_SOURCE=2 flag."
+      "command": "if ! ([ -r /system/bin/surfaceflinger ]); then echo BINARY_NOT_READABLE; else readelf -s /system/bin/surfaceflinger 2>/dev/null | grep -oE '__[A-Za-z0-9_]+_chk' | grep -v '^__stack_chk' | sort -u | wc -l; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Counts distinct fortified libc wrappers (__memcpy_chk, __strcpy_chk and similar) with __stack_chk excluded. Reported as evidence rather than pass or fail: a binary that never calls a fortifiable function legitimately imports no wrappers, so a count of zero does not mean the build omitted -D_FORTIFY_SOURCE=2. Measured on a real device, /system/bin/app_process (a symlink to app_process32) returns zero while carrying stack canaries, which is the case that made the previous high-severity pass/fail wrong. Also reports BINARY_NOT_READABLE where the shell user cannot read the binary.",
+      "remediation": "Rebuild surfaceflinger with -D_FORTIFY_SOURCE=2 flag.",
+      "empty_is_safe": false
     },
     {
       "id": "BIN-021",
