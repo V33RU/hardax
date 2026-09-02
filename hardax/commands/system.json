@@ -821,6 +821,106 @@
       "description": "Reports the kernel release string, whether it is a Generic Kernel Image build (GKI releases carry an -androidNN- suffix and receive Android security patches directly from Google rather than waiting on an SoC vendor backport), and the state of the kernel.modules_disabled sysctl. When modules_disabled is 1 the kernel refuses all further module loads for the rest of the boot, which closes the most direct path from a root shell to persistent kernel-level code. Reported for review rather than as a failure because most Android devices legitimately leave the sysctl at 0 to support late-loading vendor modules, and a NON_GKI kernel is normal on older or heavily customised platforms.",
       "remediation": "Prefer GKI-based kernels so security patches arrive on the Android bulletin cadence instead of the SoC vendor cadence. On locked-down appliance builds where every module is loaded during early boot, set kernel.modules_disabled to 1 once boot completes to block later module loads.",
       "requires_manual_review": true
+    },
+    {
+      "id": "SYS-BPF-001",
+      "category": "SYSTEM",
+      "label": "Unprivileged eBPF Disabled",
+      "command": "V=$(cat /proc/sys/kernel/unprivileged_bpf_disabled 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^[12]$|^SYSCTL_ABSENT$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "kernel.unprivileged_bpf_disabled controls whether an unprivileged process may load eBPF programs. 0 permits it, 1 disables it permanently for the boot, 2 disables it but allows a privileged process to re-enable. Unprivileged eBPF has produced a long run of local privilege escalations because the verifier is a large attack surface reachable without any capability. Either 1 or 2 is acceptable. SYSCTL_ABSENT is treated as passing because a kernel built without eBPF does not expose the node and must not be failed for absence of evidence.",
+      "remediation": "Set kernel.unprivileged_bpf_disabled to 1 in the device sysctl configuration, or build the kernel with CONFIG_BPF_UNPRIV_DEFAULT_OFF=y so the restriction survives reboot.",
+      "why": "The eBPF verifier is reachable from an unprivileged process and has repeatedly been the root of local privilege escalation.",
+      "risk_if_fail": "Any local process or app can load eBPF programs, reaching a kernel attack surface that should require privilege."
+    },
+    {
+      "id": "SYS-SUIDDUMP-001",
+      "category": "SYSTEM",
+      "label": "SUID Core Dumps Restricted",
+      "command": "V=$(cat /proc/sys/fs/suid_dumpable 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^[02]$|^SYSCTL_ABSENT$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "fs.suid_dumpable controls whether a setuid process may produce a core dump. 0 never dumps, 2 dumps but the file is readable only by root, and 1 dumps with normal ownership, which lets an unprivileged user read the memory image of a privileged process. Only 1 is dangerous, so both 0 and 2 pass.",
+      "remediation": "Set fs.suid_dumpable to 0, or to 2 if crash collection from privileged processes is required.",
+      "why": "A dumpable setuid process writes its memory, including any secrets it holds, to a file an unprivileged user can read.",
+      "risk_if_fail": "Credentials and keys held by privileged processes can be recovered from core dumps by any local user."
+    },
+    {
+      "id": "SYS-PROTFIFO-001",
+      "category": "SYSTEM",
+      "label": "Protected FIFOs Enabled",
+      "command": "V=$(cat /proc/sys/fs/protected_fifos 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^[12]$|^SYSCTL_ABSENT$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "fs.protected_fifos stops a process from opening a FIFO it does not own inside a world-writable sticky directory, closing a class of attack where a privileged process is tricked into writing to an attacker-controlled pipe placed in a shared temp directory. 1 protects FIFOs in world-writable sticky directories, 2 extends that to group-writable ones. This complements the protected_symlinks and protected_hardlinks checks already present.",
+      "remediation": "Set fs.protected_fifos to 2 in the device sysctl configuration.",
+      "why": "Without it, an attacker can plant a FIFO in a shared temp directory and block or redirect a privileged writer.",
+      "risk_if_fail": "A privileged process can be induced to write into an attacker-controlled pipe."
+    },
+    {
+      "id": "SYS-PROTREG-001",
+      "category": "SYSTEM",
+      "label": "Protected Regular Files Enabled",
+      "command": "V=$(cat /proc/sys/fs/protected_regular 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^[12]$|^SYSCTL_ABSENT$",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "fs.protected_regular is the regular-file counterpart of protected_fifos: it prevents a process from opening a regular file it does not own for writing inside a world-writable sticky directory. It closes the file-squatting variant of the shared temp directory attack, where an attacker pre-creates a filename a privileged process is about to write.",
+      "remediation": "Set fs.protected_regular to 2 in the device sysctl configuration.",
+      "why": "Pre-creating a file in a shared directory redirects a privileged writer into a file the attacker controls.",
+      "risk_if_fail": "A privileged process can be induced to write into an attacker-owned file."
+    },
+    {
+      "id": "SYS-SYSRQ-001",
+      "category": "SYSTEM",
+      "label": "Magic SysRq Key Configuration",
+      "command": "V=$(cat /proc/sys/kernel/sysrq 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "kernel.sysrq is a bitmask controlling the magic SysRq key, which can dump kernel memory and register state, kill processes, remount filesystems and reboot the device from a physical key combination or by writing to /proc/sysrq-trigger. 0 disables it entirely and is the hardened setting for an appliance. Reported for review rather than as a failure because production Android builds and desktop Linux ship very different defaults (0 versus 176), so a fixed pass value would produce a finding on one platform or the other regardless of the real posture.",
+      "remediation": "On a kiosk, POS or appliance build with any physical access exposure, set kernel.sysrq to 0. Where debugging access is genuinely needed, restrict the bitmask to the specific functions required rather than leaving it fully enabled."
+    },
+    {
+      "id": "SYS-PANICOOPS-001",
+      "category": "SYSTEM",
+      "label": "Panic On Oops",
+      "command": "V=$(cat /proc/sys/kernel/panic_on_oops 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_ABSENT || printf '%s\\n' \"$V\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "kernel.panic_on_oops makes the kernel panic rather than continue after an oops. Continuing after an oops leaves the kernel in an undefined state that an exploit can work with, so 1 is the hardened setting and is what Android sets on many production builds. Reported for review because the value legitimately differs between production and engineering builds and between platforms, so failing on a fixed value would misreport one of them.",
+      "remediation": "Set kernel.panic_on_oops to 1 on production builds so a kernel fault halts the device instead of leaving it running in an inconsistent state."
+    },
+    {
+      "id": "SYS-SGID-001",
+      "category": "SYSTEM",
+      "label": "SGID Binaries Inventory",
+      "command": "find /system /vendor /product /apex -xdev -type f -perm -2000 2>/dev/null | head -20",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": true,
+      "description": "Lists set-group-ID binaries on the read-only system partitions. Android ships very few, so the list should be short and stable across builds of the same firmware. An SGID binary runs with the group of its owner regardless of who invokes it, so an unexpected entry is a privilege boundary worth examining. Reported as an inventory rather than pass or fail because a small set of legitimate SGID binaries is normal and the exact set is OEM-specific. The companion SUID Binaries check covers the set-user-ID case; nothing covered SGID before.",
+      "remediation": "Compare the list against the same firmware build on a known-good device. Investigate any binary that is not part of the stock image, and remove the SGID bit from anything that does not require it."
+    },
+    {
+      "id": "SYS-WWEXEC-001",
+      "category": "SYSTEM",
+      "label": "World-Writable Executables On System Partitions",
+      "command": "find /system /vendor /product /apex -xdev -type f -perm -0002 -perm -0111 2>/dev/null | head -10",
+      "safe_pattern": "^$",
+      "level": "critical",
+      "empty_is_safe": true,
+      "description": "Finds files on the read-only system partitions that are both world-writable and executable. On a healthy device this must return nothing: the system partitions are mounted read-only and no stock binary carries write permission for other. A hit means either the partition has been remounted read-write and modified, or the image was built with broken permissions, and in both cases any local process can replace the contents of a binary that other processes execute.",
+      "remediation": "Remove write permission with 'chmod o-w' on each file listed, confirm the partition is mounted read-only, and treat the device as potentially tampered with until the image is verified against the stock build.",
+      "why": "A world-writable executable on a system partition lets any local process replace code that privileged processes run.",
+      "risk_if_fail": "Arbitrary code execution in the context of whatever process invokes the modified binary."
     }
   ]
 }

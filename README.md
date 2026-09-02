@@ -8,7 +8,7 @@
   <a href="https://pypi.org/project/hardax/">
     <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg" alt="Python 3.10 | 3.11 | 3.12">
   </a>
-  <img src="https://img.shields.io/badge/checks-766-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-782-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-28-purple.svg" alt="Categories">
   <a href="https://github.com/V33RU/hardax/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
@@ -34,7 +34,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **766 security checks** across **28 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **782 security checks** across **28 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -49,7 +49,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **766 Security Checks** | Comprehensive coverage across 28 security categories |
+| **782 Security Checks** | Comprehensive coverage across 28 security categories |
 | **Deterministic Analysis Engine** | Offline risk score (0-100), attack-chain correlation, prioritised remediation - reasons only over confirmed findings, no LLM, no network, no hallucination |
 | **Optional AI Narrative** | Opt-in `--ai` LLM summary on top of the deterministic engine (local Ollama, or Anthropic/OpenAI with your own key). Sends only the redacted analysis summary, never raw device output. Off by default |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
@@ -319,13 +319,13 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **766 checks** into **28 security categories**:
+HARDAX organizes **782 checks** into **28 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
-| **SYSTEM** | 85 | Kernel, memory, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, time, power, build properties, emulator detection, SIM status, device provisioning, WebView, Scudo/GWP-ASan allocator hardening, GKI kernel and module loading |
+| **SYSTEM** | 93 | Kernel, memory, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, time, power, build properties, emulator detection, SIM status, device provisioning, WebView, Scudo/GWP-ASan allocator hardening, GKI kernel and module loading, kernel/fs hardening sysctls, SGID and world-writable binaries |
 | **BLUETOOTH** | 69 | BLE/Classic, pairing, profiles (PAN, HFP, A2DP, HID, SPP, OPP, MAP), L2CAP, ATT, SMP, GAP, attack surfaces |
-| **NETWORK** | 65 | Ports, WiFi, cellular (incl. Allow 2G), VPN, MQTT, CoAP, CAN bus, HL7, DICOM, hotspot WPA mode, active connections, eSIM/eUICC provisioning |
+| **NETWORK** | 73 | Ports, WiFi, cellular (incl. Allow 2G), VPN, MQTT, CoAP, CAN bus, HL7, DICOM, hotspot WPA mode, active connections, eSIM/eUICC provisioning, IPv4/IPv6 network hardening sysctls (ICMP redirects, source routing, SYN cookies, RA acceptance) |
 | **PRIVACY** | 42 | Screen lock, location, sensors, clipboard, audio, Android 13+ Restricted Settings, Credential Manager / passkey provider |
 | **APPS** | 48 | Permissions, overlay attacks, install sources, backup audit, APK signature scheme, QUERY_ALL_PACKAGES, REQUEST_INSTALL_PACKAGES, SDK Runtime (Privacy Sandbox) |
 | **BINARY_HARDENING** | 36 | PIE, NX, RELRO, stack canaries, stripped symbols, ASLR, kptr_restrict |
@@ -434,7 +434,7 @@ HARDAX/
     ├── ai.py              # Optional opt-in LLM narrative (Ollama/Anthropic/OpenAI, stdlib only)
     ├── templates/
     │   └── report.html    # Interactive HTML report template
-    └── commands/          # Security check definitions (766 checks, 28 categories)
+    └── commands/          # Security check definitions (782 checks, 28 categories)
         ├── system.json        #  86 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator, WebView
         ├── bluetooth.json     #  82 checks - BLE/Classic, pairing, all profiles
         ├── network.json       #  61 checks - Ports, WiFi, VPN, IoT protocols, Allow 2G, hotspot WPA
