@@ -50,6 +50,30 @@
       "description": "Biometric auth should be 'STRONG' (not 'WEAK'). Empty if no biometric hardware.",
       "remediation": "Use a device with STRONG biometric hardware or fall back to PIN/password.",
       "empty_is_safe": true
+    },
+    {
+      "id": "BIO-TEMPLATE-001",
+      "category": "BIOMETRIC",
+      "label": "Biometric Template Storage Permissions",
+      "command": "P=''; for d in /data/system/users/0/fpdata /data/vendor_de/0/fpdata /data/vendor_de/0/facedata /data/system/users/0/facedata; do [ -e \"$d\" ] && P=\"$P $(ls -ld $d 2>/dev/null | awk '{print $1\" \"$3\":\"$4\" \"$NF}')\"; done; [ -z \"$P\" ] && echo NO_TEMPLATE_DIR_VISIBLE || echo \"$P\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "Reports the ownership and permissions of the directories holding fingerprint and face templates. Templates must never be readable outside the biometric HAL and the secure environment, and on a correctly built device the directory is either absent from the Linux view entirely, because the template lives in the TEE, or is restricted to the biometric UID. NO_TEMPLATE_DIR_VISIBLE is the strongest outcome and is treated as passing. Reported for review because the path and owner are OEM-specific and a visible directory with tight permissions is also acceptable.",
+      "remediation": "Confirm templates are stored in the TEE or in a directory readable only by the biometric HAL UID, and that they are wiped on user removal and factory reset."
+    },
+    {
+      "id": "BIO-LOCKOUT-001",
+      "category": "BIOMETRIC",
+      "label": "Authentication Lockout and Gatekeeper State",
+      "command": "L=$(dumpsys lock_settings 2>/dev/null | grep -iE 'lockout|failed|throttl|strong.?auth' | head -8); G=$(ls -l /data/system/gatekeeper.*.key /data/system/locksettings.db 2>/dev/null | awk '{print $1\" \"$NF}' | tr '\\n' ' '); [ -z \"$L\" ] && [ -z \"$G\" ] && echo NO_LOCK_SETTINGS_VISIBLE || echo \"${L:-no_dump} | files=${G:-none}\"",
+      "safe_pattern": ".",
+      "level": "verify",
+      "empty_is_safe": false,
+      "requires_manual_review": true,
+      "description": "Reports lockout, failed-attempt and strong-auth state from lock_settings, plus the permissions on the Gatekeeper key blobs and the lock settings database. Gatekeeper enforces escalating delays after failed unlock attempts, and its counter must live in tamper-resistant storage (see ATT-026 on RPMB) or the throttling can be reset by rolling back the counter, turning a four-digit PIN into an offline brute force. Reported for review because the dump format is OEM-specific and a restricted or absent view is itself a good sign.",
+      "remediation": "Confirm the Gatekeeper failure counter is backed by RPMB or equivalent replay-protected storage rather than plain userdata, and that the key blobs are not readable outside the system UID."
     }
   ]
 }

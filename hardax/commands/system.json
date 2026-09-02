@@ -968,6 +968,32 @@
       "empty_is_safe": false,
       "description": "Counts the services registered with servicemanager and how many carry a vendor or OEM prefix. Every registered binder service is an IPC entry point reachable by any process the SELinux policy allows to find it, and vendor services are the ones least likely to have had the scrutiny the AOSP framework services get. This provides the attack-surface inventory count that a Binder-focused review starts from. Informational: the count is build-specific and a high number is normal on an OEM device.",
       "remediation": "Enumerate the vendor services with 'service list' and review each for exposed transactions that do not check the caller UID or permission. Remove services that are not needed on a production build."
+    },
+    {
+      "id": "SYS-CGROUP-001",
+      "category": "SYSTEM",
+      "label": "Control Group Hierarchy and Version",
+      "command": "V=$(ls /sys/fs/cgroup/cgroup.controllers 2>/dev/null >/dev/null && echo v2 || echo v1); C=$(ls /sys/fs/cgroup 2>/dev/null | head -8 | tr '\\n' ' '); W=$(find /sys/fs/cgroup -maxdepth 2 -name 'cgroup.procs' -perm -o+w 2>/dev/null | head -3 | tr '\\n' ' '); [ -z \"$C\" ] && echo NO_CGROUPFS || { [ -n \"$W\" ] && echo \"CGROUP_PROCS_WORLD_WRITABLE $W\" || echo \"cgroup=$V controllers=$C\"; }",
+      "safe_pattern": "^(NO_CGROUPFS|cgroup=)",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "Reports the cgroup version and hierarchy, and flags any cgroup.procs file writable by any process. Android uses cgroups for the memory, CPU and freezer limits that contain a misbehaving or hostile app, and a world-writable cgroup.procs lets a process move itself out of its assigned group, escaping memory and CPU limits and defeating the freezer that background execution restrictions rely on. That converts a containment control into a local denial of service and a background-execution bypass.",
+      "remediation": "Restrict cgroup.procs to the system UID and confirm SELinux labels the cgroup hierarchy so apps cannot rewrite their own group membership.",
+      "why": "A writable cgroup.procs lets a process escape the memory, CPU and freezer limits that contain it.",
+      "risk_if_fail": "An app can exempt itself from resource limits and background execution restrictions."
+    },
+    {
+      "id": "SYS-MINIDUMP-001",
+      "category": "SYSTEM",
+      "label": "Crash Artifact Accumulation Beyond Tombstones",
+      "command": "N=$(find /data/tombstones /data/anr /data/misc/bootstat /data/vendor/ramdump /data/log -maxdepth 2 -type f 2>/dev/null | wc -l); D=$(find /data /sdcard -maxdepth 4 -name '*.dmp' -o -name '*minidump*' 2>/dev/null | head -5 | tr '\\n' ' '); R=$(ls -d /data/vendor/ramdump /sys/fs/pstore 2>/dev/null | tr '\\n' ' '); echo \"crash_files=${N:-0} minidumps=${D:-none} ramdump_paths=${R:-none}\"",
+      "safe_pattern": "^crash_files=([0-9]|[1-4][0-9])\\b.*minidumps=none",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "Counts accumulated crash artifacts across tombstones, ANR traces, bootstat, vendor ramdumps and pstore, and looks for minidump files. A crash artifact contains a full register and stack snapshot of the faulting process, which for a system service or a payment application means keys, tokens and plaintext that were live at the moment of the fault. Vendor ramdump directories are worse still, holding raw memory images. A large accumulation is both a data disclosure risk and an indication that something is crashing repeatedly, which is itself a signal worth chasing. The existing tombstone and dropbox checks count their own directories; none looked across the whole crash surface or at ramdumps.",
+      "remediation": "Clear accumulated crash artifacts, disable vendor ramdump collection on production builds, and confirm any crash reporting pipeline strips memory contents before upload rather than shipping full dumps off device.",
+      "why": "Crash artifacts contain register and stack snapshots, and ramdumps contain raw memory, including live keys and tokens.",
+      "risk_if_fail": "Secrets from privileged processes are recoverable from crash artifacts left on the device."
     }
   ]
 }
