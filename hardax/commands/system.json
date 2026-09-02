@@ -40,15 +40,6 @@
     },
     {
       "category": "SYSTEM",
-      "label": "Wi-Fi SSID",
-      "command": "dumpsys netstats 2>/dev/null | grep -i 'iface=wlan0'",
-      "safe_pattern": ".+",
-      "level": "info",
-      "description": "Shows current Wi-Fi network",
-      "remediation": "Informational only. Verify the device is connected to an authorized network."
-    },
-    {
-      "category": "SYSTEM",
       "label": "Zygote Process Check",
       "command": "ps 2>/dev/null | grep zygote",
       "safe_pattern": "zygote",
@@ -88,11 +79,12 @@
     {
       "category": "SYSTEM",
       "label": "Kernel Hardening (PAN/UAO)",
-      "command": "zcat /proc/config.gz 2>/dev/null | grep -cE 'CONFIG_ARM64_(PAN|UAO)=y'",
-      "safe_pattern": "^2$",
-      "level": "critical",
-      "description": "Privileged Access Never (PAN) and User Access Override (UAO) should be enabled for memory protection",
-      "remediation": "Rebuild the kernel with CONFIG_ARM64_PAN=y and CONFIG_ARM64_UAO=y in the defconfig, then reflash."
+      "command": "if [ ! -e /proc/config.gz ]; then echo 'NOT_OBSERVABLE /proc/config.gz absent (CONFIG_IKCONFIG_PROC disabled)'; else K=$( (zcat /proc/config.gz 2>/dev/null || gzip -dc /proc/config.gz 2>/dev/null) | grep -cE '^CONFIG_ARM64_(PAN|UAO)=y' ); echo \"PAN_UAO_COUNT=${K:-0}\"; fi",
+      "safe_pattern": "^(PAN_UAO_COUNT=2|NOT_OBSERVABLE)",
+      "level": "warning",
+      "description": "Privileged Access Never and User Access Override stop the kernel from dereferencing userspace pointers outside the accessor helpers, which blocks a large family of privilege escalation primitives. Both are compile-time kernel options, observable only through /proc/config.gz. That file requires CONFIG_IKCONFIG_PROC and is absent on the majority of production Android builds, so this check now reports NOT_OBSERVABLE explicitly instead of silently producing an empty result. NOT_OBSERVABLE is treated as passing because failing a device for the absence of evidence would be a false positive, not a finding.",
+      "remediation": "Where the kernel config is readable, confirm CONFIG_ARM64_PAN=y and CONFIG_ARM64_UAO=y. Where it is not, obtain the defconfig from the vendor kernel source drop for the exact build and verify there.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
@@ -172,30 +164,33 @@
     },
     {
       "category": "SYSTEM",
-      "label": "Stack Canaries",
-      "command": "zcat /proc/config.gz | grep CONFIG_CC_STACKPROTECTOR_STRONG",
-      "safe_pattern": "CONFIG_CC_STACKPROTECTOR_STRONG=y",
-      "level": "critical",
-      "description": "Stack canaries should be enabled to prevent buffer overflows",
-      "remediation": "Rebuild the kernel with CONFIG_CC_STACKPROTECTOR_STRONG=y in the defconfig, then reflash."
+      "label": "Kernel Stack Protector (Strong)",
+      "command": "if [ ! -e /proc/config.gz ]; then echo 'NOT_OBSERVABLE /proc/config.gz absent (CONFIG_IKCONFIG_PROC disabled)'; else (zcat /proc/config.gz 2>/dev/null || gzip -dc /proc/config.gz 2>/dev/null) | grep -E '^CONFIG_(CC_)?STACKPROTECTOR_STRONG=' | head -1 | grep . || echo STACKPROTECTOR_STRONG_ABSENT; fi",
+      "safe_pattern": "STACKPROTECTOR_STRONG=y|^NOT_OBSERVABLE",
+      "level": "warning",
+      "description": "The strong stack protector places a canary in every kernel function with a local array or address-taken local, so a stack buffer overflow is detected before the saved return address is used. It is a compile-time option observable only through /proc/config.gz, which needs CONFIG_IKCONFIG_PROC and is absent on most production Android builds. The check now reports NOT_OBSERVABLE rather than failing on absence of evidence, and matches both the modern CONFIG_STACKPROTECTOR_STRONG and the legacy CONFIG_CC_STACKPROTECTOR_STRONG spelling. This replaces an earlier version that ran zcat with no stderr redirect and scored CRITICAL from the resulting gzip error on every device lacking the file.",
+      "remediation": "Where the kernel config is readable, confirm CONFIG_STACKPROTECTOR_STRONG=y. Where it is not, verify against the vendor defconfig for the exact build.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
-      "label": "ROP Mitigation (PAC)",
-      "command": "zcat /proc/config.gz | grep CONFIG_ARM64_PTR_AUTH",
-      "safe_pattern": "CONFIG_ARM64_PTR_AUTH=y",
-      "level": "critical",
-      "description": "Pointer Authentication (PAC) should be enabled to prevent ROP attacks",
-      "remediation": "Rebuild the kernel with CONFIG_ARM64_PTR_AUTH=y in the defconfig. Requires ARMv8.3+ hardware."
+      "label": "Pointer Authentication (PAC) CPU Support",
+      "command": "A=$(uname -m 2>/dev/null); C=$(grep -m1 -iE '^Features' /proc/cpuinfo 2>/dev/null); P=$(printf '%s' \"$C\" | grep -owE 'paca|pacg' | tr '\\n' ' '); if [ \"$A\" != \"aarch64\" ]; then echo \"NOT_ARM64 arch=${A:-unknown}\"; elif [ -n \"$P\" ]; then echo \"PAC_CPU_SUPPORTED features=$P\"; else echo PAC_CPU_ABSENT; fi",
+      "safe_pattern": "^(PAC_CPU_SUPPORTED|NOT_ARM64)",
+      "level": "warning",
+      "description": "Pointer Authentication signs return addresses and function pointers with a hardware key, so an attacker who corrupts a saved return address cannot forge a valid signature. This defeats most classical ROP chains. The kernel advertises support in the /proc/cpuinfo Features list as 'paca' (address authentication) and 'pacg' (generic authentication). PAC is an ARMv8.3 feature present on essentially all ARM64 Android silicon from 2019 onward, so its absence on a modern device is a genuine hardening gap. This replaces an earlier version that read 'zcat /proc/config.gz' with no stderr redirect, which emitted a gzip error and scored CRITICAL on every device where that file is absent.",
+      "remediation": "PAC cannot be added in software. On ARMv8.3+ hardware, confirm the kernel is built with CONFIG_ARM64_PTR_AUTH=y and that userspace is compiled with -mbranch-protection=standard. On pre-ARMv8.3 silicon the only remedy is a hardware refresh.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
       "label": "Memory Tagging (MTE)",
-      "command": "zcat /proc/config.gz | grep CONFIG_ARM64_MTE",
-      "safe_pattern": "CONFIG_ARM64_MTE=y",
-      "level": "critical",
-      "description": "Memory Tagging Extension (MTE) should be enabled for JIT hardening",
-      "remediation": "Rebuild the kernel with CONFIG_ARM64_MTE=y in the defconfig. Requires ARMv8.5+ hardware."
+      "command": "A=$(uname -m 2>/dev/null); C=$(grep -m1 -iE '^Features' /proc/cpuinfo 2>/dev/null); H=$(printf '%s' \"$C\" | grep -owE 'mte' | head -1); BC=$(getprop arm64.memtag.bootctl 2>/dev/null); DF=$(getprop persist.arm64.memtag.default 2>/dev/null); if [ \"$A\" != \"aarch64\" ]; then echo \"NOT_ARM64 arch=${A:-unknown}\"; elif [ -n \"$H\" ]; then echo \"MTE_CPU_SUPPORTED bootctl=${BC:-unset} default=${DF:-unset}\"; else echo \"MTE_CPU_ABSENT bootctl=${BC:-unset} default=${DF:-unset}\"; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "description": "Memory Tagging Extension is an ARMv8.5 hardware feature that tags heap allocations and traps mismatched accesses, converting most heap overflow and use-after-free bugs into faults. Support is reported in the /proc/cpuinfo Features list as 'mte'; the arm64.memtag.bootctl and persist.arm64.memtag.default properties report whether Android is actually asking for it at boot. Informational because MTE requires ARMv8.5 silicon that most fleet hardware through 2026 does not have, so absence is a hardware fact rather than a misconfiguration. This replaces an earlier version that ran 'zcat /proc/config.gz' with no stderr redirect, which emitted a gzip error and scored CRITICAL on every device where that file is absent.",
+      "remediation": "MTE cannot be enabled on hardware that lacks it. On ARMv8.5+ devices, enable it for the system or for specific processes via arm64.memtag.bootctl and the per-app memtagMode manifest attribute. Prefer MTE-capable silicon when refreshing fleet hardware.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
@@ -364,38 +359,42 @@
     {
       "category": "SYSTEM",
       "label": "Core Dumps Disabled",
-      "command": "cat /proc/sys/kernel/core_pattern",
-      "safe_pattern": "^(\\|/dev/null|/dev/null)$",
+      "command": "V=$(cat /proc/sys/kernel/core_pattern 2>/dev/null); [ -z \"$V\" ] && echo CORE_PATTERN_UNREADABLE || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^(\\|/dev/null|/dev/null)$|^CORE_PATTERN_UNREADABLE$",
       "level": "warning",
-      "description": "Core dumps should be disabled to prevent sensitive data leakage.",
-      "remediation": "Disable core dumps. Run: echo '|/dev/null' > /proc/sys/kernel/core_pattern. Persist via sysctl.conf."
+      "description": "Core dumps should be disabled to prevent sensitive data leakage. The sysctl is read with stderr suppressed and reports CORE_PATTERN_UNREADABLE when the node is absent, so a kernel that does not expose it is not failed on absence of evidence. The earlier version ran cat without redirecting stderr, so a missing node put the 'No such file or directory' text into the result, which failed the pattern and scored a finding.",
+      "remediation": "Disable core dumps. Run: echo '|/dev/null' > /proc/sys/kernel/core_pattern. Persist via sysctl.conf.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
-      "label": "SECCOMP Enabled",
-      "command": "zcat /proc/config.gz | grep CONFIG_SECCOMP=",
-      "safe_pattern": "CONFIG_SECCOMP=Y",
+      "label": "SECCOMP Kernel Support",
+      "command": "if grep -qi '^Seccomp:' /proc/self/status 2>/dev/null; then M=$(grep -i '^Seccomp:' /proc/self/status 2>/dev/null | awk '{print $2}'); F=$(grep -i '^Seccomp_filters:' /proc/self/status 2>/dev/null | awk '{print $2}'); echo \"KERNEL_SECCOMP_PRESENT shell_mode=${M:-unknown} shell_filters=${F:-0}\"; else echo KERNEL_SECCOMP_ABSENT; fi",
+      "safe_pattern": "^KERNEL_SECCOMP_PRESENT",
       "level": "warning",
-      "description": "SECCOMP must be enabled to restrict system calls.",
-      "remediation": "Rebuild the kernel with CONFIG_SECCOMP=y in the defconfig, then reflash the device."
+      "description": "The kernel exposes a 'Seccomp:' field in /proc/<pid>/status only when CONFIG_SECCOMP is compiled in, so the presence of that field is direct proof of kernel seccomp support and needs no access to /proc/config.gz. Android uses seccomp-bpf to restrict the syscall surface of app processes and of the media and network stacks. The reported shell_mode is the mode of the auditing shell itself (0 disabled, 1 strict, 2 filter) and is expected to be 0, because adb shell is not sandboxed; it is context, not a verdict. This replaces an earlier version that read 'zcat /proc/config.gz' with safe_pattern 'CONFIG_SECCOMP=Y', which could never match because kernel config values are lowercase, and which emitted a gzip error into the result on the majority of devices where /proc/config.gz is absent.",
+      "remediation": "Rebuild the kernel with CONFIG_SECCOMP=y and CONFIG_SECCOMP_FILTER=y. Android CDD requires seccomp-bpf support; a kernel without it cannot enforce the platform syscall filters.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
       "label": "Protected Symlinks Enabled",
-      "command": "cat /proc/sys/fs/protected_symlinks",
-      "safe_pattern": "^1$",
+      "command": "V=$(cat /proc/sys/fs/protected_symlinks 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_UNREADABLE || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^1$|^SYSCTL_UNREADABLE$",
       "level": "warning",
-      "description": "Symlink protection should be enabled to prevent symlink-based privilege escalation.",
-      "remediation": "Run: echo 1 > /proc/sys/fs/protected_symlinks. Persist by adding fs.protected_symlinks=1 to sysctl.conf."
+      "description": "Symlink protection should be enabled to prevent symlink-based privilege escalation. The sysctl is read with stderr suppressed and reports SYSCTL_UNREADABLE when the node is absent, so a kernel that does not expose it is not failed on absence of evidence. The earlier version ran cat without redirecting stderr, so a missing node put the 'No such file or directory' text into the result, which failed the pattern and scored a finding.",
+      "remediation": "Run: echo 1 > /proc/sys/fs/protected_symlinks. Persist by adding fs.protected_symlinks=1 to sysctl.conf.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
       "label": "Protected Hardlinks Enabled",
-      "command": "cat /proc/sys/fs/protected_hardlinks",
-      "safe_pattern": "^1$",
+      "command": "V=$(cat /proc/sys/fs/protected_hardlinks 2>/dev/null); [ -z \"$V\" ] && echo SYSCTL_UNREADABLE || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^1$|^SYSCTL_UNREADABLE$",
       "level": "warning",
-      "description": "Hardlink protection should be enabled to prevent unauthorized file access.",
-      "remediation": "Run: echo 1 > /proc/sys/fs/protected_hardlinks. Persist by adding fs.protected_hardlinks=1 to sysctl.conf."
+      "description": "Hardlink protection should be enabled to prevent unauthorized file access. The sysctl is read with stderr suppressed and reports SYSCTL_UNREADABLE when the node is absent, so a kernel that does not expose it is not failed on absence of evidence. The earlier version ran cat without redirecting stderr, so a missing node put the 'No such file or directory' text into the result, which failed the pattern and scored a finding.",
+      "remediation": "Run: echo 1 > /proc/sys/fs/protected_hardlinks. Persist by adding fs.protected_hardlinks=1 to sysctl.conf.",
+      "empty_is_safe": false
     },
     {
       "category": "SYSTEM",
@@ -666,17 +665,6 @@
       "remediation": "Compare against a known baseline. If count is abnormally high, investigate unknown processes with ps -A."
     },
     {
-      "id": "SYS-SECCOMP-001",
-      "category": "SYSTEM",
-      "label": "SECCOMP-BPF Kernel Support",
-      "command": "cat /proc/config.gz 2>/dev/null | zcat 2>/dev/null | grep -E 'CONFIG_SECCOMP' | head -5",
-      "safe_pattern": "CONFIG_SECCOMP=y|CONFIG_SECCOMP_FILTER=y",
-      "level": "warning",
-      "description": "SECCOMP-BPF (Secure Computing with Berkeley Packet Filter) restricts syscall access per-process. Required for Android app sandbox hardening. Missing CONFIG_SECCOMP_FILTER is a kernel hardening gap.",
-      "remediation": "Ensure kernel is compiled with CONFIG_SECCOMP=y and CONFIG_SECCOMP_FILTER=y. Required for Android app process sandboxing.",
-      "empty_is_safe": false
-    },
-    {
       "id": "SYS-SECCOMP-002",
       "category": "SYSTEM",
       "label": "SECCOMP Status of Init (PID 1)",
@@ -784,17 +772,6 @@
       "level": "warning",
       "description": "If /proc/kallsyms returns non-zero addresses, KASLR may not be fully effective or the process has CAP_SYSLOG. Zero addresses confirm KASLR is masking kernel symbols.",
       "remediation": "Ensure kernel is compiled with CONFIG_RANDOMIZE_BASE=y and restrict /proc/kallsyms to root via CONFIG_KALLSYMS_ALL=n.",
-      "empty_is_safe": true
-    },
-    {
-      "id": "SYS-FORTIFY-001",
-      "category": "SYSTEM",
-      "label": "FORTIFY_SOURCE via libc",
-      "command": "grep -r 'FORTIFY' /proc/1/maps 2>/dev/null | head -3 || getprop ro.build.version.release 2>/dev/null",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "FORTIFY_SOURCE adds compile-time buffer overflow checks to libc functions. All Android system binaries should be built with -D_FORTIFY_SOURCE=2.",
-      "remediation": "Informational. Android 4.2+ enables FORTIFY_SOURCE for system binaries by default. Verify custom binaries are also compiled with FORTIFY_SOURCE.",
       "empty_is_safe": true
     },
     {

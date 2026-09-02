@@ -65,15 +65,6 @@
     },
     {
       "category": "CRYPTOGRAPHY",
-      "label": "Hardware Keystore",
-      "command": "getprop ro.hardware.keystore",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "Hardware-backed keystore availability",
-      "remediation": "Use a device with a hardware-backed keystore (TEE/SE). Avoid storing sensitive keys in software-only keystores."
-    },
-    {
-      "category": "CRYPTOGRAPHY",
       "label": "Crypto FS State",
       "command": "getprop vold.decrypt",
       "safe_pattern": "trigger_restart_framework|null",
