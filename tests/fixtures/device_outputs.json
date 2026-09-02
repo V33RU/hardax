@@ -1,0 +1,600 @@
+{
+  "Network ADB Bound To Loopback Only": [
+    [
+      "DISABLED",
+      "SAFE",
+      "network adb off. v6.0.0 shipped $((netstat...) which sh parses as arithmetic expansion, so the script never ran and the parse error scored CRITICAL on every device"
+    ],
+    [
+      "LOOPBACK_ONLY",
+      "SAFE",
+      "adb tcp bound to loopback only"
+    ],
+    [
+      "0.0.0.0:5555",
+      "CRITICAL",
+      "adb listening on all interfaces"
+    ]
+  ],
+  "Kernel Stack Protector (Strong)": [
+    [
+      "NOT_OBSERVABLE /proc/config.gz absent (CONFIG_IKCONFIG_PROC disabled)",
+      "SAFE",
+      "kernel config not exposed. v6.0.0 ran zcat with no stderr redirect and scored the gzip error as a finding"
+    ],
+    [
+      "CONFIG_STACKPROTECTOR_STRONG=y",
+      "SAFE",
+      "modern spelling"
+    ],
+    [
+      "CONFIG_CC_STACKPROTECTOR_STRONG=y",
+      "SAFE",
+      "legacy spelling must also pass"
+    ],
+    [
+      "STACKPROTECTOR_STRONG_ABSENT",
+      "WARNING",
+      "config readable and the option is off"
+    ]
+  ],
+  "Kernel Hardening (PAN/UAO)": [
+    [
+      "NOT_OBSERVABLE /proc/config.gz absent (CONFIG_IKCONFIG_PROC disabled)",
+      "SAFE",
+      "absence of evidence must not fail"
+    ],
+    [
+      "PAN_UAO_COUNT=2",
+      "SAFE",
+      "both options on"
+    ],
+    [
+      "PAN_UAO_COUNT=0",
+      "WARNING",
+      "neither option on"
+    ]
+  ],
+  "SECCOMP Kernel Support": [
+    [
+      "KERNEL_SECCOMP_PRESENT shell_mode=0 shell_filters=0",
+      "SAFE",
+      "adb shell is not sandboxed so mode 0 is expected and is context, not a verdict"
+    ],
+    [
+      "KERNEL_SECCOMP_PRESENT shell_mode=2 shell_filters=1",
+      "SAFE",
+      "filter mode"
+    ],
+    [
+      "KERNEL_SECCOMP_ABSENT",
+      "WARNING",
+      "kernel built without CONFIG_SECCOMP"
+    ]
+  ],
+  "Pointer Authentication (PAC) CPU Support": [
+    [
+      "PAC_CPU_SUPPORTED features=paca pacg",
+      "SAFE",
+      "ARMv8.3 PAC present"
+    ],
+    [
+      "NOT_ARM64 arch=x86_64",
+      "SAFE",
+      "non-arm64 target must not be failed"
+    ],
+    [
+      "PAC_CPU_ABSENT",
+      "WARNING",
+      "arm64 without PAC"
+    ]
+  ],
+  "Memory Tagging (MTE)": [
+    [
+      "MTE_CPU_SUPPORTED bootctl=async default=unset",
+      "SAFE",
+      "info level evidence collector"
+    ],
+    [
+      "MTE_CPU_ABSENT bootctl=unset default=unset",
+      "SAFE",
+      "MTE needs ARMv8.5 silicon most fleet hardware lacks, so absence must stay info"
+    ]
+  ],
+  "Security Patch Level": [
+    [
+      "RECENT spl=2026-08-01 months_old=1",
+      "SAFE",
+      "current patch"
+    ],
+    [
+      "AGING spl=2026-03-01 months_old=6",
+      "SAFE",
+      "6 months is the boundary and still passes"
+    ],
+    [
+      "OUTDATED spl=2025-06-01 months_old=15",
+      "CRITICAL",
+      "genuinely stale"
+    ],
+    [
+      "FUTURE_SPL spl=2027-01-01 months_ahead=4",
+      "CRITICAL",
+      "no honest build reports a future patch date; spoofing tooling does"
+    ],
+    [
+      "UNKNOWN no security_patch property",
+      "CRITICAL",
+      "android device with no SPL property"
+    ]
+  ],
+  "Protected Symlinks Enabled": [
+    [
+      "1",
+      "SAFE",
+      "sysctl on"
+    ],
+    [
+      "SYSCTL_UNREADABLE",
+      "SAFE",
+      "node absent. earlier version ran cat with no redirect so the ENOENT text scored a finding"
+    ],
+    [
+      "0",
+      "WARNING",
+      "protection disabled"
+    ]
+  ],
+  "Writable System Partition": [
+    [
+      "",
+      "SAFE",
+      "/system read-only"
+    ],
+    [
+      "/dev/block/dm-0 on /system type ext4 (rw,seclabel,relatime)",
+      "CRITICAL",
+      "/system genuinely writable"
+    ]
+  ],
+  "dm-verity Mode and Source Consistency": [
+    [
+      "VERITY_OK mode=enforcing source=cmdline",
+      "SAFE",
+      "enforcing from the unspoofable source"
+    ],
+    [
+      "VERITY_OK mode=eio source=property",
+      "SAFE",
+      "eio is an accepted mode"
+    ],
+    [
+      "UNVERIFIABLE no veritymode from cmdline, bootconfig or property",
+      "SAFE",
+      "no evidence must not fail"
+    ],
+    [
+      "MISMATCH cmdline=eio prop=logging",
+      "CRITICAL",
+      "property forged: resetprop cannot rewrite /proc/cmdline"
+    ],
+    [
+      "VERITY_WEAK mode=disabled source=cmdline",
+      "CRITICAL",
+      "verity present but not enforcing"
+    ]
+  ],
+  "OEM Unlock Permitted (Global Setting)": [
+    [
+      "UNLOCK_BLOCKED allowed=0 enabled=null",
+      "SAFE",
+      "blocked via the allowed spelling"
+    ],
+    [
+      "UNLOCK_BLOCKED allowed=null enabled=0",
+      "SAFE",
+      "blocked via the other spelling; a check reading one key only would miss this"
+    ],
+    [
+      "NOT_SET allowed=null enabled=null",
+      "SAFE",
+      "toggle never enabled"
+    ],
+    [
+      "UNLOCK_PERMITTED allowed=1 enabled=null",
+      "WARNING",
+      "bootloader unlock permitted"
+    ]
+  ],
+  "Verified Boot State Consistency (property vs kernel cmdline)": [
+    [
+      "CONSISTENT prop=green cmdline=green flash_locked=1",
+      "SAFE",
+      "locked stock"
+    ],
+    [
+      "CONSISTENT prop=orange cmdline=orange flash_locked=0",
+      "SAFE",
+      "honestly unlocked device tells one story; the dedicated bootloader checks flag it, not this one"
+    ],
+    [
+      "UNVERIFIABLE_NO_BOOT_CMDLINE prop=green cmdline=unset flash_locked=1",
+      "SAFE",
+      "no cmdline exposed"
+    ],
+    [
+      "MISMATCH_PROP_VS_CMDLINE prop=green cmdline=orange flash_locked=0",
+      "CRITICAL",
+      "resetprop forged the boot state"
+    ],
+    [
+      "MISMATCH_GREEN_BUT_UNLOCKED prop=green cmdline=green flash_locked=0",
+      "CRITICAL",
+      "green with an unlocked bootloader cannot occur honestly"
+    ]
+  ],
+  "Unprivileged eBPF Disabled": [
+    [
+      "1",
+      "SAFE",
+      "permanently disabled"
+    ],
+    [
+      "2",
+      "SAFE",
+      "disabled, privileged re-enable allowed"
+    ],
+    [
+      "SYSCTL_ABSENT",
+      "SAFE",
+      "kernel without eBPF"
+    ],
+    [
+      "0",
+      "WARNING",
+      "unprivileged eBPF permitted"
+    ]
+  ],
+  "ICMP Redirects Not Accepted (IPv4)": [
+    [
+      "0",
+      "SAFE",
+      "hardened and the common default"
+    ],
+    [
+      "SYSCTL_ABSENT",
+      "SAFE",
+      "node absent"
+    ],
+    [
+      "1",
+      "WARNING",
+      "accepts forged redirects, a man-in-the-middle primitive"
+    ]
+  ],
+  "Dalvik Cache Not World-Writable": [
+    [
+      "",
+      "SAFE",
+      "healthy device"
+    ],
+    [
+      "/data/dalvik-cache/arm64/system@framework@boot.art",
+      "CRITICAL",
+      "writable ART artifact is code execution across a privilege boundary"
+    ]
+  ],
+  "OTA Update Signing Certificates": [
+    [
+      "OTACERTS_PRESENT sha256_prefix=9f2c1ab4d7e30f52",
+      "SAFE",
+      "vendor certificate"
+    ],
+    [
+      "NO_OTACERTS",
+      "SAFE",
+      "bundle absent"
+    ],
+    [
+      "AOSP_TESTKEY_PRESENT in=/system/etc/security/otacerts.zip",
+      "CRITICAL",
+      "OTA trust anchor is a key everybody has"
+    ]
+  ],
+  "Radio Diagnostic Interface Exposure": [
+    [
+      "NO_DIAG_NODE",
+      "SAFE",
+      "production build with the nodes removed"
+    ],
+    [
+      "DIAG_PRESENT_RESTRICTED /dev/diag",
+      "SAFE",
+      "present but not world accessible"
+    ],
+    [
+      "DIAG_WORLD_ACCESSIBLE /dev/diag",
+      "CRITICAL",
+      "any local app reaches the modem with no permission"
+    ]
+  ],
+  "Hidden API Enforcement Not Disabled": [
+    [
+      "policy=null p_apps=null",
+      "SAFE",
+      "default enforcement"
+    ],
+    [
+      "policy=0 p_apps=null",
+      "SAFE",
+      "explicit default"
+    ],
+    [
+      "policy=1 p_apps=null",
+      "WARNING",
+      "warn-only"
+    ],
+    [
+      "policy=2 p_apps=null",
+      "WARNING",
+      "enforcement lifted for every app"
+    ]
+  ],
+  "Crash Artifact Accumulation Beyond Tombstones": [
+    [
+      "crash_files=4 minidumps=none ramdump_paths=/sys/fs/pstore",
+      "SAFE",
+      "real device SM-M025F: 4 ANR traces. An earlier version also counted /data/log, which on Samsung holds ordinary app logs, and reported 85"
+    ],
+    [
+      "crash_files=0 minidumps=none ramdump_paths=none",
+      "SAFE",
+      "clean device"
+    ],
+    [
+      "crash_files=180 minidumps=none ramdump_paths=/data/vendor/ramdump",
+      "WARNING",
+      "large genuine accumulation"
+    ],
+    [
+      "crash_files=2 minidumps=/data/x.dmp ramdump_paths=none",
+      "WARNING",
+      "any minidump is a memory image on disk"
+    ]
+  ],
+  "Control Group Hierarchy and Version": [
+    [
+      "cgroup=v2 controllers=cgroup.controllers cgroup.procs",
+      "SAFE",
+      "normal hierarchy"
+    ],
+    [
+      "NO_CGROUPFS",
+      "SAFE",
+      "no cgroupfs"
+    ],
+    [
+      "CGROUP_PROCS_WORLD_WRITABLE /sys/fs/cgroup/cgroup.procs",
+      "WARNING",
+      "process can escape its own resource limits"
+    ]
+  ],
+  "Metadata Encryption and Cryptographic Erase Support": [
+    [
+      "NOT_ANDROID",
+      "SAFE",
+      "linux target over ssh must not be failed for absent ro.crypto properties"
+    ],
+    [
+      "metadata_enabled=true crypto_type=file keydir=present",
+      "SAFE",
+      "metadata encryption on"
+    ],
+    [
+      "metadata_enabled=unset crypto_type=file keydir=absent",
+      "SAFE",
+      "fbe at least confirmed"
+    ],
+    [
+      "metadata_enabled=unset crypto_type=block keydir=absent",
+      "WARNING",
+      "no metadata encryption, so factory reset does not cryptographically erase"
+    ]
+  ],
+  "Kernel Tracing Interface Not World-Accessible": [
+    [
+      "NO_TRACEFS",
+      "SAFE",
+      "kernel without ftrace is the strongest outcome"
+    ],
+    [
+      "TRACEFS_RESTRICTED /sys/kernel/tracing:drwx------",
+      "SAFE",
+      "root only"
+    ],
+    [
+      "TRACEFS_WORLD_ACCESSIBLE /sys/kernel/tracing:drwxrwxr-x",
+      "WARNING",
+      "leaks kernel pointers and defeats KASLR"
+    ]
+  ],
+  "Filesystem Repair Tool Permissions": [
+    [
+      "NO_FSCK_TOOLS",
+      "SAFE",
+      "tools absent"
+    ],
+    [
+      "FSCK_TOOLS_PRESENT -rwxr-xr-x /system/bin/e2fsck",
+      "SAFE",
+      "present and not writable"
+    ],
+    [
+      "FSCK_TOOL_WORLD_WRITABLE /system/bin/e2fsck",
+      "WARNING",
+      "privileged early-boot binary is replaceable"
+    ]
+  ],
+  "Split APK and Staged Install Sessions": [
+    [
+      "split_apks=0 staged_sessions=0",
+      "SAFE",
+      "nothing pending"
+    ],
+    [
+      "split_apks=12 staged_sessions=0",
+      "SAFE",
+      "splits are normal"
+    ],
+    [
+      "split_apks=4 staged_sessions=2",
+      "WARNING",
+      "code queued to install at next boot that the audit did not evaluate"
+    ]
+  ],
+  "Block Devices World-Readable": [
+    [
+      "0",
+      "SAFE",
+      "v5.11.2: the earlier command counted symlinks and directories and reported 200 on a device where the true answer was 0"
+    ],
+    [
+      "7",
+      "CRITICAL",
+      "genuine world-readable block devices"
+    ]
+  ],
+  "Writable Paths in $PATH": [
+    [
+      "",
+      "SAFE",
+      "v5.11.2: earlier version used xargs -I{} which android toybox does not support"
+    ],
+    [
+      "/data/local/tmp",
+      "CRITICAL",
+      "a writable directory on PATH is a privilege escalation primitive"
+    ]
+  ],
+  "Private Keys Exposed": [
+    [
+      "",
+      "SAFE",
+      "v5.11.2: earlier version matched *.pem by name and flagged public certificates"
+    ],
+    [
+      "/data/misc/keys/server.pem",
+      "CRITICAL",
+      "file whose contents matched a PRIVATE KEY header"
+    ]
+  ],
+  "Data Partition Encryption Check": [
+    [
+      "state=encrypted type=file dev=/dev/block/mmcblk0p78",
+      "SAFE",
+      "real SM-M025F: FBE device. The earlier check required a dm- mount source, which only exists for FDE or metadata encryption, so every FBE device scored CRITICAL"
+    ],
+    [
+      "state=encrypted type=block dev=/dev/block/dm-0",
+      "SAFE",
+      "FDE device"
+    ],
+    [
+      "state=unencrypted type=unset dev=/dev/block/mmcblk0p78",
+      "CRITICAL",
+      "genuinely unencrypted"
+    ]
+  ],
+  "Unknown Sources Disabled": [
+    [
+      "PER_APP_MODEL sdk=31 legacy_flag=1",
+      "SAFE",
+      "real SM-M025F: the legacy global flag is a stale 1 on API 31 where sideloading is per-app via REQUEST_INSTALL_PACKAGES"
+    ],
+    [
+      "0",
+      "SAFE",
+      "pre-API-26 device with the setting off"
+    ],
+    [
+      "1",
+      "CRITICAL",
+      "pre-API-26 device with unknown sources genuinely enabled"
+    ]
+  ],
+  "Adapter scan mode": [
+    [
+      "SCAN_MODE_CONNECTABLE",
+      "SAFE",
+      "real SM-M025F. The earlier grep matched the line 'Scan mode counter (Opp/LowPower/...)', a statistics counter, and never contained SCAN_MODE_*"
+    ],
+    [
+      "SCAN_MODE_NONE",
+      "SAFE",
+      "adapter not discoverable"
+    ],
+    [
+      "SCAN_MODE_CONNECTABLE_DISCOVERABLE",
+      "CRITICAL",
+      "adapter discoverable to anyone in range"
+    ]
+  ],
+  "SELinux Bluetooth Domain Policy": [
+    [
+      "u:r:hal_bluetooth_qti:s0",
+      "SAFE",
+      "real SM-M025F. The earlier check ran ls -Z /system/bin/bluetooth*, a path gone since Bluetooth became an APK, so it reported PERMISSIVE on every modern device"
+    ],
+    [
+      "BLUETOOTH_NOT_RUNNING",
+      "SAFE",
+      "stack not up"
+    ],
+    [
+      "u:r:untrusted_app:s0",
+      "CRITICAL",
+      "bluetooth running in an untrusted domain"
+    ]
+  ],
+  "Raw HCI Device Nodes Unexposed": [
+    [
+      "0",
+      "SAFE",
+      "real SM-M025F. The earlier glob included /dev/radio*, matching the FM radio node, so any device with an FM tuner scored a finding"
+    ],
+    [
+      "2",
+      "CRITICAL",
+      "raw HCI transport nodes genuinely exposed"
+    ]
+  ],
+  "Vehicle Control Permissions": [
+    [
+      "",
+      "SAFE",
+      "real SM-M025F. The earlier grep matched the CAR_SPEED permission declaration published by Google Play services on every phone, rather than a package holding it"
+    ],
+    [
+      "Package [com.example.fleet]",
+      "CRITICAL",
+      "a package actually holds a vehicle control permission"
+    ]
+  ],
+  "Stack Canary - surfaceflinger": [
+    [
+      "BINARY_NOT_READABLE",
+      "SAFE",
+      "real SM-M025F: the adb shell user cannot read /system/bin/surfaceflinger. 'readelf | grep -c' turned the permission denial into the literal string 0, which failed the pattern on every device"
+    ],
+    [
+      "2",
+      "SAFE",
+      "canary symbols present"
+    ],
+    [
+      "0",
+      "CRITICAL",
+      "binary readable and genuinely has no canary"
+    ]
+  ]
+}

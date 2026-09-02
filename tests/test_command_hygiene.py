@@ -146,3 +146,38 @@ def test_category_set_is_intact():
     assert len(counts) == 29, f"category count changed: {sorted(counts)}"
     thin = {cat: n for cat, n in counts.items() if n < 3}
     assert not thin, f"categories reduced to almost nothing: {thin}"
+
+
+def test_no_count_and_list_pairs_of_the_same_probe():
+    """Three pairs shipped where one check ran a probe and a second ran the
+    identical probe piped to `wc -l`. Both fired on the same condition, so a
+    single planted artifact or injected CA produced two findings.
+
+    Report the count and the detail from one check instead of splitting them.
+    """
+    def strip_count(cmd):
+        c = re.sub(r"\s*\|\s*wc\s+-l\s*$", "", cmd.strip())
+        return re.sub(r"\s+", " ", c.replace("2>/dev/null", "")).strip()
+
+    by_file = defaultdict(list)
+    for c in load_all_checks():
+        by_file[c["_file"]].append(c)
+
+    pairs = []
+    for fname, checks in by_file.items():
+        seen = {}
+        for c in checks:
+            key = strip_count(c["command"])
+            prev = seen.get(key)
+            if prev is not None and prev["command"] != c["command"]:
+                # An info/verify evidence collector paired with a failable
+                # check is fine: one reports the value, the other decides.
+                # Two failable checks on one probe raise two findings for one
+                # condition, which is the defect.
+                if prev["level"] in FAILABLE and c["level"] in FAILABLE:
+                    pairs.append(f"  {fname}: {prev['label']!r} and {c['label']!r}\n"
+                                 f"      both {prev['level']}/{c['level']} on: {key[:80]}")
+            seen.setdefault(key, c)
+    assert not pairs, (
+        "two failable checks running the same probe, one counting one listing:\n"
+        + "\n".join(pairs))
