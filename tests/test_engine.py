@@ -185,3 +185,37 @@ def test_hud_fits_terminal_requires_both_width_and_height(monkeypatch):
     # Wide enough but too short -> must not fit
     monkeypatch.setattr(hardax.Terminal, "getSize", staticmethod(lambda: (required_width, required_height - 1)))
     assert hud.fitsTerminal() is False
+
+
+# --- network fallback executor --------------------------------------------
+
+def test_fallback_executor_does_not_mangle_scripts_that_mention_netstat():
+    """executeWithFallback rewrites the text before the first "|" and runs it
+    alone to try su / drop -p / swap tool. On a shell script the first "|" is
+    the first character of "||", so the base became an unterminated "if" and
+    the device got a syntax error instead of the check.
+
+    ADB-002 shipped this way: the command was
+        P=$(getprop service.adb.tcp.port); if [ -z "$P" ] || [ "$P" = "0" ]; ...
+    and the device received only
+        P=$(getprop service.adb.tcp.port); if [ -z "$P" ]
+    """
+    script = ('P=$(getprop service.adb.tcp.port 2>/dev/null); '
+              'if [ -z "$P" ] || [ "$P" = "0" ]; then echo DISABLED; '
+              'else netstat -tln 2>/dev/null | grep ":$P"; fi')
+    dev = FakeDevice(default="DISABLED")
+    hardax.executeWithFallback(dev, script)
+    assert dev.calls, "the command was never sent"
+    assert dev.calls[0] == script, (
+        "script was truncated before reaching the device:\n"
+        f"  sent: {dev.calls[0]!r}\n  full: {script!r}")
+
+
+def test_fallback_executor_still_handles_a_real_netstat_command():
+    """The su / drop -p / swap-tool fallback must keep working for commands
+    that genuinely start with a network tool."""
+    dev = FakeDevice(default="tcp 0 0 0.0.0.0:23 LISTEN")
+    out = hardax.executeWithFallback(dev, "netstat -tlnp 2>/dev/null | grep ':23'")
+    assert dev.calls, "no candidate was attempted"
+    assert any("netstat" in c for c in dev.calls)
+    assert "LISTEN" in out

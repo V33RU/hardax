@@ -1057,6 +1057,27 @@ def executeWithFallback(device: Device, command: str,
         cl = cmd.lower()
         return ("netstat" in cl) or bool(re.search(r"\bss\b", cl))
 
+    def startsWithNetTool(block: str) -> bool:
+        """True only when the block *is* a network command rather than a shell
+        script that happens to mention one.
+
+        The fallback executor rewrites the text before the first "|" and runs
+        it on its own to try su, drop -p and swap netstat for ss. That is only
+        valid when that leading text is the whole network command. On a script
+        such as
+            P=$(getprop x); if [ -z "$P" ] || [ "$P" = "0" ]; then ...
+        the first "|" is the first character of "||", so the base becomes an
+        unterminated "if" and the device receives a syntax error instead of the
+        check. Restricting the executor to blocks that actually begin with a
+        network tool keeps the netstat/ss fallback working and leaves every
+        other command untouched.
+        """
+        b = block.strip()
+        b = re.sub(r"^\(\s*", "", b)                       # leading subshell
+        b = re.sub(r"^su\s+-c\s+(['\"])", "", b)            # su -c 'netstat ...
+        b = re.sub(r"^(?:/system/bin/|/bin/)?", "", b.strip())
+        return bool(re.match(r"(netstat|ss)\b", b, re.IGNORECASE))
+
     def splitAlternatives(src: str) -> list:
         s = re.sub(
             r"^\s*(?:/system/bin/)?sh\s+-[a-z]*c\s+(['\"])(.*?)\1\s*$",
@@ -1064,7 +1085,7 @@ def executeWithFallback(device: Device, command: str,
         )
         s = s.replace("\r\n", "\n").replace("\r", "\n")
         blocks = re.split(r"\n\s*\n+", s.strip())
-        return [b for b in blocks if isNetOrSs(b)]
+        return [b for b in blocks if startsWithNetTool(b)]
 
     def splitPipeline(block: str):
         if "|" not in block:
