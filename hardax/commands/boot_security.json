@@ -66,8 +66,8 @@
     {
       "category": "BOOT_SECURITY",
       "label": "Safe Mode",
-      "command": "getprop persist.sys.safemode",
-      "safe_pattern": "^0$",
+      "command": "V=$(getprop persist.sys.safemode 2>/dev/null); [ -z \"$V\" ] && echo \"0 (unset)\" || printf '%s\\n' \"$V\"",
+      "safe_pattern": "^0",
       "level": "info",
       "description": "Should not be running in Safe Mode",
       "remediation": "Reboot the device normally to exit Safe Mode."
@@ -103,7 +103,7 @@
     {
       "category": "BOOT_SECURITY",
       "label": "OEM Unlock Hardware Capability",
-      "command": "getprop ro.oem_unlock_supported",
+      "command": "V=$(getprop ro.oem_unlock_supported 2>/dev/null); [ -z \"$V\" ] && echo \"PROP_UNSET ro.oem_unlock_supported\" || printf '%s\\n' \"$V\"",
       "safe_pattern": ".",
       "level": "info",
       "description": "Reports ro.oem_unlock_supported, which states whether the hardware exposes an OEM unlock path at all. This is a device capability, not a security state: the large majority of non-carrier-locked devices report 1 and are perfectly secure with the bootloader locked. It was previously scored critical against a safe_pattern of ^0$, so nearly every device raised a critical finding for supporting a feature it ships with. The security-relevant facts are covered by 'Bootloader Locked' (ro.boot.flash.locked), 'OEM Unlock Allowed' (sys.oem_unlock_allowed) and 'OEM Unlock Permitted (Global Setting)'.",
@@ -210,19 +210,19 @@
       "id": "BOOT-VBMETA-HASHALG-001",
       "category": "BOOT_SECURITY",
       "label": "VBMeta Hash Algorithm Not Weak",
-      "command": "getprop ro.boot.vbmeta.hash_alg 2>/dev/null",
+      "command": "V=$(getprop ro.boot.vbmeta.hash_alg 2>/dev/null); [ -z \"$V\" ] && echo \"UNMEASURED ro.boot.vbmeta.hash_alg not exported\" || printf '%s\\n' \"$V\"",
       "safe_pattern": "^sha(256|512)$",
       "level": "warning",
       "description": "Hash algorithm protecting the top-level vbmeta struct. sha1 is cryptographically weak for verified boot; modern devices use sha256 or sha512. Empty/unset on devices that do not export the property.",
       "remediation": "Rebuild and flash vbmeta signed with a SHA-256 or SHA-512 algorithm (set BOARD_AVB_ALGORITHM to e.g. SHA256_RSA4096 or SHA512_RSA4096).",
-      "empty_is_safe": true,
+      "empty_is_safe": false,
       "null_is_safe": true
     },
     {
       "id": "BOOT-VERITY-AVB-KCONFIG-001",
       "category": "BOOT_SECURITY",
       "label": "Kernel CONFIG_DM_VERITY_AVB Support",
-      "command": "(zcat /proc/config.gz 2>/dev/null || gzip -dc /proc/config.gz 2>/dev/null) | grep -E 'CONFIG_DM_VERITY_AVB=' || echo absent",
+      "command": "C=$( (zcat /proc/config.gz 2>/dev/null || gzip -dc /proc/config.gz 2>/dev/null) ); if [ -z \"$C\" ]; then echo \"NOT_OBSERVABLE /proc/config.gz not readable\"; else printf '%s\\n' \"$C\" | grep -E 'CONFIG_DM_VERITY_AVB=' || echo absent; fi",
       "safe_pattern": "CONFIG_DM_VERITY_AVB=y",
       "level": "info",
       "description": "CONFIG_DM_VERITY_AVB lets the kernel invalidate the current slot on dm-verity corruption, required for AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE. 'absent' means /proc/config.gz is not exposed (common) - this is informational, not a failure.",

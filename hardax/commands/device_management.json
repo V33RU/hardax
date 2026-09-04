@@ -58,11 +58,12 @@
     {
       "category": "DEVICE_MANAGEMENT",
       "label": "Device Admin Apps",
-      "command": "dumpsys device_policy 2>/dev/null | grep -i admin | head -10",
+      "command": "D=$(dumpsys device_policy 2>/dev/null | grep -i 'admin=' | head -10); if [ -n \"$D\" ]; then printf '%s\\n' \"$D\"; elif [ -r /data/system/device_policies.xml ]; then A=$(strings -a /data/system/device_policies.xml 2>/dev/null | grep -oE '[a-z][a-z0-9_]*(\\.[a-z0-9_]+){2,}/[A-Za-z0-9_.]+' | sort -u); [ -n \"$A\" ] && { echo 'ADMIN_CONFIGURED (from device_policies.xml)'; printf '%s\\n' \"$A\"; } || echo 'NO_ADMIN (device_policies.xml present, no admin component)'; else echo 'UNMEASURED device_policy service and device_policies.xml both unavailable'; fi",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Device administrator applications",
-      "remediation": "Review admin apps in Settings - Security - Device Admin Apps and revoke any unrecognized administrators."
+      "description": "Device administrator components registered on the device. Asks the device_policy service first and falls back to /data/system/device_policies.xml, which records the same admin registration and is readable without framework access. An unexpected admin component is a management-takeover indicator.",
+      "remediation": "Review admin apps in Settings - Security - Device Admin Apps and revoke any unrecognized administrators.",
+      "binder_optional": true
     },
     {
       "category": "DEVICE_MANAGEMENT",

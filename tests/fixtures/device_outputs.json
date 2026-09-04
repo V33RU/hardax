@@ -19,8 +19,8 @@
   "Kernel Stack Protector (Strong)": [
     [
       "NOT_OBSERVABLE /proc/config.gz absent (CONFIG_IKCONFIG_PROC disabled)",
-      "SAFE",
-      "kernel config not exposed. v6.0.0 ran zcat with no stderr redirect and scored the gzip error as a finding"
+      "VERIFY",
+      "kernel config not exposed. Originally SAFE on the reasoning that absence of evidence must not fail, when the only alternatives were SAFE or a finding. VERIFY is the state that reasoning actually wanted: not measured, so neither a pass nor a finding"
     ],
     [
       "CONFIG_STACKPROTECTOR_STRONG=y",
@@ -41,8 +41,8 @@
   "Kernel Hardening (PAN/UAO)": [
     [
       "NOT_OBSERVABLE /proc/config.gz absent (CONFIG_IKCONFIG_PROC disabled)",
-      "SAFE",
-      "absence of evidence must not fail"
+      "VERIFY",
+      "kernel config not exposed. Originally SAFE on the reasoning that absence of evidence must not fail, when the only alternatives were SAFE or a finding. VERIFY is the state that reasoning actually wanted: not measured, so neither a pass nor a finding"
     ],
     [
       "PAN_UAO_COUNT=2",
@@ -274,12 +274,22 @@
   ],
   "Dalvik Cache Not World-Writable": [
     [
-      "",
+      "CLEAN",
       "SAFE",
-      "healthy device"
+      "directory modes checked and the file walk completed with no world-writable entry"
     ],
     [
-      "/data/dalvik-cache/arm64/system@framework@boot.art",
+      "UNMEASURED dirs_checked_clean enumeration_denied=82",
+      "VERIFY",
+      "real device: the dalvik-cache directory modes are readable and clean, but SELinux denies enumerating their contents. The old command dropped that stderr and an empty result passed via empty_is_safe"
+    ],
+    [
+      "WORLD_WRITABLE dirs=1 files=0",
+      "CRITICAL",
+      "a world-writable dalvik-cache directory"
+    ],
+    [
+      "WORLD_WRITABLE dirs=0 files=1",
       "CRITICAL",
       "writable ART artifact is code execution across a privilege boundary"
     ]
@@ -344,7 +354,7 @@
     [
       "crash_files=4 minidumps=none ramdump_paths=/sys/fs/pstore",
       "SAFE",
-      "real device SM-M025F: 4 ANR traces. An earlier version also counted /data/log, which on Samsung holds ordinary app logs, and reported 85"
+      "real device: 4 ANR traces. An earlier version also counted /data/log, which on Samsung holds ordinary app logs, and reported 85"
     ],
     [
       "crash_files=0 minidumps=none ramdump_paths=none",
@@ -492,7 +502,7 @@
     [
       "state=encrypted type=file dev=/dev/block/mmcblk0p78",
       "SAFE",
-      "real SM-M025F: FBE device. The earlier check required a dm- mount source, which only exists for FDE or metadata encryption, so every FBE device scored CRITICAL"
+      "real device: FBE device. The earlier check required a dm- mount source, which only exists for FDE or metadata encryption, so every FBE device scored CRITICAL"
     ],
     [
       "state=encrypted type=block dev=/dev/block/dm-0",
@@ -509,7 +519,7 @@
     [
       "PER_APP_MODEL sdk=31 legacy_flag=1",
       "SAFE",
-      "real SM-M025F: the legacy global flag is a stale 1 on API 31 where sideloading is per-app via REQUEST_INSTALL_PACKAGES"
+      "real device: the legacy global flag is a stale 1 on API 31 where sideloading is per-app via REQUEST_INSTALL_PACKAGES"
     ],
     [
       "0",
@@ -526,7 +536,7 @@
     [
       "SCAN_MODE_CONNECTABLE",
       "SAFE",
-      "real SM-M025F. The earlier grep matched the line 'Scan mode counter (Opp/LowPower/...)', a statistics counter, and never contained SCAN_MODE_*"
+      "real device. The earlier grep matched the line 'Scan mode counter (Opp/LowPower/...)', a statistics counter, and never contained SCAN_MODE_*"
     ],
     [
       "SCAN_MODE_NONE",
@@ -543,7 +553,7 @@
     [
       "u:r:hal_bluetooth_qti:s0",
       "SAFE",
-      "real SM-M025F. The earlier check ran ls -Z /system/bin/bluetooth*, a path gone since Bluetooth became an APK, so it reported PERMISSIVE on every modern device"
+      "real device. The earlier check ran ls -Z /system/bin/bluetooth*, a path gone since Bluetooth became an APK, so it reported PERMISSIVE on every modern device"
     ],
     [
       "BLUETOOTH_NOT_RUNNING",
@@ -560,7 +570,7 @@
     [
       "0",
       "SAFE",
-      "real SM-M025F. The earlier glob included /dev/radio*, matching the FM radio node, so any device with an FM tuner scored a finding"
+      "real device. The earlier glob included /dev/radio*, matching the FM radio node, so any device with an FM tuner scored a finding"
     ],
     [
       "2",
@@ -572,7 +582,7 @@
     [
       "",
       "SAFE",
-      "real SM-M025F. The earlier grep matched the CAR_SPEED permission declaration published by Google Play services on every phone, rather than a package holding it"
+      "real device. The earlier grep matched the CAR_SPEED permission declaration published by Google Play services on every phone, rather than a package holding it"
     ],
     [
       "Package [com.example.fleet]",
@@ -582,9 +592,9 @@
   ],
   "Stack Canary - surfaceflinger": [
     [
-      "BINARY_NOT_READABLE",
-      "SAFE",
-      "real SM-M025F: the adb shell user cannot read /system/bin/surfaceflinger. 'readelf | grep -c' turned the permission denial into the literal string 0, which failed the pattern on every device"
+      "UNMEASURED",
+      "VERIFY",
+      "the shell cannot read /system/bin/surfaceflinger. 'readelf | grep -c' used to turn the permission denial into the literal string 0 and score CRITICAL on every device. The first fix accepted BINARY_NOT_READABLE as SAFE, which was also wrong: an unreadable binary is not a binary with a stack canary. It now declares UNMEASURED and routes to manual verification"
     ],
     [
       "2",

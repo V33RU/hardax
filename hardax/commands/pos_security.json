@@ -30,7 +30,7 @@
     {
       "category": "POS_SECURITY",
       "label": "Kiosk Mode (Lock Task)",
-      "command": "result=$(dumpsys activity 2>/dev/null | grep -iE 'mLockTaskModeState|mLockTaskMode[^S]' | grep -oE '[0-9]+' | head -1); echo \"${result:-0}\"",
+      "command": "D=$(dumpsys activity 2>/dev/null); if [ -z \"$D\" ]; then echo UNMEASURED; else R=$(printf '%s\\n' \"$D\" | grep -iE 'mLockTaskModeState|mLockTaskMode[^S]' | grep -oE '[0-9]+' | head -1); echo \"${R:-0}\"; fi",
       "safe_pattern": "^[1-2]$",
       "level": "warning",
       "description": "POS should run in kiosk/lock task mode (1=locked, 2=pinned). Supports both old (mLockTaskModeState) and new (mLockTaskMode) Android property names. Returns 0 if not in kiosk mode.",
@@ -86,7 +86,7 @@
     {
       "category": "POS_SECURITY",
       "label": "Remote Desktop Ports",
-      "command": "netstat -tlnp 2>/dev/null | grep -E ':3389|:5900|:5901|:5800|:22|:5555|:4444' | grep 'LISTEN'",
+      "command": "netstat -tlnp 2>/dev/null | grep -E ':(3389|5900|5901|5800|22|5555|4444)[^0-9]' | grep 'LISTEN'",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "PCI-DSS 2.2.7: RDP(:3389)/VNC(:5900-5901,:5800)/SSH(:22)/ADB-net(:5555) must be closed. :4444 included as Metasploit/reverse-shell indicator - verify manually if flagged.",
@@ -96,7 +96,7 @@
     {
       "category": "POS_SECURITY",
       "label": "Suspicious Processes - Memory Tools",
-      "command": "ps -A -o cmd 2>/dev/null | grep -iE '\\bmemdump\\b|\\bmemscrap\\b|\\btcpdump\\b|\\bstrace\\b|\\bltrace\\b' | grep -ivE 'dumpstate|dumpsys|dumpcrash|tombstoned|incidentd' | grep -v grep",
+      "command": "(ps -A -o cmd 2>/dev/null || /system/bin/ps -A -o cmd) | grep -iE '(^|[^[:alnum:]_])memdump([^[:alnum:]_]|$)|(^|[^[:alnum:]_])memscrap([^[:alnum:]_]|$)|(^|[^[:alnum:]_])tcpdump([^[:alnum:]_]|$)|(^|[^[:alnum:]_])strace([^[:alnum:]_]|$)|(^|[^[:alnum:]_])ltrace([^[:alnum:]_]|$)' | grep -ivE 'dumpstate|dumpsys|dumpcrash|tombstoned|incidentd' | grep -v grep",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Memory dumping tools detected - potential RAM scraping malware indicator",
@@ -106,7 +106,7 @@
     {
       "category": "POS_SECURITY",
       "label": "Suspicious Processes - Known POS Malware",
-      "command": "ps -A -o cmd 2>/dev/null | grep -iE 'rdasrv|blackpos|alina|vskimmer|dexter|treasurehunt|fastpos|rawpos|posei|backoff|jackpos|punkey|multigrain|centerpos|malumpos' | grep -v grep",
+      "command": "(ps -A -o cmd 2>/dev/null || /system/bin/ps -A -o cmd) | grep -iE 'rdasrv|blackpos|alina|vskimmer|dexter|treasurehunt|fastpos|rawpos|posei|backoff|jackpos|punkey|multigrain|centerpos|malumpos' | grep -v grep",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Known POS malware process names detected",
@@ -144,7 +144,7 @@
     {
       "category": "POS_SECURITY",
       "label": "Log Files with Card Patterns",
-      "command": "find /data/local /sdcard \\( -name '*.log' -o -name '*.txt' \\) 2>/dev/null | xargs grep -lE '(^|[^0-9])(4[0-9]{12,15}|5[1-5][0-9]{14}|3[47][0-9]{13}|6(011|5[0-9]{2})[0-9]{12})([^0-9]|$)' 2>/dev/null | head -3",
+      "command": "find /data/local /sdcard \\( -name '*.log' -o -name '*.txt' \\) | xargs grep -lE '(^|[^0-9])(4[0-9]{12,15}|5[1-5][0-9]{14}|3[47][0-9]{13}|6(011|5[0-9]{2})[0-9]{12})([^0-9]|$)' 2>/dev/null | head -3",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "PCI-DSS 3.4: Files potentially containing standalone PANs (Visa/MC/Amex/Discover). Uses digit-boundary matching to reduce false positives from serial numbers and IDs.",
@@ -173,7 +173,7 @@
     {
       "category": "POS_SECURITY",
       "label": "PAN Data in SQLite Databases",
-      "command": "find /data/data -maxdepth 4 -name '*.db' 2>/dev/null | head -60 | while IFS= read -r db; do out=$(strings -n 13 \"$db\" 2>/dev/null | grep -E '(^|[^0-9])(4[0-9]{12,15}|5[1-5][0-9]{14}|3[47][0-9]{13}|6(011|5[0-9]{2})[0-9]{12})([^0-9]|$)' | head -1); [ -n \"$out\" ] && echo \"Found in: $db\"; done | head -5",
+      "command": "find /data/data -maxdepth 4 -name '*.db' | head -60 | while IFS= read -r db; do out=$(strings -n 13 \"$db\" 2>/dev/null | grep -E '(^|[^0-9])(4[0-9]{12,15}|5[1-5][0-9]{14}|3[47][0-9]{13}|6(011|5[0-9]{2})[0-9]{12})([^0-9]|$)' | head -1); [ -n \"$out\" ] && echo \"Found in: $db\"; done | head -5",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Searches app SQLite databases for stored primary account numbers using the card-number patterns for Visa, Mastercard, Amex and Discover. Reads the database file as bytes with strings rather than opening it with the sqlite3 client. The earlier version ran 'sqlite3 \"$db\" .dump', which opens the database read-write: on a database with a hot journal that triggers recovery, and in WAL mode it can create -wal and -shm files and checkpoint on close. That writes to a live application's data during what is meant to be a read-only audit, and it can contend on locks with the running app. Reading the raw bytes finds the same stored PANs and cannot modify anything. Bounded to 60 databases.",
@@ -183,7 +183,7 @@
     {
       "category": "POS_SECURITY",
       "label": "Screen Recording Process Active",
-      "command": "ps -A -o cmd 2>/dev/null | grep -iE 'screenrecord|scrcpy|minicap|wfirefly|recordScreen' | grep -v grep",
+      "command": "(ps -A -o cmd 2>/dev/null || /system/bin/ps -A -o cmd) | grep -iE 'screenrecord|scrcpy|minicap|wfirefly|recordScreen' | grep -v grep",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Screen recording tool detected - may capture card data or PIN entry on POS terminal",
@@ -193,7 +193,7 @@
     {
       "category": "POS_SECURITY",
       "label": "NFC Relay Attack Tools",
-      "command": "ps -A -o cmd 2>/dev/null | grep -iE 'nfcrelay|nfcgate|nfcproxy|nfc.relay|supercard|phantomcard' | grep -v grep",
+      "command": "(ps -A -o cmd 2>/dev/null || /system/bin/ps -A -o cmd) | grep -iE 'nfcrelay|nfcgate|nfcproxy|nfc.relay|supercard|phantomcard' | grep -v grep",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "NFC relay attack tool detected - intercepts and relays contactless payment data in real-time",
@@ -203,7 +203,7 @@
     {
       "category": "POS_SECURITY",
       "label": "PAX Terminal Services",
-      "command": "ps -A -o cmd 2>/dev/null | grep -iE 'pax|paydroid|neptune|sagittarius' | grep -v grep",
+      "command": "(ps -A -o cmd 2>/dev/null || /system/bin/ps -A -o cmd) | grep -iE 'pax|paydroid|neptune|sagittarius' | grep -v grep",
       "safe_pattern": ".",
       "level": "info",
       "description": "PAX terminal-specific processes detected - verify all services are legitimate PAX firmware",

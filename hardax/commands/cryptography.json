@@ -24,7 +24,7 @@
       "command": "T=$(getprop ro.crypto.type 2>/dev/null); S=$(getprop ro.crypto.state 2>/dev/null); M=$(mount 2>/dev/null | grep ' /data ' | grep -oE '^[^ ]+'); echo \"state=${S:-unset} type=${T:-unset} dev=${M:-unknown}\"",
       "safe_pattern": "state=encrypted",
       "level": "critical",
-      "description": "Confirms /data is encrypted, reading ro.crypto.state and ro.crypto.type rather than looking for a dm- device in the mount table. The earlier version required the /data mount source to match 'dm-', which is only true for full-disk or metadata encryption. File-based encryption, the default since Android 10, encrypts per file and mounts the raw partition directly, so on a correctly encrypted FBE device the mount source is something like /dev/block/mmcblk0p78 and the check reported a critical finding on a device whose ro.crypto.state was encrypted. Verified on a Samsung SM-M025F with type=file and state=encrypted.",
+      "description": "Confirms /data is encrypted, reading ro.crypto.state and ro.crypto.type rather than looking for a dm- device in the mount table. The earlier version required the /data mount source to match 'dm-', which is only true for full-disk or metadata encryption. File-based encryption, the default since Android 10, encrypts per file and mounts the raw partition directly, so on a correctly encrypted FBE device the mount source is something like /dev/block/mmcblk0p78 and the check reported a critical finding on a device whose ro.crypto.state was encrypted. Verified on a reference Android device with type=file and state=encrypted.",
       "remediation": "Enable device encryption so /data is mounted via dm-crypt. Back up data first, then encrypt from Settings or recovery.",
       "empty_is_safe": false
     },
@@ -85,7 +85,7 @@
     {
       "category": "CRYPTOGRAPHY",
       "label": "Hardcoded Passwords in Config",
-      "command": "find /system /vendor /data -type f \\( -name '*.conf' -o -name '*.cfg' -o -name '*.ini' -o -name '*.properties' \\) -exec grep -l -i 'password\\|passwd\\|pwd=' {} \\; 2>/dev/null | head -10",
+      "command": "find /system /vendor /data -type f \\( -name '*.conf' -o -name '*.cfg' -o -name '*.ini' -o -name '*.properties' \\) -print0 | xargs -0 grep -l -i -E '^[^#]*(password|passwd|pwd)[A-Za-z_]*\"?[[:space:]]*[:=][[:space:]]*\"?[^[:space:]\"#]{6,}' 2>/dev/null | head -10",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Config files containing password-related keywords (keyword detection - verify manually whether actual credentials are present)",
@@ -95,7 +95,7 @@
     {
       "category": "CRYPTOGRAPHY",
       "label": "API Keys in Files",
-      "command": "find /system /vendor /data -type f \\( -name '*.json' -o -name '*.xml' -o -name '*.conf' \\) -exec grep -l -iE 'api_key|apikey|api-key|secret_key|secretkey|access_token' {} \\; 2>/dev/null | head -10",
+      "command": "find /system /vendor /data -type f \\( -name '*.json' -o -name '*.xml' -o -name '*.conf' \\) -print0 | xargs -0 grep -l -iE '(api[_-]?key|secret[_-]?key|access[_-]?token|aws_secret)\"?[[:space:]]*[:=][[:space:]]*\"?[A-Za-z0-9/_+=-]{16,}' 2>/dev/null | head -10",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Files containing API key-related keywords (keyword detection - verify manually whether actual secrets are present)",
@@ -105,7 +105,7 @@
     {
       "category": "CRYPTOGRAPHY",
       "label": "Private Keys Exposed",
-      "command": "find /system /vendor /data /sdcard -type f \\( -name '*.pem' -o -name '*.key' \\) 2>/dev/null | head -40 | while read f; do grep -lqE 'BEGIN (RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY' \"$f\" 2>/dev/null && echo \"$f\"; done | head -10; find /system /vendor /data /sdcard -type f \\( -name '*.p12' -o -name '*.pfx' \\) 2>/dev/null | head -10",
+      "command": "find /system /vendor /data /sdcard -type f \\( -name '*.pem' -o -name '*.key' \\) | head -40 | while read f; do grep -lqE 'BEGIN (RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY' \"$f\" 2>/dev/null && echo \"$f\"; done | head -10; find /system /vendor /data /sdcard -type f \\( -name '*.p12' -o -name '*.pfx' \\) 2>/dev/null | head -10",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Files containing actual private-key material (PEM private-key headers, or .p12/.pfx keystores). Public .pem certificates shipped in the system image are NOT flagged - the check greps file contents for a PRIVATE KEY header rather than matching on the .pem name, which previously false-flagged public CA certs.",
@@ -115,7 +115,7 @@
     {
       "category": "CRYPTOGRAPHY",
       "label": "SSH Keys on Device",
-      "command": "find /data /sdcard -name 'id_rsa*' -o -name 'id_ed25519*' -o -name 'authorized_keys' 2>/dev/null",
+      "command": "find /data /sdcard -name 'id_rsa*' -o -name 'id_ed25519*' -o -name 'authorized_keys'",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "SSH keys found - review if needed",
@@ -124,7 +124,7 @@
     },
     {
       "category": "CRYPTOGRAPHY",
-      "command": "find /system /vendor -type f \\( -name 'shadow' -o -name 'credentials*' \\) 2>/dev/null; find /system /vendor -type f -name 'passwd' 2>/dev/null | while read f; do grep -Eq ':\\$[0-9a-z]+\\$' \"$f\" 2>/dev/null && echo \"$f\"; done",
+      "command": "find /system /vendor -type f \\( -name 'shadow' -o -name 'credentials*' \\); find /system /vendor -type f -name 'passwd' | while read f; do grep -Eq ':\\$[0-9a-z]+\\$' \"$f\" 2>/dev/null && echo \"$f\"; done",
       "label": "Default Credential Files",
       "safe_pattern": "^$",
       "level": "critical",
@@ -135,7 +135,7 @@
     {
       "category": "CRYPTOGRAPHY",
       "label": "Hardcoded URLs with Credentials",
-      "command": "find /system /vendor /data -type f \\( -name '*.conf' -o -name '*.json' -o -name '*.xml' \\) -exec grep -lE 'https?://[A-Za-z0-9._~%-]+:[A-Za-z0-9._~%-]+@[A-Za-z0-9.-]' {} \\; 2>/dev/null | head -5",
+      "command": "find /system /vendor /data -type f \\( -name '*.conf' -o -name '*.json' -o -name '*.xml' \\) -print0 | xargs -0 grep -lE 'https?://[A-Za-z0-9._~%-]+:[A-Za-z0-9._~%-]+@[A-Za-z0-9.-]' 2>/dev/null | head -5",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "URLs with embedded user:password@host credentials. The userinfo and host are restricted to URL-safe characters (no spaces, quotes or angle brackets) so the regex no longer spans across XML/doc text - the previous loose pattern false-matched 'https://developer.android.com/... @UserHandleAware' in framework config files.",
@@ -145,7 +145,7 @@
     {
       "category": "CRYPTOGRAPHY",
       "label": "Credential Strings in Local Databases",
-      "command": "find /data /sdcard -type f \\( -name '*.db' -o -name '*.sqlite' -o -name '*.sqlite3' \\) 2>/dev/null | head -40 | while IFS= read -r f; do grep -laiE 'password|passwd|api[_-]?key|client[_-]?secret|bearer |refresh[_-]?token' \"$f\" 2>/dev/null; done | head -10",
+      "command": "find /data /sdcard -type f \\( -name '*.db' -o -name '*.sqlite' -o -name '*.sqlite3' \\) | head -40 | while IFS= read -r f; do grep -laiE 'password|passwd|api[_-]?key|client[_-]?secret|bearer |refresh[_-]?token' \"$f\" 2>/dev/null; done | head -10",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Searches the first 40 SQLite databases found under /data and /sdcard for credential-looking strings (password, api_key, client_secret, bearer, refresh_token) and lists the files that contain them. SQLite stores text unencrypted in the page data, so a credential written into a table is readable straight out of the file by anyone who can read it. The earlier version of this check carried the same label but only listed .db filenames and never inspected their contents, which duplicated the database inventory in privacy.json. Capped at 40 files scanned and 10 reported so the scan stays bounded on a device with a large /data.",
@@ -164,7 +164,7 @@
     {
       "category": "CRYPTOGRAPHY",
       "label": "Kernel Entropy Pool Size",
-      "command": "cat /proc/sys/kernel/random/entropy_avail 2>/dev/null",
+      "command": "cat /proc/sys/kernel/random/entropy_avail",
       "safe_pattern": "^(2[5-9][0-9]|[3-9][0-9]{2,}|[1-9][0-9]{3,})$",
       "level": "warning",
       "empty_is_safe": false,

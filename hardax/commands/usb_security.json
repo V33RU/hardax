@@ -67,7 +67,7 @@
     {
       "category": "USB_SECURITY",
       "label": "GPIO Sysfs Exposed",
-      "command": "ls /sys/class/gpio/ 2>/dev/null | grep -v 'export\\|unexport'",
+      "command": "ls /sys/class/gpio/ 2>/dev/null | grep -v -E 'export|unexport'",
       "safe_pattern": "^$",
       "level": "info",
       "description": "GPIO pins exported to userspace - apps can control hardware pins",
@@ -116,7 +116,7 @@
     {
       "category": "USB_SECURITY",
       "label": "Video Capture Devices",
-      "command": "ls /dev/video* 2>/dev/null",
+      "command": "P=$(ls -d /dev/video* 2>/dev/null); if [ -n \"$P\" ]; then printf '%s\\n' \"$P\"; elif ls -d /dev/video* 2>&1 | grep -qi 'permission denied'; then echo UNMEASURED; else echo \"ABSENT no video capture device\"; fi",
       "safe_pattern": ".",
       "level": "info",
       "description": "Camera/video devices available",
@@ -125,7 +125,7 @@
     {
       "category": "USB_SECURITY",
       "label": "Audio Capture Devices",
-      "command": "ls /dev/snd/pcm*c* 2>/dev/null",
+      "command": "P=$(ls -d /dev/snd/pcm*c* 2>/dev/null); if [ -n \"$P\" ]; then printf '%s\\n' \"$P\"; elif ls -d /dev/snd/pcm*c* 2>&1 | grep -qi 'permission denied'; then echo UNMEASURED; else echo \"ABSENT no audio capture device\"; fi",
       "safe_pattern": ".",
       "level": "info",
       "description": "Audio capture devices (microphones) available",

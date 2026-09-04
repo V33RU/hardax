@@ -8,7 +8,7 @@
   <a href="https://pypi.org/project/hardax/">
     <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg" alt="Python 3.10 | 3.11 | 3.12">
   </a>
-  <img src="https://img.shields.io/badge/checks-816-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-826-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-29-purple.svg" alt="Categories">
   <a href="https://github.com/V33RU/hardax/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
@@ -504,6 +504,12 @@ HARDAX/
 - [x] 16 kernel, filesystem and network hardening sysctls: unprivileged eBPF, SUID core dumps, protected FIFOs and regular files, magic SysRq, panic-on-oops, SGID binaries, world-writable executables, ICMP redirects (v4 and v6), source routing, SYN cookies, broadcast echo, reverse path filtering and IPv6 router advertisement acceptance (v6.0.1)
 - [x] 29 duplicate and dead checks removed, 7 false positives fixed. Three scored CRITICAL on every device: `$((` parsed as arithmetic expansion so the ADB loopback script never ran, three kernel checks turned a `zcat` error into a finding, and the patch-currency check failed a current patch wherever `date -d` was unavailable. Plus `grep '/system'` matching `/system_ext`, and `CONFIG_SECCOMP=Y` which could never match a lowercase kernel config (v6.0.1)
 - [x] `tests/test_command_hygiene.py`: 10 invariants pinning defect classes that shipped, including `sh -n` on every command, stderr redirected on optional path reads, failable checks must be capable of failing, no shared commands, no confusable labels, and config.gz checks must declare `NOT_OBSERVABLE` (v6.0.1)
+- [x] Engine reworked so a verdict carries its evidence. `ShellResult` keeps stdout, stderr and the exit status apart on all four transports; `safe_pattern` is matched against stdout only; a failed probe is routed to VERIFY and can no longer reach `empty_is_safe`; every result carries `evidence{stdout, stderr, exit_code, basis}`. On a real device SAFE verdicts fell from 524 to 351, and the 59 that had been produced by an error message fell to 0 (v6.2.0)
+- [x] Transport capability gate. A shell in a vendor SELinux domain can be root and still reach no binder service, which made every `dumpsys`/`pm`/`settings` check fail identically. Those are now reported NOT APPLICABLE with the reason, and checks carrying a non-binder fallback declare `binder_optional` so they still run (v6.2.0)
+- [x] Device-confirmed defect classes fixed: GNU regex extensions that bionic treats as literals (`\|` 31 checks, `\b` 14, `\s` 2), `ps -A` unsupported by BusyBox which silently disabled 12 critical malware detections, `find` over a tree it cannot fully read passing as clean, `grep -c` doubling its own count, `-exec grep` timing out the transport, counting checks treating empty as safe, unanchored port patterns, and a `#` comment inside a one-line `sh -c` script that never parsed (v6.2.0)
+- [x] Root and privilege inventory: init services configured to run as root with their binaries, Linux capabilities granted to init services, kernel taint state, unprivileged userfaultfd, kexec loading, ASLR entropy bits (v6.2.0)
+- [x] Hardware identity: SoC vendor and model, storage chip part number and firmware revision, UFS/eMMC wear and end-of-life state, dynamic partition inventory (v6.2.0)
+- [x] Report header carries the platform profile: kernel, ABI, build type, security patch, SELinux mode, verified boot state, bootloader lock, dm-verity mode, RAM and storage. The text, XLSX and HTML writers now share one field list, so a collected field cannot go unrendered (v6.2.0)
 - [x] Package install chain and remaining surfaces: exported components without permission, secret-code dialer receivers (OEM service menus), split APK and staged install sessions, APK signature scheme distribution, package rollback, biometric template storage, Gatekeeper lockout state, APEX active versions, filesystem repair tool permissions, eBPF network policy maps, Wi-Fi chipset firmware, USB-C port roles, secure boot fuse state, cgroup hierarchy, crash artifact accumulation, OTA signing certificates (AOSP test key detection), radio DIAG/AT interface exposure, property context labelling, boot mode and fastbootd, UWB, sensor privacy toggles, bugreport artifacts and metadata encryption (v6.1.0)
 
 ### Open
@@ -511,8 +517,7 @@ HARDAX/
 Grouped by theme. Order within a group is rough priority.
 
 #### Verification (highest priority)
-- [ ] **Run against a physical Android device.** 55 checks added across v5.22.0 to v6.1.0 have never executed on real hardware. Their absent-branch behaviour is proven and their present-branch behaviour is not
-- [ ] Resolve 11 unverified toybox portability constructs (`xargs -0`, `timeout`, `comm`) which modern toybox probably supports but nothing has confirmed
+- [ ] **Run against a device with framework access.** 67 checks have never executed anywhere and 316 are gated on a transport without binder. A shell confined to a vendor SELinux domain reaches no binder service, so `dumpsys`, `pm`, `cmd` and `settings` cannot answer and those checks are reported NOT APPLICABLE rather than scored
 - [ ] Extend `tests/fixtures/device_outputs.json` with output captured from real devices across several OEMs, not only from reasoning about the shell
 
 #### Check metadata completeness

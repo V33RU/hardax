@@ -123,7 +123,7 @@
     {
       "category": "NETWORK",
       "label": "AWS SDK/Config",
-      "command": "find /data/data /data/app /data/misc /data/local /system/etc /system/app /vendor/etc -maxdepth 5 -type f \\( -name '*.json' -o -name '*.conf' -o -name '*.properties' -o -name '*.xml' -o -name '*.yaml' -o -name '*.yml' -o -name '*.env' -o -name '*.cfg' \\) -print0 2>/dev/null | xargs -0 grep -l -i 'aws_access_key\\|aws_secret\\|amazonaws.com' 2>/dev/null | head -5",
+      "command": "find /data/data /data/app /data/misc /data/local /system/etc /system/app /vendor/etc -maxdepth 5 -type f \\( -name '*.json' -o -name '*.conf' -o -name '*.properties' -o -name '*.xml' -o -name '*.yaml' -o -name '*.yml' -o -name '*.env' -o -name '*.cfg' \\) -print0 | xargs -0 grep -l -i -E 'aws_access_key|aws_secret|amazonaws.com' 2>/dev/null | head -5",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "AWS credentials or config found",
@@ -133,7 +133,7 @@
     {
       "category": "NETWORK",
       "label": "Azure IoT Config",
-      "command": "find /data/data /data/app /data/misc /data/local /system/etc /system/app /vendor/etc -maxdepth 5 -type f \\( -name '*.json' -o -name '*.conf' -o -name '*.xml' -o -name '*.properties' -o -name '*.yaml' -o -name '*.yml' -o -name '*.env' -o -name '*.cfg' \\) -print0 2>/dev/null | xargs -0 grep -l -i 'azure-devices.net\\|iothub\\|SharedAccessKey' 2>/dev/null | head -5",
+      "command": "find /data/data /data/app /data/misc /data/local /system/etc /system/app /vendor/etc -maxdepth 5 -type f \\( -name '*.json' -o -name '*.conf' -o -name '*.xml' -o -name '*.properties' -o -name '*.yaml' -o -name '*.yml' -o -name '*.env' -o -name '*.cfg' \\) -print0 | xargs -0 grep -l -i -E 'azure-devices.net|iothub|SharedAccessKey' 2>/dev/null | head -5",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Azure IoT Hub configuration found",
@@ -170,7 +170,7 @@
     {
       "category": "NETWORK",
       "label": "Remote Management Ports",
-      "command": "netstat -tlnp 2>/dev/null | grep -E ':8080|:8443|:9090|:3000|:4000' || ss -tlnp 2>/dev/null | grep -E ':8080|:8443|:9090|:3000|:4000'",
+      "command": "netstat -tlnp 2>/dev/null | grep -E ':(8080|8443|9090|3000|4000)[^0-9]' || ss -tlnp 2>/dev/null | grep -E ':(8080|8443|9090|3000|4000)[^0-9]'",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Management/API ports exposed",
@@ -200,7 +200,7 @@
     {
       "category": "NETWORK",
       "label": "HTTP Server Running",
-      "command": "netstat -tlnp 2>/dev/null | grep -E ':80\\b|:8080\\b|:443\\b|:8443\\b' || ss -tlnp 2>/dev/null | grep -E ':80\\b|:8080\\b|:443\\b|:8443\\b'",
+      "command": "netstat -tlnp 2>/dev/null | grep -E ':80([^0-9]|$)|:8080([^0-9]|$)|:443([^0-9]|$)|:8443([^0-9]|$)' || ss -tlnp 2>/dev/null | grep -E ':80([^0-9]|$)|:8080([^0-9]|$)|:443([^0-9]|$)|:8443([^0-9]|$)'",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Web server exposed - potential attack surface",
@@ -210,7 +210,7 @@
     {
       "category": "NETWORK",
       "label": "Telnet Service (Insecure)",
-      "command": "netstat -tlnp 2>/dev/null | grep ':23\\b' || ss -tlnp 2>/dev/null | grep ':23\\b'",
+      "command": "netstat -tlnp 2>/dev/null | grep ':23([^0-9]|$)' || ss -tlnp 2>/dev/null | grep ':23([^0-9]|$)'",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Telnet transmits credentials in plaintext - CRITICAL RISK",
@@ -220,7 +220,7 @@
     {
       "category": "NETWORK",
       "label": "FTP Service (Insecure)",
-      "command": "netstat -tlnp 2>/dev/null | grep ':21\\b' || ss -tlnp 2>/dev/null | grep ':21\\b'",
+      "command": "netstat -tlnp 2>/dev/null | grep ':21([^0-9]|$)' || ss -tlnp 2>/dev/null | grep ':21([^0-9]|$)'",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "FTP transmits credentials in plaintext - CRITICAL RISK",
@@ -230,7 +230,7 @@
     {
       "category": "NETWORK",
       "label": "SSH Service",
-      "command": "netstat -tlnp 2>/dev/null | grep ':22\\b' || ss -tlnp 2>/dev/null | grep ':22\\b'",
+      "command": "netstat -tlnp 2>/dev/null | grep ':22([^0-9]|$)' || ss -tlnp 2>/dev/null | grep ':22([^0-9]|$)'",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "SSH exposed - ensure strong authentication",
@@ -240,7 +240,7 @@
     {
       "category": "NETWORK",
       "label": "ADB Network Port (5555)",
-      "command": "netstat -tlnp 2>/dev/null | grep ':5555\\b' || ss -tlnp 2>/dev/null | grep ':5555\\b'",
+      "command": "netstat -tlnp 2>/dev/null | grep ':5555([^0-9]|$)' || ss -tlnp 2>/dev/null | grep ':5555([^0-9]|$)'",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "ADB over network - allows remote shell access!",
@@ -250,7 +250,7 @@
     {
       "category": "NETWORK",
       "label": "MQTT Broker (1883/8883)",
-      "command": "netstat -tlnp 2>/dev/null | grep -E ':1883\\b|:8883\\b' || ss -tlnp 2>/dev/null | grep -E ':1883\\b|:8883\\b'",
+      "command": "netstat -tlnp 2>/dev/null | grep -E ':1883([^0-9]|$)|:8883([^0-9]|$)' || ss -tlnp 2>/dev/null | grep -E ':1883([^0-9]|$)|:8883([^0-9]|$)'",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "MQTT broker exposed - check authentication",
@@ -260,7 +260,7 @@
     {
       "category": "NETWORK",
       "label": "CoAP Service (5683/5684)",
-      "command": "netstat -ulnp 2>/dev/null | grep -E ':5683\\b|:5684\\b' || ss -ulnp 2>/dev/null | grep -E ':5683\\b|:5684\\b'",
+      "command": "netstat -ulnp 2>/dev/null | grep -E ':5683([^0-9]|$)|:5684([^0-9]|$)' || ss -ulnp 2>/dev/null | grep -E ':5683([^0-9]|$)|:5684([^0-9]|$)'",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "CoAP service exposed - IoT protocol",
@@ -270,7 +270,7 @@
     {
       "category": "NETWORK",
       "label": "UPnP Service (1900)",
-      "command": "netstat -ulnp 2>/dev/null | grep ':1900\\b' || ss -ulnp 2>/dev/null | grep ':1900\\b'",
+      "command": "netstat -ulnp 2>/dev/null | grep ':1900([^0-9]|$)' || ss -ulnp 2>/dev/null | grep ':1900([^0-9]|$)'",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "UPnP can expose device to network attacks",
@@ -280,7 +280,7 @@
     {
       "category": "NETWORK",
       "label": "Network Interfaces",
-      "command": "ip addr show 2>/dev/null | grep -E 'inet |inet6 ' | grep -v '127.0.0.1\\|::1'",
+      "command": "ip addr show 2>/dev/null | grep -E 'inet |inet6 ' | grep -v -E '127.0.0.1|::1'",
       "safe_pattern": ".",
       "level": "info",
       "description": "Active network interfaces and IPs",
@@ -398,7 +398,7 @@
     {
       "category": "NETWORK",
       "label": "Expanded Critical TCP Ports (excluding SSH) Listening or External (IPv6)",
-      "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -E ':(21|23|25|445|3306|5432|5555|5900|5901|3389|4444|41795)[^0-9]' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -E ':(21|23|5555)[^0-9]' | grep -v '::1'",
+      "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -E ':(21|23|25|445|3306|5432|5555|5900|5901|3389|4444|41795)[^0-9]' | grep -v '::1' || ss -lntp 2>/dev/null | grep -E 'tcp6|\\[::\\]' | grep -E ':(21|23|5555)[^0-9]' | grep -v '::1'",
       "safe_pattern": "^\\s*$",
       "level": "critical",
       "description": "CRITICAL: Dangerous ports on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Full device control via IPv6!",
@@ -407,7 +407,7 @@
     {
       "category": "NETWORK",
       "label": "Open UDP Ports (IPv6, excluding localhost)",
-      "command": "netstat -lnup 2>/dev/null | grep '^udp6' | grep -v '::1' || ss -lnup 2>/dev/null | grep 'udp6\\|\\[::\\]' | grep -v '::1'",
+      "command": "netstat -lnup 2>/dev/null | grep '^udp6' | grep -v '::1' || ss -lnup 2>/dev/null | grep -E 'udp6|\\[::\\]' | grep -v '::1'",
       "safe_pattern": "^\\s*$",
       "level": "info",
       "description": "INFO: External IPv6 UDP ports. 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Bypasses IPv4 firewall rules.",
@@ -534,7 +534,7 @@
     {
       "category": "NETWORK",
       "label": "Listening TCP Ports (IPv6, excluding ::1)",
-      "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -v '::1'",
+      "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -v '::1' || ss -lntp 2>/dev/null | grep -E 'tcp6|\\[::\\]' | grep -v '::1'",
       "safe_pattern": "^\\s*$",
       "level": "info",
       "description": "INFO: IPv6 TCP listening ports. 🟢 SAFE=empty or ::1 only. 🔴 UNSAFE if ::: (all interfaces). IPv6 often overlooked!",
@@ -543,7 +543,7 @@
     {
       "category": "NETWORK",
       "label": "Common TCP Ports Exposed (IPv6, Warning)",
-      "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -E ':(53|80|25|110|143|465|587|993|995|8080|8443|22)[^0-9]' | grep -v '::1' || ss -lntp 2>/dev/null | grep 'tcp6\\|\\[::\\]' | grep -E ':(53|80|22)[^0-9]' | grep -v '::1'",
+      "command": "netstat -lntp 2>/dev/null | grep '^tcp6' | grep -E ':(53|80|25|110|143|465|587|993|995|8080|8443|22)[^0-9]' | grep -v '::1' || ss -lntp 2>/dev/null | grep -E 'tcp6|\\[::\\]' | grep -E ':(53|80|22)[^0-9]' | grep -v '::1'",
       "safe_pattern": "^\\s*$",
       "level": "warning",
       "description": "WARNING: Common TCP on IPv6! 🟢 SAFE=empty. 🔴 UNSAFE=any output. Risk: Often missed in firewall rules!",

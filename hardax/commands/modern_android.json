@@ -37,7 +37,7 @@
       "id": "MOD-A14-FGS-TYPE-001",
       "category": "MODERN_ANDROID",
       "label": "Foreground Service Type Declared (Android 14+)",
-      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 34 ] 2>/dev/null; then echo \"PRE_A14_SDK_$SDK\"; else dumpsys activity services 2>/dev/null | grep -E 'ServiceRecord|foregroundServiceType' | grep -B1 'foregroundServiceType=0\\b' | grep ServiceRecord | head -10; fi",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ] || [ \"$SDK\" -lt 34 ] 2>/dev/null; then echo \"PRE_A14_SDK_$SDK\"; else dumpsys activity services 2>/dev/null | grep -E 'ServiceRecord|foregroundServiceType' | grep -B1 'foregroundServiceType=0' | grep ServiceRecord | head -10; fi",
       "safe_pattern": "^(PRE_A14_SDK_|$)",
       "level": "warning",
       "description": "Android 14 (API 34) requires every foreground service to declare a foregroundServiceType (camera, microphone, location, dataSync, mediaPlayback, etc). A running FGS with type 0 on an A14+ build indicates either a legacy app targeting an old SDK that has been allowed to skip the requirement, or a service that worked around the new declaration rule. Either case is worth investigating because untyped FGS bypass the per-type runtime-permission gating Android 14 enforces.",

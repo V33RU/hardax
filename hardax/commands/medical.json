@@ -21,7 +21,7 @@
     {
       "category": "MEDICAL",
       "label": "HL7/FHIR Ports (2575, 8080)",
-      "command": "netstat -tlnp 2>/dev/null | grep -E ':2575|:8080|:8443' || ss -tlnp 2>/dev/null | grep -E ':2575|:8080|:8443'",
+      "command": "netstat -tlnp 2>/dev/null | grep -E ':(2575|8080|8443)[^0-9]' || ss -tlnp 2>/dev/null | grep -E ':(2575|8080|8443)[^0-9]'",
       "safe_pattern": ".",
       "level": "info",
       "description": "HL7/FHIR API ports - verify TLS and authentication",
@@ -30,7 +30,7 @@
     {
       "category": "MEDICAL",
       "label": "DICOM Ports (104, 11112)",
-      "command": "netstat -tlnp 2>/dev/null | grep -E ':104\\b|:11112' || ss -tlnp 2>/dev/null | grep -E ':104\\b|:11112'",
+      "command": "netstat -tlnp 2>/dev/null | grep -E ':104([^0-9]|$)|:11112' || ss -tlnp 2>/dev/null | grep -E ':104([^0-9]|$)|:11112'",
       "safe_pattern": ".",
       "level": "info",
       "description": "DICOM imaging ports - verify security configuration",
@@ -39,7 +39,7 @@
     {
       "category": "MEDICAL",
       "label": "Unencrypted PHI Indicators",
-      "command": "find /sdcard /data -type f \\( -name '*.csv' -o -name '*.txt' -o -name '*.xml' \\) -exec grep -l -iE 'patient|ssn|dob|mrn|diagnosis|medication' {} \\; 2>/dev/null | head -5",
+      "command": "find /sdcard /data -type f \\( -name '*.csv' -o -name '*.txt' -o -name '*.xml' \\) -print0 | xargs -0 grep -l -iE 'patient|ssn|dob|mrn|diagnosis|medication' 2>/dev/null | head -5",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Potential unencrypted PHI found - HIPAA violation risk!",
@@ -49,7 +49,7 @@
     {
       "category": "MEDICAL",
       "label": "Log Files with PHI Risk",
-      "command": "find /data -name '*.log' -exec grep -l -iE 'patient|name|ssn|dob|mrn' {} \\; 2>/dev/null | head -5",
+      "command": "find /data -name '*.log' -print0 | xargs -0 grep -l -iE 'patient|ssn|dob|mrn|diagnosis|medication' 2>/dev/null | head -5",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Log files may contain PHI - must be encrypted or purged",
@@ -81,7 +81,7 @@
       "id": "MED-PACS-WRITE-001",
       "category": "MEDICAL",
       "label": "PACS C-STORE Write Endpoint Exposed",
-      "command": "(netstat -tlnp 2>/dev/null || ss -tlnp 2>/dev/null) | grep -E ':(104|11112|2762|2761)\\b' | awk '{print $4}'",
+      "command": "(netstat -tlnp 2>/dev/null || ss -tlnp 2>/dev/null) | grep -E ':(104|11112|2762|2761)([^0-9]|$)' | awk '{print $4}'",
       "safe_pattern": "^(|127\\.0\\.0\\.1:|::1:)",
       "level": "critical",
       "description": "DICOM C-STORE ports (104, 11112, 2762 secure, 2761) bound to a non-loopback address with no TLS expose the PACS to anonymous image upload. Attackers have used this to inject crafted DICOM files that pivot into the reading workstation (the DICOM-file-is-a-polyglot class of attack) and to overwrite legitimate studies. Safe outcome: no DICOM port listening, or bound to loopback only.",

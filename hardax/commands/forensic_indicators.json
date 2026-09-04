@@ -12,7 +12,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Recent System Crashes",
-      "command": "dumpsys dropbox --print 2>/dev/null | grep -cE 'system_server_crash|system_app_crash' || echo 0",
+      "command": "dumpsys dropbox --print 2>/dev/null | grep -cE 'system_server_crash|system_app_crash' | head -1",
       "safe_pattern": "^[0-5]$",
       "level": "warning",
       "description": "Excessive system crashes may indicate exploitation attempts or instability",
@@ -21,7 +21,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "ANR Events Count",
-      "command": "dumpsys dropbox --print 2>/dev/null | grep -cE 'data_app_anr|system_app_anr' || echo 0",
+      "command": "dumpsys dropbox --print 2>/dev/null | grep -cE 'data_app_anr|system_app_anr' | head -1",
       "safe_pattern": "^[0-9]$",
       "level": "info",
       "description": "High ANR count may indicate resource exhaustion or DoS conditions",
@@ -30,7 +30,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Kernel Panic History",
-      "command": "dumpsys dropbox --print 2>/dev/null | grep -cE 'SYSTEM_TOMBSTONE|kernel_panic' || echo 0",
+      "command": "dumpsys dropbox --print 2>/dev/null | grep -cE 'SYSTEM_TOMBSTONE|kernel_panic' | head -1",
       "safe_pattern": "^0$",
       "level": "critical",
       "description": "Kernel panics may indicate kernel exploitation or hardware tampering",
@@ -39,8 +39,8 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Native Crash Tombstones",
-      "command": "ls /data/tombstones/ 2>/dev/null | wc -l || echo 0",
-      "safe_pattern": "^[0-5]$",
+      "command": "N=$(ls /data/tombstones/ 2>/dev/null | wc -l); echo \"count=$N\"; ls -t /data/tombstones/ 2>/dev/null | head -8",
+      "safe_pattern": "^count=[0-5]$",
       "level": "warning",
       "description": "Native crashes can indicate buffer overflow or memory corruption exploits",
       "remediation": "Analyze tombstone files for exploit indicators. Remove suspicious native binaries."
@@ -48,7 +48,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Clipboard Sensitive Data",
-      "command": "cmd clipboard get-primary-clip 2>/dev/null | grep -icE 'password|token|key|secret|bearer|auth|credit|cvv|ssn|pin' || echo 0",
+      "command": "cmd clipboard get-primary-clip 2>/dev/null | grep -icE '(password|passwd|token|secret|bearer|api[_-]?key|cvv|ssn)[[:space:]]*[:=][[:space:]]*[^[:space:]]{6,}|(^|[^0-9])[0-9]{13,16}([^0-9]|$)' | head -1",
       "safe_pattern": "^0$",
       "level": "warning",
       "description": "Clipboard contains sensitive keywords (passwords, tokens, credentials)",
@@ -57,12 +57,12 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Suspicious Logcat Keywords",
-      "command": "logcat -d -b main -t 500 2>/dev/null | grep -icE 'inject|hook|exploit|payload|reverse.?shell|bind.?shell' || echo 0",
-      "safe_pattern": "^0$",
+      "command": "M=$(logcat -d -b main -t 500 2>/dev/null | grep -ioE 'inject|hook|exploit|payload|reverse.?shell|bind.?shell' | sort | uniq -c | sort -rn); echo \"count=$(printf '%s\\n' \"$M\" | awk '{s+=$1} END{print s+0}')\"; printf '%s\\n' \"$M\" | head -6",
+      "safe_pattern": "^count=0$",
       "level": "warning",
       "description": "Logcat contains suspicious exploitation-related keywords",
       "remediation": "Isolate the device from the network. Identify and remove the source app or process.",
-      "empty_is_safe": true
+      "empty_is_safe": false
     },
     {
       "category": "FORENSIC_INDICATORS",
@@ -86,7 +86,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Corporate MDM Accounts",
-      "command": "dumpsys account 2>/dev/null | grep -icE 'exchange|activesync|microsoft|office365|mdm|workspace|intune' || echo 0",
+      "command": "dumpsys account 2>/dev/null | grep -icE 'exchange|activesync|microsoft|office365|mdm|workspace|intune' | head -1",
       "safe_pattern": ".*",
       "level": "info",
       "description": "Enterprise accounts detected - device may be under MDM management",
@@ -113,7 +113,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Work Profile Present",
-      "command": "dumpsys user 2>/dev/null | grep -ci 'work profile\\|managed profile' || echo 0",
+      "command": "dumpsys user 2>/dev/null | grep -ci -E 'work profile|managed profile' || echo 0",
       "safe_pattern": ".*",
       "level": "info",
       "description": "Work profile provides data separation but grants MDM access",
@@ -141,7 +141,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Active VoIP Telecom Calls",
-      "command": "dumpsys telecom 2>/dev/null | grep -ciE 'state=ACTIVE|state=DIALING|state=RINGING' || echo 0",
+      "command": "dumpsys telecom 2>/dev/null | grep -ciE 'state=ACTIVE|state=DIALING|state=RINGING' | head -1",
       "safe_pattern": "^0$",
       "level": "info",
       "description": "Active calls detected - avoid sensitive discussion during audit",
@@ -161,12 +161,12 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Active Window Overlays",
-      "command": "dumpsys window 2>/dev/null | grep -ci 'TYPE_APPLICATION_OVERLAY' || echo 0",
+      "command": "dumpsys window 2>/dev/null | grep -ci 'TYPE_APPLICATION_OVERLAY' | head -1",
       "safe_pattern": "^0$",
       "level": "warning",
       "description": "Active window overlays may enable tapjacking or credential theft",
       "remediation": "Revoke the 'Display over other apps' permission for non-essential apps.",
-      "empty_is_safe": true
+      "empty_is_safe": false
     },
     {
       "category": "FORENSIC_INDICATORS",
