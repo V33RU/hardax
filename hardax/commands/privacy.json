@@ -306,7 +306,7 @@
     {
       "category": "PRIVACY",
       "label": "Sensitive Data in Logs",
-      "command": "logcat -d 2>/dev/null | grep -iE 'password|token|key|secret|credential' | head -5",
+      "command": "logcat -d 2>/dev/null | grep -iE '(password|passwd|token|secret|credential|api[_-]?key)\"?[[:space:]]*[:=][[:space:]]*\"?[^[:space:]\"'\"'\"',}]{8,}' | head -5",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Sensitive data found in system logs",
@@ -316,7 +316,7 @@
     {
       "category": "PRIVACY",
       "label": "Backup Files on Device",
-      "command": "find /sdcard /data \\( -name '*.bak' -o -name '*.backup' -o -name '*.old' -o -name '*export*' \\) 2>/dev/null | head -10",
+      "command": "find /sdcard /data \\( -name '*.bak' -o -name '*.backup' -o -name '*.old' -o -name '*export*' \\) | head -10",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Finds backup and export artifacts under /sdcard and /data. These are commonly plaintext copies of data the application otherwise stores encrypted, and they survive uninstall. Covers the .bak, .backup, .old and *export* name patterns; the four were previously split across two near-identical checks that reported the same files twice. The globs are grouped so the find applies to both roots rather than only the last one.",
@@ -344,7 +344,7 @@
     {
       "category": "PRIVACY",
       "label": "Location Data Stored",
-      "command": "find /data -maxdepth 6 -type f -name '*.db' 2>/dev/null | head -40 | while IFS= read -r db; do strings -n 4 \"$db\" 2>/dev/null | grep -m1 -iE '^(CREATE TABLE|)[^\\n]*(location|geofence|gps|latitude)' >/dev/null 2>&1 && echo \"$db\"; done | head -5",
+      "command": "find /data -maxdepth 6 -type f -name '*.db' | head -40 | while IFS= read -r db; do strings -n 4 \"$db\" 2>/dev/null | grep -m1 -iE '^(CREATE TABLE|)[^\\n]*(location|geofence|gps|latitude)' >/dev/null 2>&1 && echo \"$db\"; done | head -5",
       "safe_pattern": "^$",
       "level": "info",
       "description": "Looks for databases holding location tables by scanning the file bytes for location, geofence, gps or latitude schema strings. The earlier version ran sqlite3 against every .db found under /data with no depth limit, querying sqlite_master. That opened each live application database read-write, which can trigger journal recovery or a WAL checkpoint and writes to app data during a read-only audit. Reading bytes with strings answers the same question without touching the file. Bounded to 40 databases at depth 6.",

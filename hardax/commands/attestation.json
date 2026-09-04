@@ -144,12 +144,12 @@
       "id": "ATT-014",
       "category": "ATTESTATION",
       "label": "APK Verity Mode (fs-verity for APKs)",
-      "command": "getprop ro.apk_verity.mode 2>/dev/null",
+      "command": "V=$(getprop ro.apk_verity.mode 2>/dev/null); [ -z \"$V\" ] && echo \"UNMEASURED ro.apk_verity.mode unset\" || printf '%s\\n' \"$V\"",
       "safe_pattern": "^2$",
       "level": "warning",
       "description": "APK verity mode 2 = fs-verity enforced for APKs (Android 12+). Mode 0 or 1 means no or partial APK integrity verification.",
       "remediation": "Ensure device runs Android 12+ with official firmware. APK verity requires fs-verity kernel support.",
-      "empty_is_safe": true
+      "empty_is_safe": false
     },
     {
       "id": "ATT-015",
@@ -166,7 +166,7 @@
       "id": "ATT-017",
       "category": "ATTESTATION",
       "label": "Android Enterprise Work Profile",
-      "command": "dumpsys device_policy 2>/dev/null | grep -i 'enabled profiles\\|managed profile' | head -3",
+      "command": "dumpsys device_policy 2>/dev/null | grep -i -E 'enabled profiles|managed profile' | head -3",
       "safe_pattern": ".",
       "level": "info",
       "description": "Android Enterprise work profiles indicate managed device with MDM attestation controls active.",
@@ -235,7 +235,7 @@
       "id": "ATT-024",
       "category": "ATTESTATION",
       "label": "Attestation Keybox Key Material On Disk",
-      "command": "find /data/adb /data/local/tmp /sdcard -maxdepth 3 -iname 'keybox*.xml' 2>/dev/null | head -5",
+      "command": "find /data/adb /data/local/tmp /sdcard -maxdepth 3 -iname 'keybox*.xml' | head -5",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "A keybox.xml holds an attestation private key and its certificate chain, normally sealed inside the TEE or StrongBox and never exposed to the filesystem. A copy sitting on disk is leaked or extracted key material, and it is what attestation-spoofing tooling loads to sign forged chains. This is the failure mode the Google attestation revocation list exists to contain: factory-provisioned batch keys cover many devices, so one leaked keybox lets every device in that batch be impersonated until the key is revoked. Detected independently of TrickyStore because the file is a finding regardless of which tool placed it.",

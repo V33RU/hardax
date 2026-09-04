@@ -48,7 +48,7 @@
     {
       "category": "CIS_BENCHMARK",
       "label": "CIS 1.16 - Device Admin Apps (Remote Wipe)",
-      "command": "dumpsys device_policy 2>/dev/null | grep -c 'admin=' || echo 0",
+      "command": "dumpsys device_policy 2>/dev/null | grep -c 'admin=' | head -1",
       "safe_pattern": "^[1-9]",
       "level": "info",
       "description": "CIS 1.16: Ensure 'Allow remote lock and erase' is enabled via device admin apps",
@@ -169,7 +169,7 @@
     {
       "category": "CIS_BENCHMARK",
       "label": "CIS 3.1 - Chrome Microphone Permission",
-      "command": "appops get com.android.chrome RECORD_AUDIO 2>/dev/null | grep -o 'allow\\|deny\\|ask\\|ignore' | head -1",
+      "command": "appops get com.android.chrome RECORD_AUDIO 2>/dev/null | grep -o -E 'allow|deny|ask|ignore' | head -1",
       "safe_pattern": "^ask$|^deny$|^ignore$",
       "level": "info",
       "description": "CIS 3.1: Chrome microphone permission should require user confirmation (ask) not auto-allow",
@@ -180,7 +180,7 @@
     {
       "category": "CIS_BENCHMARK",
       "label": "CIS 3.2 - Chrome Location Permission",
-      "command": "appops get com.android.chrome COARSE_LOCATION 2>/dev/null | grep -o 'allow\\|deny\\|ask\\|ignore' | head -1",
+      "command": "appops get com.android.chrome COARSE_LOCATION 2>/dev/null | grep -o -E 'allow|deny|ask|ignore' | head -1",
       "safe_pattern": "^ask$|^deny$|^ignore$",
       "level": "info",
       "description": "CIS 3.2: Chrome location permission should require user confirmation (ask) not auto-allow",

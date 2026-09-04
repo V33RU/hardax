@@ -59,7 +59,7 @@ for _stream in (sys.stdout, sys.stderr):
 #  VERSION & CONSTANTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-__version__ = "6.1.1"
+__version__ = "6.2.0"
 
 REQUIRED_CHECK_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
 
@@ -680,10 +680,39 @@ def explainAdbDevicesAndExit(exitCode: int = 2):
 #  DEVICE INTERFACES
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+class ShellResult:
+    """One device command's result with the streams kept apart.
+
+    The engine used to receive stdout and stderr already concatenated, which
+    left it guessing whether text such as "Permission denied" was evidence or
+    a failure to collect evidence. Keeping the streams separate, along with
+    the exit status, is what lets a check tell "I looked and found nothing"
+    apart from "I could not look". ``code`` is None on transports that cannot
+    report one, such as a UART console.
+    """
+
+    __slots__ = ("out", "err", "code")
+
+    def __init__(self, out: str = "", err: str = "", code: Optional[int] = 0):
+        self.out = (out or "").replace("\r", "")
+        self.err = (err or "").replace("\r", "")
+        self.code = code
+
+    @property
+    def merged(self) -> str:
+        """Legacy view: stdout and stderr joined, as callers saw before."""
+        return (self.out + (("\n" + self.err) if self.err.strip() else "")).strip()
+
+
 class Device:
     """Abstract shell runner - subclass for ADB or SSH."""
-    def shell(self, command: str) -> str:
+
+    def shellEx(self, command: str) -> ShellResult:
         raise NotImplementedError()
+
+    def shell(self, command: str) -> str:
+        """Merged stdout+stderr view, kept for callers that only want text."""
+        return self.shellEx(command).merged
 
     def idString(self) -> str:
         raise NotImplementedError()
@@ -704,20 +733,18 @@ class AdbDevice(Device):
             _, devs, _ = runLocal(["adb", "devices", "-l"])
             raise RuntimeError("No ADB device detected or unauthorized. Output:\n" + devs)
 
-    def shell(self, command: str) -> str:
+    def shellEx(self, command: str) -> ShellResult:
         code, out, err = runLocal(self.adbArgs() + ["shell", command])
-        txt = (out or "") + (("\n" + err) if err else "")
-        txt = txt.replace("\r", "").strip()
+        res = ShellResult(out, err, code)
 
-        if isAdbTransportError(txt):
+        if isAdbTransportError(res.merged):
             runLocal(self.adbArgs() + ["reconnect"])
             time.sleep(2)
             runLocal(self.adbArgs() + ["wait-for-device"], timeout=10)
             time.sleep(1)
             code2, out2, err2 = runLocal(self.adbArgs() + ["shell", command])
-            txt2 = ((out2 or "") + (("\n" + err2) if err2 else "")).replace("\r", "").strip()
-            return txt2
-        return txt
+            return ShellResult(out2, err2, code2)
+        return res
 
     def idString(self) -> str:
         return self.serial or "(unknown-serial)"
@@ -779,7 +806,7 @@ class SshDevice(Device):
             print(f"ERROR: SSH connection failed: {e}", file=sys.stderr)
             sys.exit(1)
 
-    def shell(self, command: str) -> str:
+    def shellEx(self, command: str) -> ShellResult:
         try:
             # Wrap in sh -c so that pipes, redirects, &&, || all work and the
             # remote shell's PATH (including /system/bin on Android) is active.
@@ -788,9 +815,10 @@ class SshDevice(Device):
             )
             out = stdout.read().decode("utf-8", errors="replace")
             err = stderr.read().decode("utf-8", errors="replace")
-            return (out + (("\n" + err) if err else "")).strip()
+            code = stdout.channel.recv_exit_status()
+            return ShellResult(out, err, code)
         except Exception as e:
-            return f"[SSH Error] {e}"
+            return ShellResult("", f"[SSH Error] {e}", None)
 
     def idString(self) -> str:
         return f"{self.user}@{self.host}:{self.port}"
@@ -919,14 +947,17 @@ class UartDevice(Device):
             out_lines.append(ln)
         return "\n".join(out_lines).strip()
 
-    def shell(self, command: str) -> str:
+    def shellEx(self, command: str) -> ShellResult:
         try:
-            return self._sendRecv(command)
+            # A serial console interleaves both streams on one wire and returns
+            # no exit status, so everything is reported as stdout with an
+            # unknown code rather than inventing a success the wire never gave.
+            return ShellResult(self._sendRecv(command), "", None)
         except self.serial_mod.SerialException as e:
             print(f"\n{Colors.BRIGHT_RED}✗ UART connection lost: {e}{Colors.RESET}", file=sys.stderr)
             raise RuntimeError(f"UART connection lost: {e}") from e
         except Exception as e:
-            return f"[UART Error] {e}"
+            return ShellResult("", f"[UART Error] {e}", None)
 
     def idString(self) -> str:
         return f"uart:{self.port}@{self.baud}"
@@ -966,6 +997,45 @@ class UartDevice(Device):
 #  COMMAND EXECUTION ENGINE
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+def splitUnquotedPipes(text: str, limit: int = 0) -> List[str]:
+    """Split *text* on "|" characters that sit outside quotes, stopping at "||".
+
+    A naive text.split("|") tears apart the pattern in
+        grep -vE '127.0.0.1|::1|localhost'
+    leaving a stage with an unterminated quote, and also treats the "||"
+    fallback branch as if it were another filter. Both produce a filter that
+    silently matches nothing, which for an inverted grep means every line
+    survives and loopback traffic is reported as an external connection.
+    """
+    parts: List[str] = []
+    cur: List[str] = []
+    quote = None
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if quote:
+            cur.append(ch)
+            if ch == quote:
+                quote = None
+        elif ch in ("'", '"'):
+            quote = ch
+            cur.append(ch)
+        elif ch == "|":
+            # "||" begins the alternative command, not another pipeline stage.
+            if i + 1 < len(text) and text[i + 1] == "|":
+                break
+            parts.append("".join(cur))
+            cur = []
+            if limit and len(parts) >= limit:
+                parts.append(text[i + 1:])
+                return parts
+        else:
+            cur.append(ch)
+        i += 1
+    parts.append("".join(cur))
+    return parts
+
+
 def applyFilters(output: str, original: str) -> str:
     """
     Emulate a shell pipeline (grep, head, tail) in Python so we can
@@ -976,13 +1046,12 @@ def applyFilters(output: str, original: str) -> str:
 
     lines = output.splitlines()
 
-    pipe = ""
-    if "|" in original:
-        pipe = original.split("|", 1)[1]
+    head = splitUnquotedPipes(original, limit=1)
+    pipe = head[1] if len(head) > 1 else ""
     if not pipe:
         return "\n".join(lines)
 
-    stages = [s.strip() for s in pipe.split("|") if s.strip()]
+    stages = [s.strip() for s in splitUnquotedPipes(pipe) if s.strip()]
 
     headN = None
     tailN = None
@@ -1186,9 +1255,78 @@ def executeWithFallback(device: Device, command: str,
     return ""
 
 
+def executeWithFallbackEx(device: Device, command: str,
+                          showCommands: bool = False,
+                          isRooted: Optional[bool] = None,
+                          rootMethod: str = "none") -> ShellResult:
+    """Stream-aware wrapper around :func:`executeWithFallback`.
+
+    Ordinary commands go straight to the transport so stdout, stderr and the
+    exit status stay separate, which is what lets the caller tell a failed
+    probe from an empty one. The netstat/ss fallback path tries several
+    candidate commands and filters the winner locally, so its output cannot be
+    attributed to a single invocation; that path returns the filtered text as
+    stdout, matching the behaviour it has always had.
+    """
+    if not command:
+        return ShellResult("", "", 0)
+
+    cl = command.lower()
+    isNetOrSs = ("netstat" in cl) or bool(re.search(r"\bss\b", cl))
+    if not isNetOrSs:
+        return device.shellEx(command)
+
+    return ShellResult(
+        executeWithFallback(device, command, showCommands,
+                            isRooted=isRooted, rootMethod=rootMethod),
+        "", 0)
+
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  ROOT DETECTION
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Commands that reach the Android framework through binder. When binder is
+# unreachable every one of these returns a transaction failure, which is a
+# property of the shell's SELinux domain rather than of the device's security
+# posture, so they must not be scored.
+_BINDER_TOOLS = re.compile(
+    r"(?:^|[|;&(`]|\$\()\s*(?:/system/bin/)?"
+    r"(?:dumpsys|cmd|pm|am|wm|settings|appops|content|service|input|bmgr|"
+    r"telecom|media|ime|device_config|locksettings)\b"
+)
+
+
+def commandNeedsBinder(command: str) -> bool:
+    """True when a command cannot produce output without binder access."""
+    return bool(_BINDER_TOOLS.search(command or ""))
+
+
+def probeCapabilities(device: Device) -> Dict[str, Any]:
+    """Establish what this transport can actually reach before scoring anything.
+
+    A shell confined to a vendor SELinux domain can be root and still have no
+    binder access at all, in which case every dumpsys/cmd/pm/settings check
+    fails identically. Detecting that once, up front, is the difference
+    between reporting "not applicable on this transport" and quietly scoring
+    127 failed probes as if they were audit results.
+    """
+    caps: Dict[str, Any] = {"binder": False, "getprop": False, "selinux": ""}
+
+    svc = device.shellEx("service list 2>/dev/null | head -2")
+    svcTxt = svc.out.strip()
+    # "Found 0 services:" means binder answered but this domain sees nothing,
+    # which is as unusable as no answer at all.
+    caps["binder"] = bool(svcTxt) and "found 0 services" not in svcTxt.lower()
+
+    prop = device.shellEx("getprop ro.build.version.sdk 2>/dev/null")
+    caps["getprop"] = bool(prop.out.strip())
+
+    ctx = device.shellEx("cat /proc/self/attr/current 2>/dev/null")
+    caps["selinux"] = ctx.out.strip().replace("\x00", "")
+
+    return caps
+
 
 def detectRootStatus(device: Device) -> Tuple[bool, str]:
     """
@@ -1301,6 +1439,36 @@ def _getPropWithCpuinfo(device: Device, props: List[str]) -> str:
     return "(unknown)"
 
 
+# Ordered device-profile fields shared by every reporter. Kept in one place
+# because the text, XLSX and HTML writers each carried their own hardcoded key
+# list, so a field added to collectDeviceInfo appeared in none of them.
+DEVICE_INFO_FIELDS = [
+    ("model", "Model"),
+    ("brand", "Brand"),
+    ("manufacturer", "Manufacturer"),
+    ("name", "Name"),
+    ("soc_manufacturer", "SoC Vendor"),
+    ("soc_model", "SoC Model"),
+    ("cpu_abi", "CPU ABI"),
+    ("kernel", "Kernel"),
+    ("android_version", "Android"),
+    ("sdk_level", "SDK Level"),
+    ("build_id", "Build ID"),
+    ("build_type", "Build Type"),
+    ("security_patch", "Security Patch"),
+    ("fingerprint", "Fingerprint"),
+    ("serialno", "Serial"),
+    ("selinux_mode", "SELinux Mode"),
+    ("verified_boot_state", "Verified Boot"),
+    ("bootloader_locked", "Bootloader Locked"),
+    ("verity_mode", "dm-verity Mode"),
+    ("ram_total", "RAM Total"),
+    ("storage", "Storage Used"),
+    ("filesystems", "Filesystems"),
+    ("timezone", "Timezone"),
+]
+
+
 def collectDeviceInfo(device: Device) -> Dict[str, str]:
     """Pull essential device metadata for the report header."""
     model = _getPropFallback(device, ["ro.product.model", "ro.product.device", "ro.product.name"])
@@ -1316,6 +1484,33 @@ def collectDeviceInfo(device: Device) -> Dict[str, str]:
     serialno = device.shell("getprop ro.serialno").strip() or device.shell("getprop ro.boot.serialno").strip()
     timezone = device.shell("getprop persist.sys.timezone").strip()
 
+    # Platform profile. A hardening report is read against the platform it was
+    # taken from: a finding means something different on a user build with a
+    # locked bootloader than on an engineering build. Collected in one shell
+    # call per field so a transport that blocks one does not lose the rest.
+    kernel = device.shell("uname -r 2>/dev/null").strip()
+    arch = device.shell("uname -m 2>/dev/null").strip()
+    cpuAbi = device.shell("getprop ro.product.cpu.abi").strip()
+    buildType = device.shell("getprop ro.build.type").strip()
+    buildTags = device.shell("getprop ro.build.tags").strip()
+    securityPatch = device.shell("getprop ro.build.version.security_patch").strip()
+    selinuxMode = device.shell("getenforce 2>/dev/null").strip()
+    verifiedBoot = device.shell("getprop ro.boot.verifiedbootstate").strip()
+    bootloaderLocked = device.shell("getprop ro.boot.flash.locked").strip()
+    verityMode = device.shell("getprop ro.boot.veritymode").strip()
+    ramTotal = device.shell(
+        "awk '/MemTotal/{printf \"%.1f GB\", $2/1048576}' /proc/meminfo 2>/dev/null").strip()
+    # Label each entry with the path asked for, not df's own mount-point
+    # column: on Android /data resolves to a bind mount and df reports
+    # /storage/emulated/0/Android/obb, which reads as nonsense in a header.
+    storage = device.shell(
+        "for m in /data /system /vendor; do "
+        "df -h \"$m\" 2>/dev/null | awk -v m=\"$m\" 'NR==2{printf \"%s %s/%s  \", m, $3, $2}'; "
+        "done").strip()
+    rootfs = device.shell(
+        "awk '$2==\"/\"||$2==\"/data\"||$2==\"/vendor\"{printf \"%s:%s:%s \", $2, $3, "
+        "(index($4,\"ro,\")==1?\"ro\":\"rw\")}' /proc/mounts 2>/dev/null").strip()
+
     return {
         "model": model,
         "brand": brand,
@@ -1329,6 +1524,17 @@ def collectDeviceInfo(device: Device) -> Dict[str, str]:
         "fingerprint": fingerprint,
         "serialno": serialno,
         "timezone": timezone,
+        "kernel": f"{kernel} {arch}".strip(),
+        "cpu_abi": cpuAbi,
+        "build_type": f"{buildType} / {buildTags}".strip(" /"),
+        "security_patch": securityPatch,
+        "selinux_mode": selinuxMode,
+        "verified_boot_state": verifiedBoot,
+        "bootloader_locked": bootloaderLocked,
+        "verity_mode": verityMode,
+        "ram_total": ramTotal,
+        "storage": storage,
+        "filesystems": rootfs,
     }
 
 
@@ -1431,6 +1637,106 @@ def isNullResponse(output: str) -> bool:
     return output.lower().strip() in ["null", "none", "(null)", "(none)"]
 
 
+# Signatures of the device failing to *collect* evidence, as opposed to
+# evidence a check should score. Each is matched against a whole output line,
+# and a result counts as a probe failure only when EVERY line matches one of
+# them, so a check that legitimately greps a log for "Permission denied" is
+# not hijacked by its own findings.
+DEVICE_FAILURE_SIGNATURES = [
+    r"^cmd:\s*failure calling service",
+    r"^cmd:\s*can't find\b",
+    r"\bcan't find service\b",
+    r"\bfailed transaction\b",
+    r"\bpermission denied\b",
+    r"\boperation not permitted\b",
+    r"\bno such file or directory\b",
+    r"\binaccessible or not found\b",
+    r"^\s*\S*sh:\s.*\bnot found\b",
+    r"^[\w./-]+:\s*not found$",
+    r"\bi/o error\b",
+    r"\bsegmentation fault\b",
+    r"^\[(ssh|uart) error\]",
+    r"^error:\s*device\b",
+]
+
+# A failure message is short. Beyond this many lines the output is treated as
+# real evidence even if every line looks like an error, because a genuine
+# finding (a long list of denied paths, say) must not be silently discarded.
+_PROBE_FAIL_MAX_LINES = 4
+
+# Tokens a check may print to declare that it could not measure the property,
+# as distinct from measuring it and finding it bad. A check whose probe fails
+# should print one of these rather than collapsing the failure into its
+# negative branch, which is how "dumpsys ... || echo Disabled" ends up
+# reporting a device insecure on evidence it never collected.
+UNMEASURED_TOKENS = {
+    "UNMEASURED",
+    "NOT_OBSERVABLE",
+    "NOT_DETERMINED",
+    "NOT_APPLICABLE",
+}
+
+
+def isUnmeasured(stdout: str) -> str:
+    """Return the token when stdout declares the property was not measured.
+
+    The token may stand alone or lead a line that carries detail, so a check
+    can say *why* and how far it got:
+
+        UNMEASURED dirs_checked_clean enumeration_denied=82
+
+    Detail after the token is what makes the verdict auditable, so it must not
+    stop the declaration being recognised.
+    """
+    text = (stdout or "").strip()
+    if not text:
+        return ""
+    first = text.split("\n", 1)[0].strip()
+    head = first.split(None, 1)[0].upper() if first else ""
+    return head if head in UNMEASURED_TOKENS else ""
+
+
+# Cap on each captured stream in the evidence record. Long enough to show what
+# the device actually returned, short enough that a check dumping a package
+# list does not dominate the report.
+_EVIDENCE_MAX = 4000
+
+
+def probeFailure(res: "ShellResult") -> str:
+    """Return a short reason when a command collected no evidence at all.
+
+    Returns "" when the output is usable, which includes legitimately empty
+    output: that means the command ran and found nothing, which is a real
+    result. This is the distinction the engine previously could not draw, and
+    it is why a failed probe must never reach ``empty_is_safe``.
+    """
+    out = res.out.strip()
+    err = res.err.strip()
+    text = out or err
+    if not text:
+        return ""
+
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
+    if not lines:
+        return ""
+
+    # The line cap protects genuine findings that happen to look like errors,
+    # which can only arrive on stdout. When stdout is empty the text is stderr,
+    # which is diagnostics by definition: a find(1) walk that produced no hits
+    # and hundreds of "Permission denied" lines searched an incomplete tree,
+    # and reporting that as "nothing found" is how a partial scan passes.
+    if out and len(lines) > _PROBE_FAIL_MAX_LINES:
+        return ""
+
+    for line in lines:
+        if not any(re.search(sig, line, re.IGNORECASE) for sig in DEVICE_FAILURE_SIGNATURES):
+            return ""
+
+    if not out and len(lines) > 1:
+        return f"{lines[0][:160]} (and {len(lines) - 1} more)"
+    return lines[0][:200]
+
+
 def isEmptyOrError(output: str) -> bool:
     """Detect empty output or common error strings from the device."""
     if not output:
@@ -1458,7 +1764,8 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
               rootMethod: str = "none",
               dashboard: Optional['HUDDashboard'] = None,
               baseline_mode: Optional[str] = None,
-              baseline_values: Optional[Dict[str, str]] = None) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
+              baseline_values: Optional[Dict[str, str]] = None,
+              capabilities: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
     """
     Execute every check against the device and classify the result.
     Returns (rows, counts) where rows is the full audit data.
@@ -1493,7 +1800,57 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
         baselineResult = None
         baselineState = ""
 
-        raw = executeWithFallback(device, command, showCommands, isRooted=isRooted, rootMethod=rootMethod) if command else ""
+        # Transport capability gate. A shell with no binder access makes every
+        # framework command fail identically, so running them would produce
+        # 100+ verdicts that describe the shell rather than the device. Gate
+        # them once, name the reason, and do not score them.
+        # A check may declare "binder_optional": true when it carries a probe
+        # that works without the framework, for example reading
+        # /data/system/packages.xml instead of asking package manager. Those
+        # still run on a transport with no binder, because they degrade to the
+        # file-based path rather than returning nothing.
+        if (capabilities is not None and not capabilities.get("binder", True)
+                and commandNeedsBinder(command)
+                and not chk.get("binder_optional", False)):
+            rows.append({
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "category": category,
+                "evidence": {
+                    "stdout": "", "stderr": "", "exit_code": None,
+                    "basis": "not applicable: no binder access from this transport",
+                },
+                "id": chk.get("id", ""), "label": label, "level": level,
+                "severity": chk.get("severity", ""), "bucket": bucketFromLevel(level),
+                "status": "SKIPPED", "matched": "False", "command": command,
+                "result": ("[NOT APPLICABLE] framework unreachable: this shell has no "
+                           "binder access, so dumpsys/cmd/pm/settings cannot answer. "
+                           "Re-run over a transport with framework access to cover this check."),
+                "description": desc, "why": chk.get("why", ""),
+                "risk_if_fail": chk.get("risk_if_fail", ""),
+                "expected_secure_state": chk.get("expected_secure_state", ""),
+                "control_area": chk.get("control_area", ""),
+                "nist_800_53": chk.get("nist_800_53", ""),
+                "cis_id": chk.get("cis_id", ""), "tags": chk.get("tags", []),
+                "needs_verification": True, "baseline": "",
+                "remediation": chk.get("remediation", ""),
+            })
+            counts["skipped"] += 1
+            if dashboard:
+                dashboard.onCheckComplete(category, label, "SKIPPED")
+            if onProgress:
+                onProgress(idx, total)
+            continue
+
+        shellRes = (executeWithFallbackEx(device, command, showCommands,
+                                          isRooted=isRooted, rootMethod=rootMethod)
+                    if command else ShellResult("", "", 0))
+        raw = shellRes.merged
+        probeFail = probeFailure(shellRes)
+        # Reset per-iteration so a branch that does not set one of these cannot
+        # inherit the previous check's value when the evidence record is built.
+        matched = False
+        outputEmpty = False
+        outputIsNull = False
 
         # ADB transport error - SKIPPED
         if raw and isAdbTransportError(raw):
@@ -1549,15 +1906,37 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
             needsVerification = False
             bucket = bucketFromLevel(level)
             outputIsNull = False
+        elif probeFail:
+            # The command did not collect evidence: a binder transaction that
+            # failed, a path that could not be read, a binary that is absent.
+            # That is not a finding and it is not a clean result either, so it
+            # routes to manual verification and deliberately bypasses
+            # empty_is_safe. Reporting SAFE here is how an audit that never
+            # happened used to look identical to one that passed.
+            consecutiveAdbErrors = 0
+            status = "VERIFY"
+            counts["verify"] += 1
+            needsVerification = True
+            raw = f"[NOT DETERMINED] {probeFail}"
+            matched = False
+            bucket = bucketFromLevel(level)
+            outputIsNull = False
         else:
             consecutiveAdbErrors = 0
-            normalized = normalizeForMatch(raw).strip()
+            # Match against stdout only. Merging stderr in meant a failure
+            # message could satisfy (or break) a safe_pattern and be scored as
+            # if it were evidence from the device.
+            normalized = normalizeForMatch(shellRes.out).strip()
             bucket = bucketFromLevel(level)
             matched = False
             needsVerification = False
 
-            outputEmpty = isEmptyOrError(raw)
-            outputIsNull = isNullResponse(raw)
+            # Judge emptiness from stdout alone for the same reason as the
+            # pattern match above. A probe that genuinely failed has already
+            # been routed to VERIFY, so anything reaching here that looks
+            # empty really is "the command ran and found nothing".
+            outputEmpty = isEmptyOrError(shellRes.out)
+            outputIsNull = isNullResponse(shellRes.out)
 
             if safePattern:
                 try:
@@ -1567,7 +1946,16 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                     matched = safePattern.lower() in normalized.lower()
 
             # Determine status
-            if outputIsNull:
+            unmeasured = isUnmeasured(shellRes.out)
+            if unmeasured:
+                # The check ran and told us it could not measure the property.
+                # That is manual-review territory, never a finding and never a
+                # pass, whatever the safe_pattern would have said.
+                status = "VERIFY"
+                counts["verify"] += 1
+                needsVerification = True
+                matched = False
+            elif outputIsNull:
                 nullInPattern = safePattern and "null" in safePattern.lower()
                 if nullIsSafe or nullInPattern:
                     status = "SAFE"
@@ -1767,9 +2155,37 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
             if baselineResult is not None:
                 displayResult = baselineResult
 
+        # Evidence record. A verdict on its own is not auditable: the reader
+        # cannot tell a SAFE that was earned from one produced by a command
+        # that never ran. These fields say exactly what the device returned
+        # and which observation decided the result.
+        if probeFail:
+            evidenceBasis = f"probe failed, no evidence collected: {probeFail}"
+        elif isUnmeasured(shellRes.out):
+            evidenceBasis = (f"check reported {isUnmeasured(shellRes.out)}: "
+                             "the property could not be measured here")
+        elif status == "SKIPPED":
+            evidenceBasis = "service unavailable on this device"
+        elif matched:
+            evidenceBasis = f"stdout matched safe_pattern: {safePattern}"
+        elif outputIsNull:
+            evidenceBasis = "device returned a null value"
+        elif outputEmpty:
+            evidenceBasis = ("command ran and returned nothing; empty_is_safe=true"
+                             if emptyIsSafe else
+                             "command ran and returned nothing")
+        else:
+            evidenceBasis = f"stdout did not match safe_pattern: {safePattern}"
+
         rows.append({
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
             "category": category,
+            "evidence": {
+                "stdout": shellRes.out.strip()[:_EVIDENCE_MAX],
+                "stderr": shellRes.err.strip()[:_EVIDENCE_MAX],
+                "exit_code": shellRes.code,
+                "basis": evidenceBasis,
+            },
             "id": chk.get("id", ""),
             "label": label,
             "level": level,
@@ -2025,9 +2441,10 @@ def writeTxtReport(path: str, deviceInfo: Dict[str, str],
             if analysis.get("ai_narrative"):
                 f.write(_ai.render_text(analysis["ai_narrative"]) + "\n\n")
         f.write("Device Information\n" + "=" * 40 + "\n")
-        for k in ["model", "brand", "manufacturer", "name", "soc_manufacturer", "soc_model",
-                   "android_version", "sdk_level", "build_id", "fingerprint", "serialno", "timezone"]:
-            f.write(f"{k.replace('_', ' ').title()}: {deviceInfo.get(k, '')}\n")
+        for k, label in DEVICE_INFO_FIELDS:
+            v = deviceInfo.get(k, "")
+            if v and v != "(unknown)":
+                f.write(f"{label}: {v}\n")
 
         if certs:
             f.write("\n" + "=" * 40 + "\nTrusted Certificate Policy Audit\n" + "=" * 40 + "\n")
@@ -2190,11 +2607,10 @@ def writeXlsxReport(path: str, deviceInfo: Dict[str, str],
     r += 1
     ws.cell(r, 1, "Device").font = SECTION_FONT
     r += 1
-    for key in ("model", "brand", "manufacturer", "android_version", "sdk_level",
-                "build_id", "fingerprint", "serialno", "soc_model", "timezone"):
+    for key, label in DEVICE_INFO_FIELDS:
         v = (deviceInfo or {}).get(key, "")
         if v and v != "(unknown)":
-            ws.cell(r, 1, key.replace("_", " ").title()).font = KEY_FONT
+            ws.cell(r, 1, label).font = KEY_FONT
             ws.cell(r, 2, v)
             r += 1
     r += 1
@@ -2542,9 +2958,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
 
     # Device info
     deviceItems = []
-    for key, label in [("model", "Model"), ("brand", "Brand"), ("manufacturer", "Manufacturer"),
-                       ("android_version", "Android"), ("sdk_level", "SDK"), ("build_id", "Build"),
-                       ("serialno", "Serial"), ("soc_model", "SoC")]:
+    for key, label in DEVICE_INFO_FIELDS:
         val = deviceInfo.get(key, "")
         if val and val != "(unknown)":
             deviceItems.append(f'<div class="dev-item"><span class="dev-label">{label}</span><span class="dev-value">{htmlEscape(val)}</span></div>')
@@ -2826,6 +3240,19 @@ Examples:
             print(f"{Colors.GREEN}✓ Root detected ({rootMethod}) - will use su for privileged commands{Colors.RESET}")
     else:
         print(f"{Colors.YELLOW}⚠ Device not rooted - some checks may have limited output{Colors.RESET}")
+
+    # Transport capability probe. Root alone does not imply framework access:
+    # a shell confined to a vendor SELinux domain can read every file on the
+    # device and still reach no binder service at all.
+    capabilities = probeCapabilities(device)
+    if not capabilities.get("binder"):
+        gatedCount = sum(1 for c in checks if commandNeedsBinder(c.get("command", "")))
+        selinuxCtx = capabilities.get("selinux", "")
+        ctxNote = f" (SELinux: {selinuxCtx})" if selinuxCtx else ""
+        print(f"{Colors.BRIGHT_YELLOW}⚠ No binder access from this transport{ctxNote}{Colors.RESET}")
+        print(f"{Colors.YELLOW}  dumpsys / cmd / pm / settings cannot answer here, so "
+              f"{gatedCount} framework checks are reported NOT APPLICABLE rather than scored.")
+        print(f"  Re-run over a transport with framework access to cover them.{Colors.RESET}")
     print()
 
     # Device info
@@ -2972,6 +3399,7 @@ Examples:
         dashboard=_hud,
         baseline_mode=baseline_mode,
         baseline_values=baseline_values,
+        capabilities=capabilities,
     )
 
     if _hud:

@@ -1,6 +1,7 @@
 """Smoke tests for the report writers: they must produce well-formed output
 for TXT, CSV, JSON and HTML without raising."""
 import json
+import re
 
 import pytest
 
@@ -126,3 +127,21 @@ def test_html_report_renders(tmp_path):
     hardax.writeHtmlReport(p, _device(), _rows(), _counts(), [], None)
     html = open(p, encoding="utf-8").read()
     assert "<" in html and "A Check" in html
+
+
+def test_every_collected_device_field_is_rendered():
+    """collectDeviceInfo and the reporters must not drift apart.
+
+    The text, XLSX and HTML writers each carried their own hardcoded key list,
+    so kernel version, build type, SELinux mode, security patch, RAM and
+    storage were collected by nobody and rendered by nobody. They now share
+    DEVICE_INFO_FIELDS; this asserts the sharing stays true.
+    """
+    import inspect
+    src = inspect.getsource(hardax.collectDeviceInfo)
+    returned = set(re.findall(r'^\s*"(\w+)":', src, re.M))
+    rendered = {k for k, _ in hardax.DEVICE_INFO_FIELDS}
+    missing = returned - rendered
+    assert not missing, f"collected but never rendered in any report: {sorted(missing)}"
+    unknown = rendered - returned
+    assert not unknown, f"rendered but never collected: {sorted(unknown)}"

@@ -75,7 +75,7 @@
     {
       "category": "INPUT",
       "label": "No 3rd party keyboards installed",
-      "command": "pm list packages -3 2>/dev/null | grep -i 'keyboard\\|input\\|ime' | grep -v 'com.android\\|com.google\\|com.samsung'",
+      "command": "pm list packages -3 2>/dev/null | grep -i -E 'keyboard|input|ime' | grep -v -E 'com.android|com.google|com.samsung'",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Third-party keyboards can log keystrokes",

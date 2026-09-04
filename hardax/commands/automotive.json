@@ -59,7 +59,7 @@
     {
       "category": "AUTOMOTIVE",
       "label": "OBD-II Service Running",
-      "command": "ps -A 2>/dev/null | grep -iE 'obd|elm327|canbus|socketcan'",
+      "command": "(ps -A 2>/dev/null || /system/bin/ps -A) | grep -iE 'obd|elm327|canbus|socketcan'",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "OBD-II diagnostic service detected",
@@ -88,7 +88,7 @@
     {
       "category": "AUTOMOTIVE",
       "label": "Telematics Service",
-      "command": "ps -A 2>/dev/null | grep -iE 'telematics|tcu|tbox|connectivity'",
+      "command": "(ps -A 2>/dev/null || /system/bin/ps -A) | grep -iE 'telematics|tcu|tbox|connectivity'",
       "safe_pattern": ".",
       "level": "info",
       "description": "Telematics/connectivity service running",
@@ -106,7 +106,7 @@
     {
       "category": "AUTOMOTIVE",
       "label": "Driving Mode Restrictions",
-      "command": "settings get global car_dock_sound 2>/dev/null; dumpsys car_service 2>/dev/null | grep -i 'driving\\|restriction' | head -3",
+      "command": "settings get global car_dock_sound 2>/dev/null; dumpsys car_service 2>/dev/null | grep -i -E 'driving|restriction' | head -3",
       "safe_pattern": ".",
       "level": "info",
       "description": "Driving mode and UX restrictions status",
@@ -124,7 +124,7 @@
     {
       "category": "AUTOMOTIVE",
       "label": "Ethernet to Vehicle Gateway",
-      "command": "ip addr show 2>/dev/null | grep -A2 'eth0\\|eth1' | grep inet",
+      "command": "ip addr show 2>/dev/null | grep -A2 -E 'eth0|eth1' | grep inet",
       "safe_pattern": ".",
       "level": "info",
       "description": "Ethernet connection - may connect to vehicle gateway",
@@ -133,7 +133,7 @@
     {
       "category": "AUTOMOTIVE",
       "label": "Bluetooth OBD Adapters",
-      "command": "dumpsys bluetooth_manager 2>/dev/null | grep -iE 'OBD\\|ELM\\|OBDII\\|Vgate\\|Carista' | head -3",
+      "command": "dumpsys bluetooth_manager 2>/dev/null | grep -iE 'OBD|ELM|OBDII|Vgate|Carista' | head -3",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Bluetooth OBD-II adapters paired - can access vehicle data",
@@ -143,7 +143,7 @@
     {
       "category": "AUTOMOTIVE",
       "label": "WiFi Direct for CarPlay/Android Auto",
-      "command": "dumpsys wifi 2>/dev/null | grep -i 'p2p\\|direct\\|carplay\\|androidauto' | head -3",
+      "command": "dumpsys wifi 2>/dev/null | grep -i -E 'p2p|direct|carplay|androidauto' | head -3",
       "safe_pattern": ".",
       "level": "info",
       "description": "WiFi Direct status for phone projection",
@@ -161,7 +161,7 @@
     {
       "category": "AUTOMOTIVE",
       "label": "Vehicle HAL Service",
-      "command": "service list 2>/dev/null | grep -i 'vehicle\\|car\\|vhal'",
+      "command": "service list 2>/dev/null | grep -i -E 'vehicle|car|vhal'",
       "safe_pattern": ".",
       "level": "info",
       "description": "Vehicle Hardware Abstraction Layer service status",
@@ -170,7 +170,7 @@
     {
       "category": "AUTOMOTIVE",
       "label": "Car Service Running",
-      "command": "dumpsys activity services 2>/dev/null | grep -i 'CarService\\|android.car' | head -5",
+      "command": "dumpsys activity services 2>/dev/null | grep -i -E 'CarService|android.car' | head -5",
       "safe_pattern": ".",
       "level": "info",
       "description": "Android Car Service status",

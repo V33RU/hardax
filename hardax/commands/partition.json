@@ -3,12 +3,12 @@
     {
       "category": "PARTITION",
       "label": "OverlayFS Active (adb remount)",
-      "command": "mount 2>/dev/null | grep -c '^overlay'",
+      "command": "M=$(mount 2>/dev/null); if [ -z \"$M\" ]; then echo UNMEASURED; else printf '%s\\n' \"$M\" | grep -c '^overlay'; fi",
       "safe_pattern": "^0$",
       "level": "critical",
       "description": "OverlayFS mounts indicate 'adb remount' was used, making system partitions writable. This breaks dm-verity and allows persistent firmware modification.",
       "remediation": "Reboot the device to clear overlayfs mounts. Avoid using 'adb remount' on production devices.",
-      "empty_is_safe": true
+      "empty_is_safe": false
     },
     {
       "category": "PARTITION",
@@ -53,7 +53,7 @@
     {
       "category": "PARTITION",
       "label": "Boot Partition Block Device",
-      "command": "ls -la /dev/block/by-name/boot /dev/block/bootdevice/by-name/boot 2>/dev/null | head -3",
+      "command": "P=$(ls -la /dev/block/by-name/boot /dev/block/bootdevice/by-name/boot 2>/dev/null | head -3); if [ -n \"$P\" ]; then printf '%s\\n' \"$P\"; elif ls -d /dev/block/by-name/boot /dev/block/bootdevice/by-name/boot 2>&1 | grep -qi 'permission denied'; then echo UNMEASURED; else echo \"ABSENT no boot by-name node\"; fi",
       "safe_pattern": ".",
       "level": "info",
       "description": "Boot partition block device location and permissions",
@@ -62,7 +62,7 @@
     {
       "category": "PARTITION",
       "label": "Recovery Partition Block Permissions",
-      "command": "ls -la /dev/block/by-name/recovery /dev/block/bootdevice/by-name/recovery 2>/dev/null | awk '{print $1, $3, $4, $NF}'",
+      "command": "P=$(ls -la /dev/block/by-name/recovery /dev/block/bootdevice/by-name/recovery 2>/dev/null | head -3); if [ -n \"$P\" ]; then printf '%s\\n' \"$P\"; elif ls -d /dev/block/by-name/recovery /dev/block/bootdevice/by-name/recovery 2>&1 | grep -qi 'permission denied'; then echo UNMEASURED; else echo \"ABSENT no recovery partition (A/B device)\"; fi",
       "safe_pattern": ".",
       "level": "info",
       "description": "Recovery partition should only be accessible to root (brw------- or 660 at most)",
@@ -89,30 +89,30 @@
     {
       "category": "PARTITION",
       "label": "dm-verity Devices Active",
-      "command": "ls /dev/block/dm-* 2>/dev/null | wc -l",
-      "safe_pattern": "^[1-9][0-9]*$",
+      "command": "V=$(ls /dev/block/mapper/ 2>/dev/null | grep -c -- '-verity'); if [ \"$V\" -gt 0 ]; then echo \"count=$V\"; ls /dev/block/mapper/ 2>/dev/null | grep -- '-verity' | sed 's/-verity$//' | sort; elif [ -d /dev/block/mapper ]; then echo 'count=0'; else echo 'UNMEASURED /dev/block/mapper not present'; fi",
+      "safe_pattern": "^count=[1-9]",
       "level": "warning",
-      "description": "dm-verity device-mapper targets should be present for system/vendor/product partitions. Zero count means verity is disabled.",
+      "description": "Partitions actually protected by dm-verity, identified by their '<name>-verity' device-mapper node and listed by name. Counting /dev/block/dm-* instead is misleading: that includes APEX loop mappings and every dynamic partition, so it reports a large number on a device with no verity at all.",
       "remediation": "Reflash stock vbmeta without --disable-verity to restore dm-verity device-mapper targets."
     },
     {
       "category": "PARTITION",
       "label": "dm-verity Disabled Flag in cmdline",
-      "command": "grep -c 'androidboot.veritymode=disabled\\|skip_initramfs\\|verity=0' /proc/cmdline 2>/dev/null",
+      "command": "grep -c -E 'androidboot.veritymode=disabled|skip_initramfs|verity=0' /proc/cmdline",
       "safe_pattern": "^0$",
       "level": "critical",
       "description": "Kernel cmdline disabling dm-verity allows unsigned modifications to system/vendor partitions.",
       "remediation": "Remove disable-verity flags from BOARD_KERNEL_CMDLINE. Flash a signed vbmeta: 'fastboot flash vbmeta vbmeta.img'.",
-      "empty_is_safe": true
+      "empty_is_safe": false
     },
     {
       "category": "PARTITION",
       "label": "noexec on /data Partition",
       "command": "mount 2>/dev/null | grep ' /data ' | grep -c 'noexec'",
       "safe_pattern": "^[1-9]",
-      "level": "warning",
-      "description": "/data should be mounted noexec to prevent executing attacker-dropped binaries from userdata. Missing noexec is a common hardening gap.",
-      "remediation": "Add 'noexec' to the fstab entry for /data and remount: 'mount -o remount,noexec /data'."
+      "level": "info",
+      "description": "Android executes app code from /data (dalvik-cache, app native libraries), so /data cannot carry noexec on a stock build. Recorded for inventory only. The achievable /data mount controls are nosuid and nodev, checked separately.",
+      "remediation": "No action on stock Android: /data must permit execution. Confirm the nosuid and nodev checks for /data pass instead."
     },
     {
       "category": "PARTITION",
@@ -172,12 +172,12 @@
     {
       "category": "PARTITION",
       "label": "Unexpected Loop Device Mounts",
-      "command": "mount 2>/dev/null | grep -c '^/dev/loop'",
+      "command": "M=$(mount 2>/dev/null); if [ -z \"$M\" ]; then echo UNMEASURED; else printf '%s\\n' \"$M\" | grep -c '^/dev/loop'; fi",
       "safe_pattern": "^0$",
       "level": "warning",
       "description": "Loop device mounts outside of APEX are unusual and may indicate a side-loaded image or hidden filesystem.",
       "remediation": "Identify and unmount unexpected loop devices: 'losetup -d /dev/loop<N>'. Investigate the backing image.",
-      "empty_is_safe": true
+      "empty_is_safe": false
     },
     {
       "category": "PARTITION",
@@ -191,12 +191,12 @@
     {
       "category": "PARTITION",
       "label": "Block Devices World-Readable",
-      "command": "find /dev/block -maxdepth 3 -type b -perm -o+r 2>/dev/null | wc -l",
+      "command": "find /dev/block -maxdepth 3 -type b -perm -o+r | wc -l",
       "safe_pattern": "^0$",
       "level": "critical",
       "description": "Block-device NODES readable by all users allow unprivileged processes to read raw partition data including encryption keys and user data. Restricted with -type b so it counts actual block special files only - the previous command counted the o+r symlinks and directories under /dev/block (by-name, mapper, param, persistent ...), which are harmless and produced a large false count.",
       "remediation": "Remove world-read from block devices: 'chmod o-r /dev/block/<device>'. Enforce via ueventd.rc rules.",
-      "empty_is_safe": true
+      "empty_is_safe": false
     },
     {
       "category": "PARTITION",
@@ -210,12 +210,12 @@
     {
       "category": "PARTITION",
       "label": "fstab Encryption Required",
-      "command": "cat /vendor/etc/fstab.* /etc/fstab* 2>/dev/null | grep '/data' | grep -c 'fileencryption\\|forceencrypt\\|forcefdeorfbe'",
+      "command": "D=$(cat /vendor/etc/fstab.* /system/etc/fstab.* /etc/fstab* 2>/dev/null | grep -E '[[:space:]]/data[[:space:]]'); [ -n \"$D\" ] && printf '%s\\n' \"$D\" | grep -c -E 'fileencryption|forceencrypt|forcefdeorfbe|encryptable'",
       "safe_pattern": "^[1-9]",
       "level": "critical",
       "description": "fstab must enforce encryption for /data. Missing forceencrypt/fileencryption means devices boot without encryption.",
       "remediation": "Add 'fileencryption=aes-256-xts:aes-256-cts' to the /data entry in fstab and rebuild the vendor image.",
-      "empty_is_safe": true
+      "empty_is_safe": false
     },
     {
       "category": "PARTITION",
@@ -247,10 +247,10 @@
     {
       "category": "PARTITION",
       "label": "Sideloading Partition (ota_package)",
-      "command": "find /data/ota_package /cache/*.zip /tmp/*.zip 2>/dev/null | head -5",
+      "command": "find /data/ota_package -type f | head -5; ls /cache/*.zip /tmp/*.zip 2>/dev/null | head -5",
       "safe_pattern": "^$",
       "level": "warning",
-      "description": "Staged OTA or sideloaded zip packages found. Unverified packages can be applied via recovery.",
+      "description": "Staged OTA or sideload packages left on disk. The /data/ota_package directory itself is standard on Android and is not reported; only files staged inside it or .zip packages in /cache or /tmp are.",
       "remediation": "Remove unknown update packages: 'rm /data/ota_package/*'. Only stage OTA packages from trusted update servers.",
       "empty_is_safe": true
     },
@@ -311,7 +311,7 @@
     {
       "category": "PARTITION",
       "label": "noexec on /metadata",
-      "command": "out=$(mount 2>/dev/null | grep ' /metadata ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'noexec' && echo OK || echo MISSING; else echo NA; fi",
+      "command": "out=$(mount 2>/dev/null | grep ' /metadata ' || true); if [ -z \"$out\" ]; then echo NA; elif printf '%s\\n' \"$out\" | grep -q 'noexec'; then echo OK; else echo \"MISSING\"; printf '%s\\n' \"$out\"; fi",
       "safe_pattern": "^(OK|NA)$",
       "level": "warning",
       "description": "/metadata stores file-based encryption metadata and should never need to execute binaries. NA means the device has no metadata partition (older A-only devices).",
@@ -320,7 +320,7 @@
     {
       "category": "PARTITION",
       "label": "nosuid on /metadata",
-      "command": "out=$(mount 2>/dev/null | grep ' /metadata ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'nosuid' && echo OK || echo MISSING; else echo NA; fi",
+      "command": "out=$(mount 2>/dev/null | grep ' /metadata ' || true); if [ -z \"$out\" ]; then echo NA; elif printf '%s\\n' \"$out\" | grep -q 'nosuid'; then echo OK; else echo \"MISSING\"; printf '%s\\n' \"$out\"; fi",
       "safe_pattern": "^(OK|NA)$",
       "level": "critical",
       "description": "/metadata must be nosuid; it is writable and a setuid binary placed there must not gain privilege. NA means the device has no metadata partition.",
@@ -349,6 +349,17 @@
       "remediation": "Remove write permission from any tool listed and confirm the system partition is mounted read-only. Remove formatting tools such as mke2fs and make_f2fs from production images that never reformat.",
       "why": "Repair tools parse untrusted on-disk structures with high privilege during early boot.",
       "risk_if_fail": "A writable repair binary is executed with privilege during boot, giving code execution before Android starts."
+    },
+    {
+      "category": "PARTITION",
+      "label": "Dynamic (Logical) Partition Inventory",
+      "command": "M=$(ls /dev/block/mapper/ 2>/dev/null | grep -vE -- '-verity|by-uuid|^com\\.android\\.' | sort); D=$(getprop ro.boot.dynamic_partitions 2>/dev/null); if [ -z \"$M\" ]; then echo \"dynamic=${D:-unset} logical=none\"; else echo \"dynamic=${D:-unset} count=$(printf '%s\\n' \"$M\" | grep -c .)\"; printf '%s\\n' \"$M\" | tr '\\n' ' '; echo; fi",
+      "safe_pattern": "^dynamic=",
+      "level": "info",
+      "description": "Logical partitions carved out of the super partition on devices using dynamic partitioning. Lists them by name, including both A/B copies where present. An unexpected logical partition is a repartitioning indicator that a check reading only /proc/partitions cannot see, because logical partitions appear as device-mapper nodes rather than as physical partitions.",
+      "remediation": "Compare the logical partition set against the expected set for this build. Investigate any name that is not a standard Android partition or its _a/_b pair.",
+      "why": "Dynamic partitions are invisible to a physical partition table listing.",
+      "risk_if_fail": "A partition added or resized inside super goes unreported."
     }
   ]
 }
