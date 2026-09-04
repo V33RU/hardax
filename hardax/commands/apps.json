@@ -299,7 +299,7 @@
       "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); V=$(settings get secure install_non_market_apps 2>/dev/null); if [ -n \"$SDK\" ] && [ \"$SDK\" -ge 26 ] 2>/dev/null; then echo \"PER_APP_MODEL sdk=$SDK legacy_flag=${V:-null}\"; else echo \"${V:-null}\"; fi",
       "safe_pattern": "^(0|null|PER_APP_MODEL)",
       "level": "critical",
-      "description": "Reports the legacy global unknown-sources setting. From Android 8 (API 26) this setting no longer controls anything: sideloading is governed per app by the REQUEST_INSTALL_PACKAGES permission, which the companion check in this category audits. A stale value of 1 is a leftover from an earlier Android version and is not a finding, so on API 26 and above this reports PER_APP_MODEL and passes. Verified on a Samsung SM-M025F running API 31 where the legacy flag was 1 while the per-app model was in force.",
+      "description": "Reports the legacy global unknown-sources setting. From Android 8 (API 26) this setting no longer controls anything: sideloading is governed per app by the REQUEST_INSTALL_PACKAGES permission, which the companion check in this category audits. A stale value of 1 is a leftover from an earlier Android version and is not a finding, so on API 26 and above this reports PER_APP_MODEL and passes. Verified on a reference Android device running API 31 where the legacy flag was 1 while the per-app model was in force.",
       "remediation": "Disable unknown sources: settings put secure install_non_market_apps 0",
       "empty_is_safe": false
     },

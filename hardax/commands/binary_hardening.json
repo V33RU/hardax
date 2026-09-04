@@ -131,7 +131,7 @@
       "command": "B=\"\"; for p in \"/system/bin/surfaceflinger\"; do [ -r \"$p\" ] && { B=\"$p\"; break; }; done; if [ -z \"$B\" ]; then echo UNMEASURED; else readelf -s \"$B\" 2>/dev/null | grep -c '__stack_chk'; fi",
       "safe_pattern": "^[1-9][0-9]*$",
       "level": "high",
-      "description": "Counts __stack_chk symbols in surfaceflinger. On a production build the adb shell user cannot read /system/bin/surfaceflinger, and 'readelf ... | grep -c' turns that permission denial into the literal string 0, which failed the pattern and scored a finding on every device. The check now reports BINARY_NOT_READABLE and passes, because absence of evidence is not a finding. Verified on a Samsung SM-M025F where app_process is a readable symlink and returns a real count while surfaceflinger is not readable.",
+      "description": "Counts __stack_chk symbols in surfaceflinger. On a production build the adb shell user cannot read /system/bin/surfaceflinger, and 'readelf ... | grep -c' turns that permission denial into the literal string 0, which failed the pattern and scored a finding on every device. The check now reports BINARY_NOT_READABLE and passes, because absence of evidence is not a finding. Verified on a reference Android device where app_process is a readable symlink and returns a real count while surfaceflinger is not readable.",
       "remediation": "Rebuild surfaceflinger with -fstack-protector-strong flag."
     },
     {
@@ -192,7 +192,7 @@
       "command": "B=\"\"; for p in \"/system/bin/app_process64\" \"/system/bin/app_process\"; do [ -r \"$p\" ] && { B=\"$p\"; break; }; done; if [ -z \"$B\" ]; then echo UNMEASURED; else readelf -s \"$B\" 2>/dev/null | grep -oE '__[A-Za-z0-9_]+_chk' | grep -v '^__stack_chk' | sort -u | wc -l; fi",
       "safe_pattern": ".",
       "level": "info",
-      "description": "Counts distinct fortified libc wrappers with __stack_chk excluded. Reported as evidence rather than pass or fail: on a Samsung SM-M025F app_process resolves to app_process32, carries two __stack_chk symbols and zero other _chk wrappers, which is normal for a small launcher binary and does not indicate the build omitted FORTIFY_SOURCE.",
+      "description": "Counts distinct fortified libc wrappers with __stack_chk excluded. Reported as evidence rather than pass or fail: on a reference Android device app_process resolves to app_process32, carries two __stack_chk symbols and zero other _chk wrappers, which is normal for a small launcher binary and does not indicate the build omitted FORTIFY_SOURCE.",
       "remediation": "Rebuild app_process with -D_FORTIFY_SOURCE=2 compiler flag.",
       "empty_is_safe": false
     },
