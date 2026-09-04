@@ -81,7 +81,7 @@
       "command": "timeout 20 dumpsys package 2>/dev/null | grep -B4 -E 'CAR_CONTROL|CAR_SPEED|CAR_ENERGY|CAR_POWERTRAIN' | grep -oE '^Package \\[[^]]+\\]' | sort -u | head -5",
       "safe_pattern": "^$",
       "level": "critical",
-      "description": "Lists packages that hold vehicle control permissions. The earlier version grepped the whole package dump for the permission names, which matches the permission *declaration* block that Google Play services publishes on every phone, so it reported a critical finding on any device with GMS installed. Verified on a Samsung SM-M025F where the only match was the 'Permission [com.google.android.gms.permission.CAR_SPEED]' declaration and no package held it.",
+      "description": "Lists packages that hold vehicle control permissions. The earlier version grepped the whole package dump for the permission names, which matches the permission *declaration* block that Google Play services publishes on every phone, so it reported a critical finding on any device with GMS installed. Verified on a reference Android device where the only match was the 'Permission [com.google.android.gms.permission.CAR_SPEED]' declaration and no package held it.",
       "remediation": "Revoke vehicle control permissions from all non-essential apps immediately. Only OEM system apps should hold these.",
       "empty_is_safe": true
     },

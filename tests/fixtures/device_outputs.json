@@ -354,7 +354,7 @@
     [
       "crash_files=4 minidumps=none ramdump_paths=/sys/fs/pstore",
       "SAFE",
-      "real device SM-M025F: 4 ANR traces. An earlier version also counted /data/log, which on Samsung holds ordinary app logs, and reported 85"
+      "real device: 4 ANR traces. An earlier version also counted /data/log, which on Samsung holds ordinary app logs, and reported 85"
     ],
     [
       "crash_files=0 minidumps=none ramdump_paths=none",
@@ -502,7 +502,7 @@
     [
       "state=encrypted type=file dev=/dev/block/mmcblk0p78",
       "SAFE",
-      "real SM-M025F: FBE device. The earlier check required a dm- mount source, which only exists for FDE or metadata encryption, so every FBE device scored CRITICAL"
+      "real device: FBE device. The earlier check required a dm- mount source, which only exists for FDE or metadata encryption, so every FBE device scored CRITICAL"
     ],
     [
       "state=encrypted type=block dev=/dev/block/dm-0",
@@ -519,7 +519,7 @@
     [
       "PER_APP_MODEL sdk=31 legacy_flag=1",
       "SAFE",
-      "real SM-M025F: the legacy global flag is a stale 1 on API 31 where sideloading is per-app via REQUEST_INSTALL_PACKAGES"
+      "real device: the legacy global flag is a stale 1 on API 31 where sideloading is per-app via REQUEST_INSTALL_PACKAGES"
     ],
     [
       "0",
@@ -536,7 +536,7 @@
     [
       "SCAN_MODE_CONNECTABLE",
       "SAFE",
-      "real SM-M025F. The earlier grep matched the line 'Scan mode counter (Opp/LowPower/...)', a statistics counter, and never contained SCAN_MODE_*"
+      "real device. The earlier grep matched the line 'Scan mode counter (Opp/LowPower/...)', a statistics counter, and never contained SCAN_MODE_*"
     ],
     [
       "SCAN_MODE_NONE",
@@ -553,7 +553,7 @@
     [
       "u:r:hal_bluetooth_qti:s0",
       "SAFE",
-      "real SM-M025F. The earlier check ran ls -Z /system/bin/bluetooth*, a path gone since Bluetooth became an APK, so it reported PERMISSIVE on every modern device"
+      "real device. The earlier check ran ls -Z /system/bin/bluetooth*, a path gone since Bluetooth became an APK, so it reported PERMISSIVE on every modern device"
     ],
     [
       "BLUETOOTH_NOT_RUNNING",
@@ -570,7 +570,7 @@
     [
       "0",
       "SAFE",
-      "real SM-M025F. The earlier glob included /dev/radio*, matching the FM radio node, so any device with an FM tuner scored a finding"
+      "real device. The earlier glob included /dev/radio*, matching the FM radio node, so any device with an FM tuner scored a finding"
     ],
     [
       "2",
@@ -582,7 +582,7 @@
     [
       "",
       "SAFE",
-      "real SM-M025F. The earlier grep matched the CAR_SPEED permission declaration published by Google Play services on every phone, rather than a package holding it"
+      "real device. The earlier grep matched the CAR_SPEED permission declaration published by Google Play services on every phone, rather than a package holding it"
     ],
     [
       "Package [com.example.fleet]",
