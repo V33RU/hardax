@@ -81,7 +81,7 @@
     {
       "category": "SYSTEM",
       "label": "World-Writable Directories",
-      "command": "find /system /vendor -type d -perm -0002 2>/dev/null | head -10",
+      "command": "find /system /vendor -type d -perm -0002 | head -10",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "World-writable directories in system",
@@ -91,7 +91,7 @@
     {
       "category": "SYSTEM",
       "label": "SUID Binaries",
-      "command": "find /system /vendor -type f -perm -4000 2>/dev/null | head -10",
+      "command": "find /system /vendor -type f -perm -4000 | head -10",
       "safe_pattern": ".",
       "level": "info",
       "description": "SUID binaries - review for privilege escalation",
@@ -119,7 +119,7 @@
     {
       "category": "SYSTEM",
       "label": "Executable Stack",
-      "command": "cat /proc/sys/kernel/exec-shield 2>/dev/null || cat /proc/sys/kernel/randomize_va_space 2>/dev/null",
+      "command": "cat /proc/sys/kernel/exec-shield 2>/dev/null || cat /proc/sys/kernel/randomize_va_space",
       "safe_pattern": "^[12]$",
       "level": "warning",
       "description": "ASLR should be enabled",
@@ -128,7 +128,7 @@
     {
       "category": "SYSTEM",
       "label": "Ptrace Scope",
-      "command": "cat /proc/sys/kernel/yama/ptrace_scope 2>/dev/null",
+      "command": "cat /proc/sys/kernel/yama/ptrace_scope",
       "safe_pattern": "^[123]$",
       "level": "warning",
       "description": "Ptrace restrictions (1+ recommended)",
@@ -187,10 +187,10 @@
     {
       "category": "SYSTEM",
       "label": "Processes Running as Root",
-      "command": "ps -A -o USER,NAME 2>/dev/null | grep '^root' | grep -vE 'init|kthread|ueventd|vold|lmkd|servicemanager|hwservicemanager|logd|healthd|adbd|debuggerd' | wc -l",
-      "safe_pattern": "^[0-5]$",
+      "command": "L=$( (ps -A -o USER,NAME 2>/dev/null || /system/bin/ps -A -o USER,NAME) | awk '$1==\"root\"{print $2}' | grep -v '^\\[' ); echo \"count=$(printf '%s\\n' \"$L\" | grep -c .)\"; printf '%s\\n' \"$L\" | sort | head -12",
+      "safe_pattern": "^count=[0-5]$",
       "level": "warning",
-      "description": "Minimize processes running as root",
+      "description": "Userspace processes running as root. Kernel threads (shown by ps as [name]) are excluded: they are root by definition and counting them tells an auditor nothing. Reports the count and a sample of names.",
       "remediation": "Identify unnecessary root processes and reconfigure their init.rc entries to run under a dedicated UID."
     },
     {
@@ -205,7 +205,7 @@
     {
       "category": "SYSTEM",
       "label": "Custom Native Daemons",
-      "command": "ps -A 2>/dev/null | grep -vE 'zygote|system_server|surfaceflinger|android|google|com\\.|app_process|dalvikvm' | grep -E '^root|^system' | awk '{print $NF}' | sort | uniq | head -10",
+      "command": "(ps -A 2>/dev/null || /system/bin/ps -A) | grep -vE 'zygote|system_server|surfaceflinger|android|google|com\\.|app_process|dalvikvm' | grep -E '^root|^system' | awk '{print $NF}' | sort | uniq | head -10",
       "safe_pattern": ".",
       "level": "info",
       "description": "Non-Android native processes - review for IoT services",
@@ -333,7 +333,7 @@
     {
       "category": "SYSTEM",
       "label": "KASLR Enabled",
-      "command": "dmesg | grep -i kaslr",
+      "command": "D=$(dmesg 2>/dev/null | grep -i kaslr | head -3); if [ -n \"$D\" ]; then printf '%s\\n' \"$D\"; else echo NOT_OBSERVABLE; fi",
       "safe_pattern": ".*enabled.*",
       "level": "critical",
       "description": "Kernel Address Space Layout Randomization (KASLR) should be enabled to randomize kernel memory layout.",
@@ -342,7 +342,7 @@
     {
       "category": "SYSTEM",
       "label": "NX (No eXecute) Bit Enabled",
-      "command": "dmesg | grep -i NX",
+      "command": "D=$(dmesg 2>/dev/null | grep -iE 'NX \\(Execute Disable\\)|NX protection' | head -3); if [ -n \"$D\" ]; then printf '%s\\n' \"$D\"; else echo NOT_OBSERVABLE; fi",
       "safe_pattern": ".*NX.*protection.*",
       "level": "critical",
       "description": "NX bit must be enabled to prevent execution of code in data memory regions.",
@@ -447,7 +447,7 @@
     {
       "category": "SYSTEM",
       "label": "Debug Properties Set",
-      "command": "getprop | grep -iE 'debug|verbose|log.*level' | grep -v ':\\s*$' | head -5",
+      "command": "getprop | grep -iE 'debug|verbose|log.*level' | grep -v ':[[:space:]]*$' | head -5",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Debug properties enabled - may leak sensitive info",
@@ -484,7 +484,7 @@
     {
       "category": "SYSTEM",
       "label": "TEE Driver Presence (Present → Info)",
-      "command": "ls /dev/tee* /dev/trusty* 2>/dev/null",
+      "command": "P=$(ls -d /dev/tee* /dev/trusty* 2>/dev/null); if [ -n \"$P\" ]; then printf '%s\\n' \"$P\"; elif ls -d /dev/tee* /dev/trusty* 2>&1 | grep -qi 'permission denied'; then echo UNMEASURED; else echo ABSENT; fi",
       "safe_pattern": "/dev/(tee|trusty)",
       "level": "info",
       "description": "TEE device nodes found (e.g., /dev/tee*, /dev/trusty*). Presence is informational.",
@@ -502,7 +502,7 @@
     {
       "category": "SYSTEM",
       "label": "TPM Keystore Presence",
-      "command": "ls /system/lib64/hw/keystore.* 2>/dev/null",
+      "command": "P=$(ls -d /system/lib64/hw/keystore.* 2>/dev/null); if [ -n \"$P\" ]; then printf '%s\\n' \"$P\"; elif ls -d /system/lib64/hw/keystore.* 2>&1 | grep -qi 'permission denied'; then echo UNMEASURED; else echo ABSENT; fi",
       "safe_pattern": ".",
       "level": "info",
       "description": "Checks for hardware-backed keystore modules",
@@ -603,7 +603,7 @@
     {
       "category": "SYSTEM",
       "label": "Suspicious Executables in /data/local/tmp",
-      "command": "find /data/local/tmp -type f -executable 2>/dev/null",
+      "command": "find /data/local/tmp -type f -executable",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Executable files in /data/local/tmp - common staging location for exploits, Frida gadgets, and malware payloads",
@@ -673,7 +673,7 @@
       "id": "SYS-TEE-QSEE-001",
       "category": "SYSTEM",
       "label": "Qualcomm QSEE TEE Device Node",
-      "command": "ls /dev/qseecom 2>/dev/null",
+      "command": "P=$(ls -d /dev/qseecom 2>/dev/null); if [ -n \"$P\" ]; then printf '%s\\n' \"$P\"; elif ls -d /dev/qseecom 2>&1 | grep -qi 'permission denied'; then echo UNMEASURED; else echo ABSENT; fi",
       "safe_pattern": ".",
       "level": "info",
       "description": "Qualcomm Secure Execution Environment (QSEE) device node. Presence confirms Qualcomm TrustZone TEE is active on this device.",
@@ -695,7 +695,7 @@
       "id": "SYS-TEE-MTK-001",
       "category": "SYSTEM",
       "label": "MediaTek Mobicore TEE Device Node",
-      "command": "ls /dev/mobicore /dev/mobicore-user 2>/dev/null",
+      "command": "P=$(ls -d /dev/mobicore /dev/mobicore-user 2>/dev/null); if [ -n \"$P\" ]; then printf '%s\\n' \"$P\"; elif ls -d /dev/mobicore /dev/mobicore-user 2>&1 | grep -qi 'permission denied'; then echo UNMEASURED; else echo ABSENT; fi",
       "safe_pattern": ".",
       "level": "info",
       "description": "MediaTek Mobicore (t-base) TEE device nodes. Presence confirms MediaTek TrustZone TEE is active. Used on MTK and some Samsung Exynos devices.",
@@ -717,7 +717,7 @@
       "id": "SYS-TEE-TRUSTY-001",
       "category": "SYSTEM",
       "label": "Google Trusty TEE Device Node",
-      "command": "ls /dev/trusty-ipc-dev0 2>/dev/null",
+      "command": "P=$(ls -d /dev/trusty-ipc-dev0 2>/dev/null); if [ -n \"$P\" ]; then printf '%s\\n' \"$P\"; elif ls -d /dev/trusty-ipc-dev0 2>&1 | grep -qi 'permission denied'; then echo UNMEASURED; else echo ABSENT; fi",
       "safe_pattern": ".",
       "level": "info",
       "description": "Google Trusty TEE IPC device node. Trusty is Google's open-source TrustZone OS used in Android reference hardware and some OEM devices.",
@@ -739,7 +739,7 @@
       "id": "SYS-TEE-GATEKEEPER-001",
       "category": "SYSTEM",
       "label": "Hardware Gatekeeper HAL",
-      "command": "ls /vendor/lib64/hw/gatekeeper.* /system/lib64/hw/gatekeeper.* 2>/dev/null | head -5",
+      "command": "P=$(ls -d /vendor/lib64/hw/gatekeeper.* /system/lib64/hw/gatekeeper.* 2>/dev/null); if [ -n \"$P\" ]; then printf '%s\\n' \"$P\"; elif ls -d /vendor/lib64/hw/gatekeeper.* /system/lib64/hw/gatekeeper.* 2>&1 | grep -qi 'permission denied'; then echo UNMEASURED; else echo ABSENT; fi",
       "safe_pattern": "gatekeeper\\.",
       "level": "warning",
       "description": "Hardware Gatekeeper HAL must be present for TEE-backed password/PIN authentication. Software fallback gatekeeper is weaker.",
@@ -902,7 +902,7 @@
       "id": "SYS-SGID-001",
       "category": "SYSTEM",
       "label": "SGID Binaries Inventory",
-      "command": "find /system /vendor /product /apex -xdev -type f -perm -2000 2>/dev/null | head -20",
+      "command": "find /system /vendor /product /apex -xdev -type f -perm -2000 | head -20",
       "safe_pattern": ".",
       "level": "info",
       "empty_is_safe": true,
@@ -913,7 +913,7 @@
       "id": "SYS-WWEXEC-001",
       "category": "SYSTEM",
       "label": "World-Writable Executables On System Partitions",
-      "command": "find /system /vendor /product /apex -xdev -type f -perm -0002 -perm -0111 2>/dev/null | head -10",
+      "command": "find /system /vendor /product /apex -xdev -type f -perm -0002 -perm -0111 | head -10",
       "safe_pattern": "^$",
       "level": "critical",
       "empty_is_safe": true,
@@ -994,6 +994,72 @@
       "remediation": "Clear accumulated crash artifacts, disable vendor ramdump collection on production builds, and confirm any crash reporting pipeline strips memory contents before upload rather than shipping full dumps off device.",
       "why": "Crash artifacts contain register and stack snapshots, and ramdumps contain raw memory, including live keys and tokens.",
       "risk_if_fail": "Secrets from privileged processes are recoverable from crash artifacts left on the device."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Init Services Configured To Run As Root",
+      "command": "R=$(awk 'function flush(){if(svc!=\"\"){print (u==\"\"?\"root\":u), svc, path} svc=\"\";u=\"\";path=\"\"} /^service[ \\t]/{flush();svc=$2;path=$3;next} /^[ \\t]+user[ \\t]/{u=$2;next} /^[ \\t]*$/{flush()} END{flush()}' /system/etc/init/*.rc /vendor/etc/init/*.rc 2>/dev/null | awk '$1==\"root\"{print $3\" (\"$2\")\"}' | sort -u); if [ -z \"$R\" ]; then echo \"UNMEASURED no readable init .rc files\"; else echo \"count=$(printf '%s\\n' \"$R\" | grep -c .)\"; printf '%s\\n' \"$R\" | head -20; fi",
+      "safe_pattern": "^count=",
+      "level": "info",
+      "description": "Binaries that Android init starts as root, parsed from /system/etc/init/*.rc and /vendor/etc/init/*.rc. Reports the executable path and the service name. A service with no 'user' directive runs as root by default, so both explicit 'user root' and omitted-user services are included. This is the configured list: it needs no binder access and does not depend on the service currently running.",
+      "remediation": "Review each root service against its actual need. Vendor daemons that only touch their own sysfs nodes or sockets should declare a dedicated AID via 'user' and the minimum 'capabilities', rather than inheriting full root.",
+      "why": "Every root service is a full-privilege process; the count bounds the root attack surface.",
+      "risk_if_fail": "A compromise in any of these services yields root without a privilege escalation step."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Init Services Granted Linux Capabilities",
+      "command": "C=$(grep -h '^[[:space:]]*capabilities' /system/etc/init/*.rc /vendor/etc/init/*.rc 2>/dev/null | sed 's/^[[:space:]]*//' | sort | uniq -c | sort -rn); if [ -z \"$C\" ]; then echo \"count=0\"; else echo \"count=$(printf '%s\\n' \"$C\" | awk '{s+=$1} END{print s+0}')\"; printf '%s\\n' \"$C\" | head -12; fi",
+      "safe_pattern": "^count=",
+      "level": "info",
+      "description": "Linux capabilities granted to init services. A capability such as SYS_ADMIN, DAC_READ_SEARCH or NET_ADMIN gives a non-root service root-equivalent power over part of the system, so it belongs in the privilege inventory alongside SUID binaries.",
+      "remediation": "Confirm each capability is the minimum the service needs. DAC_READ_SEARCH and SYS_ADMIN in particular are close to full root and warrant justification.",
+      "why": "Capabilities are a root-equivalent privilege path that a SUID-only audit misses entirely.",
+      "risk_if_fail": "An over-privileged capability grant is an escalation path that no SUID scan reports."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "SoC and Chipset Identity",
+      "command": "M=$(getprop ro.soc.manufacturer 2>/dev/null); S=$(getprop ro.soc.model 2>/dev/null); P=$(getprop ro.board.platform 2>/dev/null); H=$(getprop ro.hardware 2>/dev/null); I=$(grep -m1 'CPU implementer' /proc/cpuinfo 2>/dev/null | awk '{print $NF}'); C=$(grep -m1 'CPU part' /proc/cpuinfo 2>/dev/null | awk '{print $NF}'); if [ -z \"$M$S$P$H\" ]; then echo 'UNMEASURED no SoC identity properties readable'; else echo \"soc_vendor=${M:-unset} soc_model=${S:-unset} platform=${P:-unset} hardware=${H:-unset} cpu_implementer=${I:-unset} cpu_part=${C:-unset}\"; fi",
+      "safe_pattern": "soc_vendor=",
+      "level": "info",
+      "description": "Silicon identity of the device: SoC vendor and model, board platform, and the ARM CPU implementer/part IDs. This is the anchor for every silicon-specific advisory (Qualcomm, Exynos, MediaTek) and for deciding which vendor CVE checks apply. Recorded as inventory, not scored.",
+      "remediation": "No action. Record this with the audit so silicon-specific advisories can be matched to the device.",
+      "why": "Vendor CVE applicability cannot be judged without knowing the actual SoC.",
+      "risk_if_fail": "Silicon-specific advisories are assessed against the wrong platform."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Kernel Taint State",
+      "command": "V=$(cat /proc/sys/kernel/tainted 2>/dev/null); if [ -z \"$V\" ]; then echo 'UNMEASURED /proc/sys/kernel/tainted not readable'; else F=''; [ $((V & 2)) -ne 0 ] && F=\"$F force-loaded-module,\"; [ $((V & 8)) -ne 0 ] && F=\"$F force-unloaded-module,\"; [ $((V & 1024)) -ne 0 ] && F=\"$F staging-driver,\"; [ $((V & 4096)) -ne 0 ] && F=\"$F out-of-tree-module,\"; [ $((V & 8192)) -ne 0 ] && F=\"$F UNSIGNED-module,\"; echo \"tainted=$V flags=${F:-none}\"; fi",
+      "safe_pattern": "^tainted=0 ",
+      "level": "warning",
+      "description": "Kernel taint bitmask. Bit 13 (8192) means an UNSIGNED module was loaded, bit 1 (2) a force-loaded module, bit 12 (4096) an out-of-tree module. Out-of-tree is normal on Android because vendor drivers ship that way, but a force-loaded or unsigned module on a locked device indicates the module signature gate was bypassed.",
+      "remediation": "Identify the module via /proc/modules and confirm it is a legitimate vendor driver. An unsigned or force-loaded module on a production build should be treated as a compromise indicator.",
+      "why": "Taint is the kernel's own record that something loaded outside the normal signed path.",
+      "risk_if_fail": "An attacker-loaded kernel module runs with full kernel privilege."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "Unprivileged userfaultfd Disabled",
+      "command": "V=$(cat /proc/sys/vm/unprivileged_userfaultfd 2>/dev/null); if [ -z \"$V\" ]; then [ -e /proc/sys/vm/unprivileged_userfaultfd ] && echo 'UNMEASURED not readable' || echo 'SYSCTL_ABSENT userfaultfd not configurable'; else printf '%s\\n' \"$V\"; fi",
+      "safe_pattern": "^0$|^SYSCTL_ABSENT",
+      "level": "warning",
+      "description": "userfaultfd lets a process handle its own page faults in userspace and is a standard primitive for winning kernel use-after-free races. 0 restricts it to privileged callers, 1 allows any process to use it.",
+      "remediation": "Set vm.unprivileged_userfaultfd=0, or build without CONFIG_USERFAULTFD.",
+      "why": "Many public kernel exploits depend on unprivileged userfaultfd to widen a race window.",
+      "risk_if_fail": "Kernel race-condition bugs become far more reliably exploitable."
+    },
+    {
+      "category": "SYSTEM",
+      "label": "kexec Kernel Loading Disabled",
+      "command": "V=$(cat /proc/sys/kernel/kexec_load_disabled 2>/dev/null); if [ -n \"$V\" ]; then printf '%s\\n' \"$V\"; elif [ -e /proc/sys/kernel/kexec_load_disabled ]; then echo 'UNMEASURED not readable'; else echo 'KEXEC_NOT_BUILT'; fi",
+      "safe_pattern": "^1$|^KEXEC_NOT_BUILT$",
+      "level": "warning",
+      "description": "kexec loads and boots a replacement kernel from a running system, bypassing verified boot entirely. 1 means loading is permanently disabled for this boot. KEXEC_NOT_BUILT means the kernel has no kexec support at all, which is stronger.",
+      "remediation": "Set kernel.kexec_load_disabled=1 at boot, or build without CONFIG_KEXEC.",
+      "why": "kexec is a direct route around a verified-boot chain that is otherwise intact.",
+      "risk_if_fail": "An attacker with root boots an unsigned kernel without touching the bootloader."
     }
   ]
 }

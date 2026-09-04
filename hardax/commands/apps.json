@@ -128,12 +128,13 @@
     {
       "category": "APPS",
       "label": "Xposed Framework",
-      "command": "pm list packages | grep xposed",
+      "command": "P=$(pm list packages 2>/dev/null | grep -iE 'xposed'); if [ -n \"$P\" ]; then printf '%s\\n' \"$P\"; elif pm list packages >/dev/null 2>&1; then :; else strings -a /data/system/packages.xml 2>/dev/null | grep -iE 'xposed' | sort -u; fi",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Xposed framework enables deep system tweaks",
       "remediation": "Uninstall Xposed framework and modules: pm uninstall de.robv.android.xposed.installer",
-      "empty_is_safe": true
+      "empty_is_safe": true,
+      "binder_optional": true
     },
     {
       "category": "APPS",
@@ -148,7 +149,7 @@
     {
       "category": "APPS",
       "label": "Running Services List",
-      "command": "ps -A 2>/dev/null | grep -vE 'ps|grep' | awk '{print $NF}' | sort | uniq | head -30",
+      "command": "(ps -A 2>/dev/null || /system/bin/ps -A) | grep -vE 'ps|grep' | awk '{print $NF}' | sort | uniq | head -30",
       "safe_pattern": ".",
       "level": "info",
       "description": "All running processes - review for unnecessary services",
@@ -157,7 +158,7 @@
     {
       "category": "APPS",
       "label": "Web Server Process",
-      "command": "ps -A 2>/dev/null | grep -iE 'nginx|apache|httpd|lighttpd|busybox.*httpd|boa|goahead|uhttpd'",
+      "command": "(ps -A 2>/dev/null || /system/bin/ps -A) | grep -iE 'nginx|apache|httpd|lighttpd|busybox.*httpd|boa|goahead|uhttpd'",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "Web server running - potential attack surface",
@@ -167,7 +168,7 @@
     {
       "category": "APPS",
       "label": "Telnet Daemon",
-      "command": "ps -A 2>/dev/null | grep -iE 'telnetd|busybox.*telnet'",
+      "command": "(ps -A 2>/dev/null || /system/bin/ps -A) | grep -iE 'telnetd|busybox.*telnet'",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Telnet daemon running - INSECURE!",
@@ -177,7 +178,7 @@
     {
       "category": "APPS",
       "label": "FTP Daemon",
-      "command": "ps -A 2>/dev/null | grep -iE 'ftpd|vsftpd|proftpd|busybox.*ftp'",
+      "command": "(ps -A 2>/dev/null || /system/bin/ps -A) | grep -iE 'ftpd|vsftpd|proftpd|busybox.*ftp'",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "FTP daemon running - credentials in plaintext!",
@@ -187,7 +188,7 @@
     {
       "category": "APPS",
       "label": "SSH Daemon",
-      "command": "ps -A 2>/dev/null | grep -iE 'sshd|dropbear'",
+      "command": "(ps -A 2>/dev/null || /system/bin/ps -A) | grep -iE 'sshd|dropbear'",
       "safe_pattern": ".",
       "level": "info",
       "description": "SSH daemon running",
@@ -196,7 +197,7 @@
     {
       "category": "APPS",
       "label": "MQTT Client/Broker",
-      "command": "ps -A 2>/dev/null | grep -iE 'mosquitto|mqtt|paho'",
+      "command": "(ps -A 2>/dev/null || /system/bin/ps -A) | grep -iE 'mosquitto|mqtt|paho'",
       "safe_pattern": ".",
       "level": "info",
       "description": "MQTT service running",
@@ -205,7 +206,7 @@
     {
       "category": "APPS",
       "label": "Node.js/Python Services",
-      "command": "ps -A 2>/dev/null | grep -iE 'node|python|python3'",
+      "command": "(ps -A 2>/dev/null || /system/bin/ps -A) | grep -iE 'node|python|python3'",
       "safe_pattern": ".",
       "level": "info",
       "description": "Script-based services running",
@@ -214,7 +215,7 @@
     {
       "category": "APPS",
       "label": "Database Services",
-      "command": "ps -A 2>/dev/null | grep -iE 'mysql|mariadb|postgres|sqlite|mongodb|redis'",
+      "command": "(ps -A 2>/dev/null || /system/bin/ps -A) | grep -iE 'mysql|mariadb|postgres|sqlite|mongodb|redis'",
       "safe_pattern": ".",
       "level": "info",
       "description": "Database services running",
@@ -223,7 +224,7 @@
     {
       "category": "APPS",
       "label": "Docker/Container Runtime",
-      "command": "ps -A 2>/dev/null | grep -iE 'docker|containerd|runc'",
+      "command": "(ps -A 2>/dev/null || /system/bin/ps -A) | grep -iE 'docker|containerd|runc'",
       "safe_pattern": ".",
       "level": "info",
       "description": "Container runtime detected",
@@ -241,7 +242,7 @@
     {
       "category": "APPS",
       "label": "Custom IoT Daemons",
-      "command": "ps -A 2>/dev/null | grep -vE 'system_server|surfaceflinger|zygote|android|google|samsung|com\\.' | grep -E 'd$|daemon|service' | head -10",
+      "command": "(ps -A 2>/dev/null || /system/bin/ps -A) | grep -vE 'system_server|surfaceflinger|zygote|android|google|samsung|com\\.' | grep -E 'd$|daemon|service' | head -10",
       "safe_pattern": ".",
       "level": "info",
       "description": "Non-Android services/daemons running",
@@ -498,10 +499,10 @@
       "id": "APP-DEXCACHE-001",
       "category": "APPS",
       "label": "Dalvik Cache Not World-Writable",
-      "command": "find /data/dalvik-cache -maxdepth 2 -perm -o+w 2>/dev/null | head -10",
-      "safe_pattern": "^$",
+      "command": "W=$(ls -ld /data/dalvik-cache /data/dalvik-cache/*/ 2>/dev/null | grep -cE \"^d.{7}w\"); N=$(find /data/dalvik-cache -maxdepth 2 -perm -o+w 2>/dev/null | wc -l); D=$(find /data/dalvik-cache -maxdepth 2 2>&1 1>/dev/null | grep -c \"Permission denied\"); if [ \"$W\" -gt 0 ] || [ \"$N\" -gt 0 ]; then echo \"WORLD_WRITABLE dirs=$W files=$N\"; elif [ \"$D\" -gt 0 ]; then echo \"UNMEASURED dirs_checked_clean enumeration_denied=$D\"; else echo CLEAN; fi",
+      "safe_pattern": "^CLEAN$",
       "level": "critical",
-      "empty_is_safe": true,
+      "empty_is_safe": false,
       "description": "Finds world-writable entries in the dalvik-cache, which holds the ahead-of-time compiled ART artifacts (odex, vdex, art) that the runtime maps and executes. A writable cache entry means an unprivileged process can replace compiled code that a privileged process will execute on next start, which is arbitrary code execution across a privilege boundary without needing a memory corruption bug. On a healthy device this returns nothing.",
       "remediation": "Remove world write permission from every entry listed and investigate how it was set. Wipe and regenerate the cache with 'cmd package compile -r bg-dexopt -a' after correcting the permissions.",
       "why": "Replacing a compiled ART artifact substitutes code that a privileged process executes at startup.",

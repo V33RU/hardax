@@ -39,7 +39,7 @@
     {
       "category": "STORAGE",
       "label": "Mount Points (rw/ro)",
-      "command": "mount | grep -E ' rw| ro'",
+      "command": "mount | grep -E '\\((rw|ro)[,)]' | head -20",
       "safe_pattern": ".",
       "level": "info",
       "description": "Review mounted partitions and access permissions (evidence collector)",
@@ -57,7 +57,7 @@
     {
       "category": "STORAGE",
       "label": "World-Readable Files Count",
-      "command": "find /data -maxdepth 4 -type f -perm -o+r 2>/dev/null | wc -l",
+      "command": "find /data -maxdepth 4 -type f -perm -o+r | wc -l",
       "safe_pattern": "^[0-9]$|^[1-4][0-9]$",
       "level": "info",
       "description": "World-readable files in /data (top 4 levels). Some are normal; large counts may indicate misconfigured permissions.",
@@ -67,7 +67,7 @@
     {
       "category": "STORAGE",
       "label": "World-Readable Files List",
-      "command": "find /data -maxdepth 4 -type f -perm -o+r 2>/dev/null | head -20",
+      "command": "find /data -maxdepth 4 -type f -perm -o+r | head -20",
       "safe_pattern": "^$",
       "level": "info",
       "description": "World-readable files in /data (evidence collector - review for sensitive files).",
@@ -77,7 +77,7 @@
     {
       "category": "STORAGE",
       "label": "SQLite DB Permissions",
-      "command": "find /data/data -maxdepth 4 -name '*.db' -print0 2>/dev/null | xargs -0 ls -l 2>/dev/null | grep -v 'rw-------'",
+      "command": "find /data/data -maxdepth 4 -name '*.db' -print0 | xargs -0 ls -l 2>/dev/null | grep -v 'rw-------'",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "SQLite databases should not be world-readable/writable",
@@ -125,12 +125,12 @@
     {
       "category": "STORAGE",
       "label": "World-Writable Files",
-      "command": "find /data -maxdepth 4 -type f -perm -o+w 2>/dev/null | wc -l",
-      "safe_pattern": "^0$",
+      "command": "N=$(find /data -maxdepth 4 -type f -perm -o+w | wc -l); echo \"count=$N\"; find /data -maxdepth 4 -type f -perm -o+w 2>/dev/null | head -10",
+      "safe_pattern": "^count=0$",
       "level": "warning",
       "description": "Unprotected sensitive files (scans top 4 levels of /data)",
       "remediation": "Remove world-writable permission using 'chmod o-w' on affected files to prevent unauthorized writes.",
-      "empty_is_safe": true
+      "empty_is_safe": false
     },
     {
       "category": "STORAGE",
@@ -153,7 +153,7 @@
     {
       "category": "STORAGE",
       "label": "Recovery Partition Access",
-      "command": "ls /dev/block/by-name/recovery /dev/block/bootdevice/by-name/recovery 2>/dev/null",
+      "command": "P=$(ls -d /dev/block/by-name/recovery /dev/block/bootdevice/by-name/recovery 2>/dev/null); if [ -n \"$P\" ]; then printf '%s\\n' \"$P\"; elif ls -d /dev/block/by-name/recovery /dev/block/bootdevice/by-name/recovery 2>&1 | grep -qi 'permission denied'; then echo UNMEASURED; else echo \"ABSENT no recovery partition (A/B device)\"; fi",
       "safe_pattern": ".",
       "level": "info",
       "description": "Recovery partition accessible",
@@ -180,10 +180,10 @@
     {
       "category": "STORAGE",
       "label": "Hidden or Extra Partitions",
-      "command": "cat /proc/partitions | grep -Ev 'mmcblk0p[0-9]+|sda[0-9]+'",
+      "command": "awk 'NR>2 && NF>=4 {print $4}' /proc/partitions 2>/dev/null | grep -vE '^(ram|loop|dm-|zram|sd[a-z]|mmcblk[0-9]+)([0-9]+)?$' | head -10",
       "safe_pattern": "^$",
       "level": "info",
-      "description": "Detects non-standard or extra partitions",
+      "description": "Block devices that are not a recognised storage, RAM, loop or device-mapper node. The exclusion covers UFS multi-LUN devices (sda through sdz), eMMC (mmcblkN), and the virtual ram/loop/dm/zram devices every Android kernel creates, so only a genuinely unexpected entry is reported.",
       "remediation": "Investigate unexpected partitions for hidden data or unauthorized storage areas.",
       "empty_is_safe": true
     },
@@ -209,11 +209,12 @@
     {
       "category": "STORAGE",
       "label": "External Storage Encryption",
-      "command": "getprop ro.crypto.volume.filenames_mode",
+      "command": "V=$(getprop ro.crypto.volume.filenames_mode 2>/dev/null); [ -z \"$V\" ] && echo \"UNMEASURED ro.crypto.volume.filenames_mode unset\" || printf '%s\\n' \"$V\"",
       "safe_pattern": "^aes-256-cts$",
       "level": "warning",
       "description": "External storage filenames should be encrypted",
-      "remediation": "Enable file-based encryption for external storage. Set ro.crypto.volume.filenames_mode to aes-256-cts."
+      "remediation": "Enable file-based encryption for external storage. Set ro.crypto.volume.filenames_mode to aes-256-cts.",
+      "empty_is_safe": false
     },
     {
       "category": "STORAGE",
@@ -224,6 +225,28 @@
       "level": "warning",
       "description": "Active swap partitions can expose sensitive data (encryption keys, passwords, session tokens) to persistent storage and forensic recovery.",
       "remediation": "Disable swap using 'swapoff -a'. If swap is required, ensure the swap partition is encrypted."
+    },
+    {
+      "category": "STORAGE",
+      "label": "Storage Chip Identity (UFS/eMMC)",
+      "command": "O=''; for d in /sys/block/sd*/device /sys/class/mmc_host/mmc*/mmc*:*; do [ -d \"$d\" ] || continue; v=$(cat \"$d/vendor\" 2>/dev/null | tr -d ' '); m=$(cat \"$d/model\" 2>/dev/null | tr -d ' '); n=$(cat \"$d/name\" 2>/dev/null | tr -d ' '); r=$(cat \"$d/rev\" 2>/dev/null | tr -d ' '); f=$(cat \"$d/fwrev\" 2>/dev/null | tr -d ' '); [ -n \"$v$m$n\" ] && O=\"$O${v:-?}/${m:-$n} rev=${r:-$f}\n\"; done; if [ -z \"$O\" ]; then echo 'UNMEASURED no storage device identity readable'; else printf '%b' \"$O\" | sort -u; fi",
+      "safe_pattern": "/",
+      "level": "info",
+      "description": "Manufacturer and part number of the UFS or eMMC device, read from sysfs. Identifies the actual flash silicon without physical access. Useful for forensic provenance: a part number that does not match the expected build is evidence of a swapped or refurbished storage device.",
+      "remediation": "No action. Record with the audit and compare against the expected part for this hardware revision.",
+      "why": "Flash part identity is provenance evidence obtainable without opening the device.",
+      "risk_if_fail": "A substituted storage device goes unnoticed."
+    },
+    {
+      "category": "STORAGE",
+      "label": "Storage Wear and End-of-Life State",
+      "command": "O=''; for f in /sys/devices/platform/soc/*.ufshc/health_descriptor/eol_info /sys/devices/platform/soc/*.ufshc/health_descriptor/life_time_estimation_a /sys/devices/platform/soc/*.ufshc/health_descriptor/life_time_estimation_b /sys/class/mmc_host/mmc*/mmc*:*/life_time /sys/class/mmc_host/mmc*/mmc*:*/pre_eol_info; do [ -r \"$f\" ] && O=\"$O$(basename $f)=$(cat $f 2>/dev/null | tr -d ' ')\n\"; done; if [ -z \"$O\" ]; then echo 'NOT_OBSERVABLE no UFS/eMMC health descriptor exposed'; else printf '%b' \"$O\"; fi",
+      "safe_pattern": "^(eol_info=0x0[12]|life_time|pre_eol|NOT_OBSERVABLE)",
+      "level": "info",
+      "description": "UFS/eMMC wear indicators. eol_info 0x01 is normal, 0x02 is warning, 0x03 is urgent and 0x04 means the device is at end of life. life_time_estimation values step in 10 percent increments of rated write endurance. Heavy wear on a device that should be lightly used is an indicator of prior use or of unexpected write activity.",
+      "remediation": "Investigate any eol_info of 0x03 or higher, or a life_time estimate far above what the deployment age would explain. Plan replacement before the flash becomes read-only.",
+      "why": "Wear state is provenance and reliability evidence readable without physical access.",
+      "risk_if_fail": "A worn or previously-used flash device is deployed as if new."
     }
   ]
 }

@@ -29,12 +29,22 @@ class FakeDevice(hardax.Device):
         self.default = default
         self.calls = []
 
-    def shell(self, command):
+    def shellEx(self, command):
+        """Canned output is treated as stdout with a clean exit.
+
+        Recorded fixtures are device stdout, so stderr is empty and the exit
+        status is 0. A fixture that records a device failure message therefore
+        arrives on stdout exactly as it does on real hardware, which is where
+        the engine detects it.
+        """
         self.calls.append(command)
         for key, val in self.responses.items():
             if key in command:
-                return val
-        return self.default
+                return hardax.ShellResult(val, "", 0)
+        return hardax.ShellResult(self.default, "", 0)
+
+    def shell(self, command):
+        return self.shellEx(command).merged
 
     def idString(self):
         return "fake-device"
