@@ -8,7 +8,7 @@
   <a href="https://pypi.org/project/hardax/">
     <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg" alt="Python 3.10 | 3.11 | 3.12">
   </a>
-  <img src="https://img.shields.io/badge/checks-826-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-841-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-29-purple.svg" alt="Categories">
   <a href="https://github.com/V33RU/hardax/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
@@ -34,7 +34,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **816 security checks** across **29 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **841 security checks** across **29 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -49,7 +49,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **816 Security Checks** | Comprehensive coverage across 29 security categories |
+| **841 Security Checks** | Comprehensive coverage across 29 security categories |
 | **Deterministic Analysis Engine** | Offline risk score (0-100), attack-chain correlation, prioritised remediation - reasons only over confirmed findings, no LLM, no network, no hallucination |
 | **Optional AI Narrative** | Opt-in `--ai` LLM summary on top of the deterministic engine (local Ollama, or Anthropic/OpenAI with your own key). Sends only the redacted analysis summary, never raw device output. Off by default |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
@@ -319,7 +319,7 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **816 checks** into **29 security categories**:
+HARDAX organizes **841 checks** into **29 security categories**:
 
 | Category | Checks | Description |
 |----------|--------|-------------|
@@ -435,7 +435,7 @@ HARDAX/
     ├── ai.py              # Optional opt-in LLM narrative (Ollama/Anthropic/OpenAI, stdlib only)
     ├── templates/
     │   └── report.html    # Interactive HTML report template
-    └── commands/          # Security check definitions (816 checks, 29 categories)
+    └── commands/          # Security check definitions (841 checks, 29 categories)
         ├── system.json        #  86 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator, WebView
         ├── bluetooth.json     #  82 checks - BLE/Classic, pairing, all profiles
         ├── network.json       #  61 checks - Ports, WiFi, VPN, IoT protocols, Allow 2G, hotspot WPA
@@ -522,7 +522,7 @@ Grouped by theme. Order within a group is rough priority.
 
 #### Check metadata completeness
 - [ ] Stable `id` on every check. Only 38% carry one, so reports are keyed on labels and a rename breaks downstream consumers
-- [ ] `baseline_key` on the boot and identity checks. Only 7 of 822 carry one, so `--save-baseline` watches almost nothing
+- [ ] `baseline_key` on the boot and identity checks. Only 7 of 841 carry one, so `--save-baseline` watches almost nothing
 - [ ] `why` and `risk_if_fail` beyond the current 8%. The XLSX and HTML reports fall back to `description` for the rest
 - [ ] `expected_secure_state` beyond the current 2%, which is the field a Test ID / Component / Expected State methodology format needs
 - [ ] Collapse the seven severity levels. `low`, `medium` and `high` are historical and map onto the same three buckets as `info`, `warning` and `critical`
@@ -543,7 +543,7 @@ Grouped by theme. Order within a group is rough priority.
 #### Compliance mappings
 - [ ] CIS Android Benchmark v1.6.0: fill the remaining 11% to 100% coverage. The current claim is not independently verified
 - [ ] OWASP MASVS / MSTG mapping per check
-- [ ] NIST 800-53 / 800-171 mapping per check (31 of 822 checks carry one today)
+- [ ] NIST 800-53 / 800-171 mapping per check (31 of 841 checks carry one today)
 - [ ] PCI-DSS 4.0 detailed mapping (POS terminals)
 
 #### Tooling and ergonomics

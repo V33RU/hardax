@@ -114,7 +114,7 @@
       "id": "MED-HEALTHCONNECT-001",
       "category": "MEDICAL",
       "label": "Health Connect Data Store Present",
-      "command": "P=$(pm list packages 2>/dev/null | grep -iE 'healthdata|health\\.connect' | sed 's/^package://' | tr '\\n' ' '); N=$(pm list permissions 2>/dev/null | grep -c 'permission.health'); echo \"health_connect=${P:-none} health_permissions_declared=${N:-0}\"",
+      "command": "L=$(pm list packages 2>/dev/null); case \"$L\" in \"\"|*\"Failure calling service\"*|*\"Can't find service\"*|*\"Failed transaction\"*) echo \"UNMEASURED pm list packages did not answer\";; *) P=$(printf '%s\\n' \"$L\" | grep -iE 'healthdata|health[.]connect' | sed 's/^package://' | tr '\\n' ' '); N=$(pm list permissions 2>/dev/null | grep -c 'permission.health'); echo \"health_connect=${P:-none} health_permissions_declared=${N:-0}\";; esac",
       "safe_pattern": ".",
       "level": "info",
       "description": "Health Connect is the on-device store that aggregates health and fitness records (heart rate, sleep, blood glucose, steps, cycle tracking) from every app that writes to it, and became a platform component in Android 14. It concentrates data that is individually low-value into one queryable store guarded by the android.permission.health.* permission family. This reports whether the store is installed and how many health permissions the platform declares. Informational: presence on a consumer or clinical device is expected. It is reported so an auditor knows a consolidated health record exists on the device and can review which apps hold read access to it.",

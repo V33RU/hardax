@@ -48,7 +48,7 @@
     {
       "category": "CIS_BENCHMARK",
       "label": "CIS 1.16 - Device Admin Apps (Remote Wipe)",
-      "command": "dumpsys device_policy 2>/dev/null | grep -c 'admin=' | head -1",
+      "command": "D=$(dumpsys device_policy 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys device_policy did not answer\";; *) printf '%s\\n' \"$D\" | grep -c 'admin=' | head -1;; esac",
       "safe_pattern": "^[1-9]",
       "level": "info",
       "description": "CIS 1.16: Ensure 'Allow remote lock and erase' is enabled via device admin apps",
@@ -125,7 +125,7 @@
     {
       "category": "CIS_BENCHMARK",
       "label": "CIS 1.28 - User Profiles Count",
-      "command": "pm list users 2>/dev/null | wc -l",
+      "command": "D=$(pm list users 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED pm list users did not answer\";; *) printf '%s\\n' \"$D\" | wc -l;; esac",
       "safe_pattern": "^1$",
       "level": "info",
       "description": "CIS 1.28: Review existing user profiles - ideally only 1 primary user should exist",

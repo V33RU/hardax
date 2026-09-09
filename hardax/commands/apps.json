@@ -119,7 +119,7 @@
     {
       "category": "APPS",
       "label": "Running Services Count",
-      "command": "dumpsys activity services | grep -E 'package|process' | wc -l",
+      "command": "D=$(dumpsys activity services 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys activity services did not answer\";; *) printf '%s\\n' \"$D\" | grep -E 'package|process' | wc -l;; esac",
       "safe_pattern": ".*",
       "level": "info",
       "description": "Running services on device",
@@ -246,7 +246,8 @@
       "safe_pattern": ".",
       "level": "info",
       "description": "Non-Android services/daemons running",
-      "remediation": "Audit each custom daemon for necessity and security. Disable unneeded ones via init scripts."
+      "remediation": "Audit each custom daemon for necessity and security. Disable unneeded ones via init scripts.",
+      "binder_optional": true
     },
     {
       "category": "APPS",
@@ -457,7 +458,8 @@
       "safe_pattern": ".",
       "level": "info",
       "description": "The SDK Runtime, part of Privacy Sandbox on Android, moves third-party advertising and analytics SDKs out of the host app process into a separate sandboxed process with its own restricted permissions and no access to the host app's storage or non-sandboxed permissions. This reports whether the SDK Runtime and AdServices packages are installed. It matters for audit scope: when the runtime is active, an SDK's data access is no longer implied by the host app's manifest permissions, so an app permission review alone no longer describes what a bundled SDK can reach. Informational, since the runtime's presence depends on the Android version and whether the build ships GMS.",
-      "remediation": "Nothing to fix on-device. When reviewing app permissions on a device with the SDK Runtime present, audit sandboxed SDK permissions separately from host app permissions rather than assuming the host manifest covers both."
+      "remediation": "Nothing to fix on-device. When reviewing app permissions on a device with the SDK Runtime present, audit sandboxed SDK permissions separately from host app permissions rather than assuming the host manifest covers both.",
+      "binder_optional": true
     },
     {
       "id": "APP-HIDDENAPI-001",
@@ -512,7 +514,7 @@
       "id": "APP-SIGV4-001",
       "category": "APPS",
       "label": "APK Signature Scheme Distribution",
-      "command": "V=$(dumpsys package 2>/dev/null | grep -oE 'apkSigningVersion=[0-9]+' | sort | uniq -c | awk '{printf \"v%s=%s \", substr($2,18), $1}'); I=$(find /data/app -maxdepth 4 -name '*.idsig' 2>/dev/null | wc -l); [ -z \"$V\" ] && echo \"NO_SIGNING_INFO idsig_files=${I:-0}\" || echo \"$V idsig_files=${I:-0}\"",
+      "command": "D=$(dumpsys package 2>/dev/null); I=$(find /data/app -maxdepth 4 -name '*.idsig' 2>/dev/null | wc -l); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys package did not answer; idsig_files=$I\";; *) V=$(printf '%s\\n' \"$D\" | grep -oE 'apkSigningVersion=[0-9]+' | sort | uniq -c | awk '{printf \"v%s=%s \", substr($2,18), $1}'); echo \"${V:-no_signing_info} idsig_files=$I\";; esac",
       "safe_pattern": ".",
       "level": "info",
       "empty_is_safe": false,
@@ -523,7 +525,7 @@
       "id": "APP-ROLLBACK-001",
       "category": "APPS",
       "label": "Package Rollback and Downgrade Protection",
-      "command": "R=$(dumpsys rollback 2>/dev/null | head -20); if [ -z \"$R\" ]; then echo NO_ROLLBACK_SERVICE; else A=$(printf '%s' \"$R\" | grep -ci 'rollbackId'); echo \"rollback_service=present available_rollbacks=${A:-0}\"; fi",
+      "command": "D=$(dumpsys rollback 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys rollback did not answer\";; *) A=$(printf '%s' \"$D\" | head -20 | grep -ci 'rollbackId'); echo \"rollback_service=present available_rollbacks=${A:-0}\";; esac",
       "safe_pattern": ".",
       "level": "info",
       "empty_is_safe": false,
@@ -541,13 +543,14 @@
       "description": "Counts split APK files and staged install sessions. A split APK is verified as part of its base package, but a session left staged is a pending install that will be applied at next reboot, and on a device being audited it means code is queued to run that is not yet reflected in the installed package list. A staged session is normal briefly during an OTA or a Play update, so a non-zero count on an idle device is worth explaining rather than assuming benign.",
       "remediation": "Inspect any staged session with 'pm list staged-sessions' and abandon unexpected ones with 'pm install-abandon <id>'. Re-audit after the pending install has been applied.",
       "why": "A staged session is code queued to install at next boot that no package listing yet reflects.",
-      "risk_if_fail": "The device will apply an install after reboot that the audit did not evaluate."
+      "risk_if_fail": "The device will apply an install after reboot that the audit did not evaluate.",
+      "binder_optional": true
     },
     {
       "id": "APP-EXPORTED-001",
       "category": "APPS",
       "label": "Exported Components Without Permission (Third-Party)",
-      "command": "D=$(dumpsys package 2>/dev/null); if [ -z \"$D\" ]; then echo NO_PACKAGE_DUMP; else E=$(printf '%s' \"$D\" | grep -c 'exported=true'); P=$(printf '%s' \"$D\" | grep -c 'permission='); echo \"exported_components=${E:-0} with_permission_decl=${P:-0}\"; fi",
+      "command": "D=$(dumpsys package 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys package did not answer\";; *) E=$(printf '%s' \"$D\" | grep -c 'exported=true'); P=$(printf '%s' \"$D\" | grep -c 'permission='); echo \"exported_components=${E:-0} with_permission_declared=${P:-0}\";; esac",
       "safe_pattern": ".",
       "level": "verify",
       "empty_is_safe": false,

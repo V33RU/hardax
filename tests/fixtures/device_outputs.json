@@ -92,13 +92,13 @@
   "Memory Tagging (MTE)": [
     [
       "MTE_CPU_SUPPORTED bootctl=async default=unset",
-      "SAFE",
-      "info level evidence collector"
+      "INFO",
+      "info level evidence collector: safe_pattern '.' matches any output, so it cannot distinguish supported from absent and must not be counted as a pass"
     ],
     [
       "MTE_CPU_ABSENT bootctl=unset default=unset",
-      "SAFE",
-      "MTE needs ARMv8.5 silicon most fleet hardware lacks, so absence must stay info"
+      "INFO",
+      "info level evidence collector: safe_pattern '.' matches any output, so the check reports the same verdict whether MTE is present or absent and must not be counted as a pass"
     ]
   ],
   "Security Patch Level": [

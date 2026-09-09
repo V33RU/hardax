@@ -256,6 +256,8 @@
       padding: 10px 12px;
       border-radius: 6px;
       border: 1px solid rgba(0,229,255,0.08);
+      min-width: 0;
+      overflow: hidden;
     }
 
     .dev-label {
@@ -271,6 +273,13 @@
       font-weight: 600;
       font-size: 0.85rem;
       color: var(--text-0);
+      /* A build fingerprint or serial is one unbroken token with no natural
+         break opportunity, so with the default word-break it overflowed its
+         grid cell and painted over the neighbouring field. */
+      display: block;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      min-width: 0;
     }
 
     .chart-card {

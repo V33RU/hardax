@@ -59,7 +59,7 @@ for _stream in (sys.stdout, sys.stderr):
 #  VERSION & CONSTANTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-__version__ = "6.2.0"
+__version__ = "6.2.1"
 
 REQUIRED_CHECK_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
 
@@ -1302,6 +1302,14 @@ def commandNeedsBinder(command: str) -> bool:
     return bool(_BINDER_TOOLS.search(command or ""))
 
 
+# A safe_pattern that matches any output at all is not a pass/fail rule, it is an
+# evidence collector. Reporting those as SAFE inflated the pass count: on the
+# reference panel 122 of 371 SAFE results came from checks that evaluated
+# nothing. They still run and still show their output, they are just reported as
+# INFO so the SAFE total means "tested against a rule and passed".
+ALWAYS_MATCH_PATTERNS = frozenset({".", ".*", "^.*$", "(?s).*", ".+", "^.+$"})
+
+
 def probeCapabilities(device: Device) -> Dict[str, Any]:
     """Establish what this transport can actually reach before scoring anything.
 
@@ -1965,8 +1973,12 @@ def runChecks(device: Device, checks: List[Dict[str, Any]],
                     counts["verify"] += 1
                     needsVerification = True
             elif matched:
-                status = "SAFE"
-                counts["safe"] += 1
+                status = ("INFO" if safePattern in ALWAYS_MATCH_PATTERNS
+                          else "SAFE")
+                # Derive the counter from the status just assigned. Writing the
+                # two independently is what let counts["safe"] keep counting
+                # rows that were reported INFO.
+                counts[status.lower()] += 1
             elif outputEmpty:
                 if emptyIsSafe:
                     status = "SAFE"
@@ -2430,6 +2442,38 @@ def auditCertificates(device: Device) -> List[Dict[str, Any]]:
 #  REPORT GENERATION - TXT
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+_EVIDENCE_REPORT_MAX = 1200
+
+
+def evidenceLines(row):
+    """Render a row's evidence record as report lines.
+
+    A status on its own is not auditable: the reader cannot tell a CRITICAL
+    read off a command's output from one produced by a command that never ran.
+    The engine already records which observation decided the verdict and what
+    the device actually returned; these lines put that in front of the reader.
+    Returns [] for a row written before evidence records existed.
+    """
+    ev = (row or {}).get("evidence") or {}
+    if not ev:
+        return []
+    out = []
+    if ev.get("basis"):
+        out.append(("Basis", ev["basis"]))
+    stdout = (ev.get("stdout") or "").strip()
+    stderr = (ev.get("stderr") or "").strip()
+    if stdout:
+        out.append(("Device stdout", stdout[:_EVIDENCE_REPORT_MAX]))
+    if stderr:
+        out.append(("Device stderr", stderr[:_EVIDENCE_REPORT_MAX]))
+    if not stdout and not stderr:
+        out.append(("Device output", "(none)"))
+    code = ev.get("exit_code")
+    if code is not None:
+        out.append(("Exit code", str(code)))
+    return out
+
+
 def writeTxtReport(path: str, deviceInfo: Dict[str, str],
                    rows: List[Dict[str, Any]], counts: Dict[str, int],
                    certs: List[Dict[str, Any]], deviceIdStr: str,
@@ -2462,6 +2506,13 @@ def writeTxtReport(path: str, deviceInfo: Dict[str, str],
             f.write(f"Description: {r['description']}\n")
             f.write(f"Result: {r['result'][:500]}{'...' if len(r['result']) > 500 else ''}\n")
             f.write(f"Status: {r['status']}\n")
+            for name, value in evidenceLines(r):
+                if "\n" in value:
+                    f.write(f"{name}:\n")
+                    for line in value.split("\n"):
+                        f.write(f"    {line}\n")
+                else:
+                    f.write(f"{name}: {value}\n")
             if r.get("remediation") and r["status"] not in ("SAFE", "INFO"):
                 f.write(f"Remediation: {r['remediation']}\n")
             f.write("-" * 40 + "\n")
@@ -2635,10 +2686,15 @@ def writeXlsxReport(path: str, deviceInfo: Dict[str, str],
     wf = wb.create_sheet("Findings")
     cols = [("Category", 16), ("ID", 16), ("Label", 34), ("Status", 11), ("Level", 9),
             ("Why it matters", 42), ("Risk if failed", 42), ("Expected secure state", 30),
-            ("Command", 46), ("Output", 40), ("Description", 46), ("Remediation", 46),
+            ("Command", 46), ("Output", 40),
+            # Evidence: what decided the verdict, and what the device actually
+            # returned. Without these a Status column is an unsupported claim.
+            ("Basis", 46), ("Device stdout", 44), ("Device stderr", 34), ("Exit code", 9),
+            ("Description", 46), ("Remediation", 46),
             ("NIST 800-53", 16), ("CIS", 9), ("Tags", 20), ("Baseline", 12)]
     _hdr(wf, 1, [c[0] for c in cols], [c[1] for c in cols])
     for ri, row in enumerate(rows, start=2):
+        _ev = row.get("evidence") or {}
         tags = row.get("tags") or []
         if isinstance(tags, list):
             tags = ", ".join(str(t) for t in tags)
@@ -2646,6 +2702,9 @@ def writeXlsxReport(path: str, deviceInfo: Dict[str, str],
                 row.get("status", ""), row.get("level", ""), row.get("why", ""),
                 row.get("risk_if_fail", ""), row.get("expected_secure_state", ""),
                 row.get("command", ""), (str(row.get("result", "")) or "")[:2000],
+                _ev.get("basis", ""), (_ev.get("stdout") or "")[:2000],
+                (_ev.get("stderr") or "")[:2000],
+                "" if _ev.get("exit_code") is None else str(_ev.get("exit_code")),
                 row.get("description", ""), row.get("remediation", ""),
                 row.get("nist_800_53", ""), row.get("cis_id", ""), tags, row.get("baseline", "")]
         for ci, val in enumerate(vals, 1):
@@ -2895,6 +2954,28 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
             riskHtml = _detailGroup("Risk if failed", r.get("risk_if_fail", ""), "risk-group")
             expHtml = _detailGroup("Expected secure state", r.get("expected_secure_state", ""))
 
+            # Evidence. The Output block above shows the displayed result, which
+            # can be a rewritten summary; these show the raw streams and the
+            # observation the verdict was actually taken from.
+            _ev = r.get("evidence") or {}
+            evidenceHtml = _detailGroup("Basis", _ev.get("basis", ""), "basis-group")
+            _stdout = (_ev.get("stdout") or "").strip()
+            _stderr = (_ev.get("stderr") or "").strip()
+            if _ev:
+                evidenceHtml += (
+                    f'\n            <div class="detail-group">'
+                    f'\n              <span class="detail-tag">Device stdout'
+                    f' (exit {htmlEscape(str(_ev.get("exit_code", "?")))})</span>'
+                    f'\n              <pre><code>'
+                    f'{htmlEscape(_stdout) if _stdout else "(none)"}</code></pre>'
+                    f'\n            </div>')
+                if _stderr:
+                    evidenceHtml += (
+                        f'\n            <div class="detail-group">'
+                        f'\n              <span class="detail-tag">Device stderr</span>'
+                        f'\n              <pre><code>{htmlEscape(_stderr)}</code></pre>'
+                        f'\n            </div>')
+
             remediationHtml = ""
             remText = r.get("remediation", "")
             if remText and st not in ("SAFE", "INFO"):
@@ -2936,7 +3017,7 @@ def writeHtmlReport(htmlPath: str, deviceInfo: Dict[str, str],
             <div class="detail-group">
               <span class="detail-tag">Output</span>
               <pre><code>{resEsc if resEsc else "(empty)"}</code></pre>
-            </div>{remediationHtml}{metaHtml}
+            </div>{evidenceHtml}{remediationHtml}{metaHtml}
           </div>
         </div>''')
 

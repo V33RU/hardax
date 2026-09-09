@@ -57,12 +57,12 @@
     {
       "category": "STORAGE",
       "label": "World-Readable Files Count",
-      "command": "find /data -maxdepth 4 -type f -perm -o+r | wc -l",
-      "safe_pattern": "^[0-9]$|^[1-4][0-9]$",
+      "command": "R=$(find /data -maxdepth 4 -type f -perm -o+r 2>&1); D=$(printf '%s\\n' \"$R\" | grep -c 'Permission denied'); N=$(printf '%s\\n' \"$R\" | grep -v 'Permission denied' | grep -c '^/data/'); if [ \"${D:-0}\" -gt 0 ]; then echo \"UNMEASURED world_readable=$N enumeration_denied=$D partial_walk\"; else echo \"world_readable=$N\"; fi",
+      "safe_pattern": "^world_readable=([0-9]|[1-4][0-9])$",
       "level": "info",
-      "description": "World-readable files in /data (top 4 levels). Some are normal; large counts may indicate misconfigured permissions.",
-      "remediation": "Run 'chmod o-r' on files that should not be world-readable. Audit listed files for sensitive content.",
-      "empty_is_safe": true
+      "description": "World-readable files under /data, four levels deep. The count only means something when the walk completed: on a device where SELinux denies most of /data the walk covers a fraction of the tree and a low number reflects what could not be entered rather than what is safe. The number of denied directories is counted alongside, and any denial routes the result to manual verification with the partial count shown rather than comparing an incomplete count against a threshold.",
+      "remediation": "Where the walk completed, review each world-readable file under /data and remove the o+r bit from anything holding configuration, tokens or user content. Where it did not complete, re-run from a context that can read /data, or inspect the image offline.",
+      "empty_is_safe": false
     },
     {
       "category": "STORAGE",
@@ -77,7 +77,7 @@
     {
       "category": "STORAGE",
       "label": "SQLite DB Permissions",
-      "command": "find /data/data -maxdepth 4 -name '*.db' -print0 | xargs -0 ls -l 2>/dev/null | grep -v 'rw-------'",
+      "command": "R=$(find /data/data -maxdepth 4 -name '*.db' | head -200); if [ -n \"$R\" ]; then printf '%s\\n' \"$R\" | while read -r f; do ls -l \"$f\" 2>/dev/null; done | grep -v 'rw-------'; elif ls /data/data >/dev/null 2>&1; then :; else echo \"UNMEASURED /data/data not listable\"; fi",
       "safe_pattern": "^$",
       "level": "warning",
       "description": "SQLite databases should not be world-readable/writable",
@@ -200,11 +200,12 @@
     {
       "category": "STORAGE",
       "label": "Orphaned Files in /data",
-      "command": "find /data -maxdepth 3 -type f -uid 0 ! -user system 2>/dev/null | wc -l",
-      "safe_pattern": "^0$",
+      "command": "R=$(find /data -maxdepth 3 -type f -uid 0 ! -user system 2>&1); D=$(printf '%s\\n' \"$R\" | grep -c 'Permission denied'); N=$(printf '%s\\n' \"$R\" | grep -v 'Permission denied' | grep -c '^/data/'); if [ \"${D:-0}\" -gt 0 ]; then echo \"UNMEASURED orphaned=$N enumeration_denied=$D partial_walk\"; else echo \"orphaned=$N\"; fi",
+      "safe_pattern": "^orphaned=0$",
       "level": "info",
-      "description": "Looks for files owned by root but not by 'system' user (top 3 levels)",
-      "remediation": "Reassign orphaned files to the correct owner or remove them if they are not needed."
+      "description": "Files under /data owned by root but not by the system user. The previous form sent find's stderr to /dev/null, so a walk that was denied every directory produced a count of zero that was indistinguishable from a genuinely clean tree, and reported SAFE. Denials are now counted and a partial walk is reported as unmeasured.",
+      "remediation": "Investigate any root-owned file under /data that is not owned by system. Where the walk was partial, re-run from a context with read access to /data.",
+      "empty_is_safe": false
     },
     {
       "category": "STORAGE",

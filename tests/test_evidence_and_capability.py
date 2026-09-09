@@ -6,6 +6,8 @@ what went wrong, so a future change that reintroduces the bug fails loudly
 instead of quietly reporting a device secure.
 """
 
+import pytest
+
 import hardax
 from conftest import FakeDevice, make_check
 
@@ -242,3 +244,299 @@ def test_binder_required_checks_are_still_gated():
         capabilities={"binder": False})
     assert rows[0]["status"] == "SKIPPED"
     assert dev.calls == []
+
+
+# ── overlayfs mount-point awareness ──────────────────────────────────────────
+
+import re
+import subprocess
+from conftest import load_all_checks
+
+
+def _overlay_check(label):
+    for c in load_all_checks():
+        if c["label"] == label:
+            return c
+    raise AssertionError("check not found: " + label)
+
+
+def _skip_without_posix_shell():
+    """These helpers execute the check's real command against a real filesystem.
+
+    On Windows `sh` can exist via Git Bash while path and permission semantics
+    differ, so the commands run but produce meaningless results. Skip rather
+    than assert on a platform the check was never written for.
+    """
+    import sys as _sys
+    import shutil as _shutil
+    if _sys.platform == "win32" or not _shutil.which("sh"):
+        pytest.skip("needs a POSIX shell and filesystem semantics")
+
+
+def _run_against(check, table, tmp_path):
+    """Run a check's real command with /proc/mounts swapped for a fixture."""
+    _skip_without_posix_shell()
+    f = tmp_path / "mounts"
+    f.write_text(table)
+    cmd = check["command"].replace("cat /proc/mounts 2>/dev/null",
+                                   "cat %s" % f)
+    p = subprocess.run(["sh", "-c", cmd], capture_output=True, text=True)
+    assert p.returncode == 0, p.stderr
+    out = p.stdout.strip()
+    return out, bool(re.search(check["safe_pattern"], out, re.M))
+
+
+CONTAINER_TABLE = (
+    "/dev/block/dm-15 /system_ext ext4 ro,seclabel 0 0\n"
+    "/dev/block/dm-17 /vendor ext4 ro,seclabel 0 0\n"
+    "overlay /data/cb/containers/a/overlay_rootfs overlay "
+    "rw,lowerdir=/mnt/vendor/cb/containers/a/ro,"
+    "upperdir=/data/cb/containers/a/overlay_rootfs,"
+    "workdir=/data/cb/containers/a/work 0 0\n"
+    "overlay /data/cb/containers/b/overlay_rootfs overlay rw,lowerdir=/x 0 0\n"
+    "overlay /data/cb/containers/c/overlay_rootfs overlay rw,lowerdir=/x 0 0\n"
+)
+
+REMOUNT_TABLE = (
+    "overlay /system overlay rw,lowerdir=/system,"
+    "upperdir=/mnt/scratch/overlay/system/upper 0 0\n"
+    "overlay /vendor overlay rw,lowerdir=/vendor 0 0\n"
+    "/dev/block/by-name/userdata /mnt/scratch ext4 rw,seclabel 0 0\n"
+)
+
+
+def test_container_overlays_are_not_an_adb_remount(tmp_path):
+    """Observed on an Android 13 device running containerised services: three
+    overlay mounts under /data/<runtime>/containers/*/overlay_rootfs were
+    reported CRITICAL as "adb remount active, dm-verity bypassed".
+
+    The old command was `mount | grep -c '^overlay'`, which counts overlays
+    anywhere and never looks at the mount point. Every firmware partition on
+    that device was mounted ro and no overlay sat on one.
+    """
+    chk = _overlay_check("OverlayFS Active (adb remount)")
+    out, safe = _run_against(chk, CONTAINER_TABLE, tmp_path)
+    assert safe, out
+    assert "firmware_overlays=0" in out
+    assert "other_overlays=3" in out, "container overlays must still be counted"
+
+
+def test_real_adb_remount_is_still_critical(tmp_path):
+    """Narrowing the check must not blind it to the thing it exists to catch."""
+    chk = _overlay_check("OverlayFS Active (adb remount)")
+    out, safe = _run_against(chk, REMOUNT_TABLE, tmp_path)
+    assert not safe, out
+    assert "firmware_overlays=2" in out
+    assert "/system" in out and "/vendor" in out, "must name the partitions"
+
+
+def test_leftover_remount_scratch_is_caught(tmp_path):
+    """A gap the bare count missed entirely: adb remount leaves /mnt/scratch
+    behind. With no overlay currently mounted the old check scored count=0 and
+    reported the device clean."""
+    chk = _overlay_check("OverlayFS Active (adb remount)")
+    table = ("/dev/block/by-name/userdata /mnt/scratch ext4 rw,seclabel 0 0\n"
+             "/dev/block/dm-17 /vendor ext4 ro 0 0\n")
+    out, safe = _run_against(chk, table, tmp_path)
+    assert not safe, out
+    assert "remount_scratch=[/mnt/scratch" in out
+
+
+def test_toybox_on_type_mount_format_is_parsed(tmp_path):
+    """`mount` prints "src on /mnt type fs (opts)" on some builds and
+    "src /mnt fs opts" on others. Both must resolve to the same mount point."""
+    chk = _overlay_check("OverlayFS Active (adb remount)")
+    out, safe = _run_against(
+        chk, "overlay on /vendor type overlay (rw,lowerdir=/vendor)\n", tmp_path)
+    assert not safe, out
+    assert "firmware_overlays=1" in out
+
+
+def test_clean_device_reports_no_overlays(tmp_path):
+    chk = _overlay_check("OverlayFS Active (adb remount)")
+    out, safe = _run_against(chk, "/dev/block/dm-17 /vendor ext4 ro 0 0\n", tmp_path)
+    assert safe, out
+    assert "firmware_overlays=0 other_overlays=0" in out
+
+
+def test_inventory_lists_where_each_overlay_sits(tmp_path):
+    """The severity check reports counts; this one must preserve the paths so
+    an analyst can confirm the classification instead of trusting it."""
+    chk = _overlay_check("OverlayFS Mount Inventory")
+    out, safe = _run_against(chk, CONTAINER_TABLE, tmp_path)
+    assert safe, out
+    assert out.count("overlay_at ") == 3
+    assert "/data/cb/containers/a/overlay_rootfs" in out
+    assert "count=3" in out
+
+
+APEX_LOOP_TABLE = (
+    "/dev/block/dm-17 /vendor ext4 ro,seclabel 0 0\n"
+    "/dev/block/loop0 /apex/com.android.adbd@330000000 ext4 ro,seclabel 0 0\n"
+    "/dev/block/loop1 /apex/com.android.art@330000000 ext4 ro,seclabel 0 0\n"
+    "/dev/block/loop2 /apex/com.android.conscrypt@330000000 ext4 ro,seclabel 0 0\n"
+)
+
+
+def test_apex_loop_mounts_are_not_unexpected(tmp_path):
+    """APEX Mainline modules are loop mounts on every Android 10+ device. The
+    check's own description said "outside of APEX" but the command counted all
+    of them, so widening its anchor would have fired on every modern device."""
+    chk = _overlay_check("Unexpected Loop Device Mounts")
+    out, safe = _run_against(chk, APEX_LOOP_TABLE, tmp_path)
+    assert safe, out
+    assert "apex_loop=3" in out, "APEX mounts must still be counted as evidence"
+
+
+def test_side_loaded_loop_image_is_caught(tmp_path):
+    """The original anchor was `^/dev/loop`, but Android names the source
+    /dev/block/loopN, so the check matched nothing and reported every device
+    clean regardless of what was loop-mounted."""
+    chk = _overlay_check("Unexpected Loop Device Mounts")
+    table = APEX_LOOP_TABLE + \
+        "/dev/block/loop9 /data/local/tmp/rogue ext4 rw,seclabel 0 0\n"
+    out, safe = _run_against(chk, table, tmp_path)
+    assert not safe, out
+    assert "non_apex_loop=1" in out
+    assert "/data/local/tmp/rogue" in out, "must name the mount point"
+
+
+def test_bare_dev_loop_source_is_still_matched(tmp_path):
+    """Some builds report /dev/loopN rather than /dev/block/loopN."""
+    chk = _overlay_check("Unexpected Loop Device Mounts")
+    out, safe = _run_against(chk, "/dev/loop7 /mnt/hidden ext4 rw 0 0\n", tmp_path)
+    assert not safe, out
+    assert "/mnt/hidden" in out
+
+
+# ── fstab encryption policy ──────────────────────────────────────────────────
+
+def _run_fstab(tmp_path, files=None, dt_flags=None):
+    """Run the fstab check with its search paths pointed at a fixture dir."""
+    _skip_without_posix_shell()
+    chk = _overlay_check("fstab Encryption Required")
+    root = tmp_path / "etc"
+    root.mkdir()
+    for name, body in (files or {}).items():
+        (root / name).write_text(body)
+    dt = tmp_path / "dt_flags"
+    if dt_flags is not None:
+        dt.write_bytes(dt_flags.encode() + b"\x00")
+    cmd = chk["command"]
+    cmd = cmd.replace(
+        "/vendor/etc/fstab.* /odm/etc/fstab.* /system/etc/fstab.* /etc/fstab* "
+        "/first_stage_ramdisk/fstab.*", "%s/fstab.*" % root)
+    cmd = cmd.replace(
+        "/proc/device-tree/firmware/android/fstab/userdata/fsmgr_flags", str(dt))
+    p = subprocess.run(["sh", "-c", cmd], capture_output=True, text=True)
+    assert p.returncode == 0, p.stderr
+    out = p.stdout.strip()
+    return out, bool(re.search(chk["safe_pattern"], out, re.M))
+
+
+FBE_LINE = ("/dev/block/by-name/userdata  /data  f2fs  noatime,nosuid,nodev  "
+            "latemount,wait,formattable,fileencryption=aes-256-xts:aes-256-cts,"
+            "metadata_encryption=aes-256-xts,quota\n")
+
+
+def test_fbe_fstab_entry_is_safe(tmp_path):
+    out, safe = _run_fstab(tmp_path, {"fstab.qcom": FBE_LINE})
+    assert safe, out
+    assert "data_encryption=fbe" in out and "metadata=yes" in out
+
+
+def test_fstab_without_encryption_is_a_finding(tmp_path):
+    line = ("/dev/block/by-name/userdata  /data  ext4  noatime,nosuid,nodev  "
+            "wait,formattable,quota\n")
+    out, safe = _run_fstab(tmp_path, {"fstab.qcom": line})
+    assert not safe, out
+    assert "data_encryption=none" in out
+
+
+def test_unreadable_fstab_is_unmeasured_not_critical(tmp_path):
+    """The old command was `[ -n "$D" ] && grep -c ...` with no else branch, so
+    a device where no fstab is readable emitted nothing and, with
+    empty_is_safe False, was reported CRITICAL "fstab must enforce encryption"
+    without a single file having been read."""
+    out, safe = _run_fstab(tmp_path)
+    assert not safe, out
+    assert hardax.isUnmeasured(out) == "UNMEASURED", out
+    rows, _ = hardax.runChecks(
+        FakeDevice(default=out), [_overlay_check("fstab Encryption Required")])
+    assert rows[0]["status"] == "VERIFY", "must not assert a finding it never measured"
+
+
+def test_device_tree_fstab_is_read(tmp_path):
+    """Many SoCs carry the fstab in the kernel device tree rather than a file.
+    The old check searched three path globs only and saw nothing on those
+    devices, which landed in the same false CRITICAL."""
+    out, safe = _run_fstab(
+        tmp_path,
+        dt_flags="wait,slotselect,avb,fileencryption=aes-256-xts:aes-256-cts,"
+                 "metadata_encryption=aes-256-xts")
+    assert safe, out
+    assert "device-tree" in out
+
+
+def test_encryptable_alone_does_not_satisfy_the_requirement(tmp_path):
+    """encryptable= permits encryption, it does not require it, so it must not
+    score the same as forceencrypt."""
+    line = ("/dev/block/by-name/userdata  /data  ext4  noatime  "
+            "wait,encryptable=footer\n")
+    out, safe = _run_fstab(tmp_path, {"fstab.qcom": line})
+    assert not safe, out
+    assert "data_encryption=encryptable_only" in out
+
+
+def test_commented_fstab_line_is_ignored(tmp_path):
+    out, safe = _run_fstab(tmp_path, {"fstab.qcom": "# " + FBE_LINE})
+    assert not safe, out
+    assert hardax.isUnmeasured(out) == "UNMEASURED"
+
+
+def test_legacy_fde_still_counts_as_encryption(tmp_path):
+    line = ("/dev/block/bootdevice/by-name/userdata  /data  ext4  noatime  "
+            "wait,forceencrypt=footer\n")
+    out, safe = _run_fstab(tmp_path, {"fstab.qcom": line})
+    assert safe, out
+    assert "data_encryption=fde" in out
+
+
+# ── summary counts must match the rows ───────────────────────────────────────
+
+def test_summary_counts_match_the_row_statuses():
+    """counts{} and the per-check statuses must not drift apart.
+
+    The status and its counter were assigned independently in eight branches of
+    runChecks. When the matched branch started reporting INFO for evidence
+    collectors, the counter beneath it still incremented "safe", so a scan
+    reported 367 SAFE while only 251 rows were actually SAFE. The summary line,
+    the live dashboard and the analysis engine all read counts{}, so the whole
+    report was wrong while every individual card was right.
+    """
+    import collections
+    checks = [
+        make_check(label="collector", safe_pattern=".", level="info"),
+        make_check(label="real-pass", safe_pattern="^ok$", level="critical"),
+        make_check(label="real-fail", safe_pattern="^never$", level="critical"),
+        make_check(label="empty-safe", safe_pattern="^$", level="warning",
+                   empty_is_safe=True, command="echo-nothing"),
+    ]
+    dev = FakeDevice(responses={"echo-nothing": ""}, default="ok")
+    rows, counts = hardax.runChecks(dev, checks)
+    actual = collections.Counter(r["status"].lower() for r in rows)
+    for key, n in actual.items():
+        assert counts.get(key, 0) == n, (
+            "counts[%r]=%s but %d row(s) have that status: %s"
+            % (key, counts.get(key), n,
+               [(r["label"], r["status"]) for r in rows]))
+    assert sum(counts.values()) == len(rows)
+
+
+def test_evidence_collector_is_not_counted_as_a_pass():
+    """A safe_pattern that matches any output is not a pass/fail rule."""
+    dev = FakeDevice(default="anything at all")
+    rows, counts = hardax.runChecks(
+        dev, [make_check(label="c", safe_pattern=".", level="info")])
+    assert rows[0]["status"] == "INFO"
+    assert counts["safe"] == 0

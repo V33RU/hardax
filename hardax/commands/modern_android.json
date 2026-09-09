@@ -54,7 +54,8 @@
       "description": "Android 15 ships Theft Detection Lock: the device uses on-device ML on accelerometer and connectivity signals to detect a snatch (sudden motion plus immediate disconnect from known networks) and auto-locks. On consumer phones used by field staff this is a meaningful loss-of-control mitigation. 1 = enabled (SAFE). UNSET = the user has not opted in OR this build does not expose the setting via the 'secure' namespace - reported as INFO, not a finding, because the exact key has not been confirmed across OEM A15 builds. Verify on real hardware before treating UNSET as a gap.",
       "remediation": "Enable in Settings > Security and privacy > Device unlock > Theft protection > Theft Detection Lock, or push via DPC. For fleet deployments, enable this together with Offline Device Lock and Remote Lock.",
       "empty_is_safe": false,
-      "null_is_safe": false
+      "null_is_safe": false,
+      "binder_optional": true
     },
     {
       "id": "MOD-A15-IDENTITY-CHECK-001",
@@ -66,7 +67,8 @@
       "description": "Android 15 Identity Check requires biometric authentication for sensitive settings changes (lockscreen credential changes, factory reset, password manager access, disabling Find My Device) when the device is outside a trusted location. Defeats the 'thief watches you type the PIN, then locks you out' attack pattern. 1 = enabled (SAFE). UNSET = user has not opted in OR this build does not expose the setting via the 'secure' namespace - reported as INFO, not a finding, because the exact key has not been confirmed across OEM A15 builds. Verify on real hardware.",
       "remediation": "Enable in Settings > Security and privacy > Device unlock > Identity Check. Requires Class 3 (Strong) biometric. Combine with Theft Detection Lock for full A15 anti-theft posture.",
       "empty_is_safe": false,
-      "null_is_safe": false
+      "null_is_safe": false,
+      "binder_optional": true
     },
     {
       "id": "MOD-A13-RESTRICTED-NET-001",
@@ -89,7 +91,8 @@
       "description": "Device-level Advanced Protection Mode shipped in Android 16 (API 36), the on-device counterpart to Google account Advanced Protection. When enabled it forces stricter defaults: MTE on supported chips, blocks 2G fallback, blocks USB data on lock, disables sideloading, hardens WebView SafeBrowsing. Recommended for journalists, executives, security staff and high-value POS/kiosk fleets. 1 = enabled (SAFE). UNSET = not opted in OR the setting is not exposed via the 'global' namespace on this build - reported as INFO because the key has not been confirmed across OEM A16 builds.",
       "remediation": "Enable in Settings > Security and privacy > Advanced Protection. Note this disables sideloading and some debugging features. For account-level Advanced Protection enrollment, see g.co/advancedprotection.",
       "empty_is_safe": false,
-      "null_is_safe": false
+      "null_is_safe": false,
+      "binder_optional": true
     },
     {
       "id": "MOD-A17-LOCAL-NET-001",
@@ -111,7 +114,8 @@
       "level": "info",
       "description": "Android 15 (API 35) added Private Space: a separate, biometric/PIN-locked user profile (user type profile.PRIVATE) whose apps and notifications are hidden from the main profile and paused when locked. On a personal or BYOD device its presence is a privacy-hardening plus (sensitive apps isolated from casual device access). On a locked-down single-purpose deployment (POS, kiosk, medical) an unexpected private profile is a review item because it provides a hidden app installation surface. Reported as INFO either way: NO_PRIVATE_SPACE means no private profile exists; a line naming a private profile means one is configured. Pre-A15 builds report PRE_A15_SDK_<n>.",
       "remediation": "Nothing to fix by default. On single-purpose fleets, review any private profile found and remove it if not sanctioned: identify the user id from 'pm list users -v' and run 'pm remove-user <id>'. On personal devices used by high-risk staff, consider recommending Private Space for sensitive apps.",
-      "empty_is_safe": false
+      "empty_is_safe": false,
+      "binder_optional": true
     },
     {
       "id": "MOD-A16-INTRUSION-LOG-001",
@@ -123,7 +127,8 @@
       "description": "Android 16's Advanced Protection includes Intrusion Logging (rolling out since the Android 16 December 2025 update): activity logs (USB connections, network info, app installs, Bluetooth pairing, lock screen events) are backed up end-to-end encrypted to the user's Google account in a tamper-resistant way, so a suspected compromise can be investigated after the fact. State lives in the system advanced_protection service; this check dumps its state for manual review because the dump format is undocumented and varies by build. NO_SERVICE_OUTPUT means the service is absent or empty on this build (common on non-Pixel A16 builds until the feature reaches them). Pre-A16 builds report PRE_A16_SDK_<n>.",
       "remediation": "For high-risk users, enable Advanced Protection (Settings > Security and privacy > Advanced Protection) and opt in to Intrusion Logging when prompted, choosing a Google account for the encrypted log backup. Review the dumped state to confirm the expected subfeatures are on.",
       "empty_is_safe": false,
-      "requires_manual_review": true
+      "requires_manual_review": true,
+      "binder_optional": true
     },
     {
       "id": "MOD-A17-AP-SUBFEATURES-001",
@@ -135,7 +140,8 @@
       "description": "Android 17 expands Advanced Protection beyond the Android 16 baseline: it removes accessibility-service access from non-accessibility apps, disables device-to-device unlocking, disables Chrome WebGPU, and integrates scam detection for chat notifications, alongside the existing USB lock protection and MTE enforcement. The companion MOD-A16-APP-001 check only confirms the mode master toggle; this check extracts the per-subfeature lines from the advanced_protection service dump for manual review, since subfeature availability differs by OEM and rollout wave. NO_SERVICE_OUTPUT means the service dump exposes nothing greppable on this build. Pre-A17 builds report PRE_A17_SDK_<n>.",
       "remediation": "Enable Advanced Protection in Settings > Security and privacy > Advanced Protection and review the dumped subfeature state against the deployment's threat model. For managed fleets, Android Enterprise support for Advanced Protection is rolling out during 2026; track DPC support to enforce it by policy.",
       "empty_is_safe": false,
-      "requires_manual_review": true
+      "requires_manual_review": true,
+      "binder_optional": true
     },
     {
       "id": "MOD-A17-KEYMINT-PQC-001",
@@ -146,7 +152,8 @@
       "level": "info",
       "description": "Android 17 introduces post-quantum cryptography support: devices with a new-enough KeyMint can generate ML-DSA (Module-Lattice Digital Signature Algorithm) keys in secure hardware, and the platform adds APK Signature Scheme v3.2 combining classical and ML-DSA signatures. This reports the android.hardware.hardware_keystore feature version (the number after '=' is the KeyMint feature level, e.g. 300) plus the keystore HAL property, so an auditor can record whether the device's secure hardware generation is PQC-capable. Informational: PQC availability depends on the KeyMint version shipped by the SoC vendor, and most 2026 fleet hardware will not have it yet. Pre-A17 builds report PRE_A17_SDK_<n>.",
       "remediation": "Nothing to fix on-device. For long-lived deployments handling data that must stay confidential for many years, prefer hardware whose KeyMint version supports ML-DSA key generation when refreshing the fleet.",
-      "empty_is_safe": false
+      "empty_is_safe": false,
+      "binder_optional": true
     }
   ]
 }

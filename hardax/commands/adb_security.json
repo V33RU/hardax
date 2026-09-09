@@ -3,22 +3,22 @@
     {
       "category": "ADB_SECURITY",
       "label": "ADB Keys Present",
-      "command": "ls /data/misc/adb/adb_keys 2>/dev/null",
-      "safe_pattern": "^$",
+      "command": "F=\"\"; D=\"\"; for p in /adb_keys /data/misc/adb/adb_keys /data/adb/adb_keys /data/misc/adb/adb_temp_keys.xml /vendor/etc/adb_keys /system/etc/adb_keys /product/etc/adb_keys /odm/etc/adb_keys /metadata/adb/adb_keys; do if ls -l \"$p\" >/dev/null 2>&1; then F=\"$F $p\"; elif ls -l \"$p\" 2>&1 | grep -qi \"permission denied\"; then D=\"$D $p\"; fi; done; if [ -n \"$F\" ]; then N=$(cat $F 2>/dev/null | grep -cE '^ssh-|^[A-Za-z0-9+/]{100,}'); echo \"authorized_key_files=[$F] keys=${N:-unreadable}\"; elif [ -n \"$D\" ]; then echo \"UNMEASURED key paths exist but are unreadable:$D\"; else echo \"no_adb_key_files\"; fi",
+      "safe_pattern": "^no_adb_key_files$",
       "level": "warning",
-      "description": "Presence of adb_keys may indicate previously trusted host",
-      "remediation": "Remove unauthorized keys with 'adb shell rm /data/misc/adb/adb_keys' and reboot the device.",
-      "empty_is_safe": true
+      "description": "adbd accepts a host key from several locations, not one: /adb_keys baked into the image, /data/misc/adb/adb_keys written when a user taps Always allow, /data/misc/adb/adb_temp_keys.xml for time-limited grants on Android 9+, and vendor copies under /vendor, /system, /product or /odm. Any key present means some host can connect without the on-device prompt. A path that exists but cannot be read is reported as UNMEASURED, because SELinux denies stat as well as read and the old form suppressed stderr, turning a denied read into a clean result.",
+      "remediation": "Remove every adb_keys file and adb_temp_keys.xml from production images and from /data. Keep ro.adb.secure=1 so adbd always requires an interactive authorisation.",
+      "empty_is_safe": false
     },
     {
       "category": "ADB_SECURITY",
       "label": "ADB Over Network Port",
-      "command": "getprop service.adb.tcp.port",
-      "safe_pattern": "^$",
+      "command": "P=$(getprop service.adb.tcp.port 2>/dev/null); S=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$P\" ] && [ -z \"$S\" ]; then echo \"UNMEASURED getprop unavailable\"; elif [ -z \"$P\" ] || [ \"$P\" = \"0\" ] || [ \"$P\" = \"-1\" ]; then echo \"adb_tcp_port=disabled\"; else echo \"adb_tcp_port=$P\"; fi",
+      "safe_pattern": "^adb_tcp_port=disabled$",
       "level": "warning",
-      "description": "service.adb.tcp.port should be empty/disabled. Any value means network ADB is configured. This check flags the configuration as a warning; the companion 'Network ADB Bound To Loopback Only' check escalates to critical only when the socket is actually exposed beyond loopback.",
+      "description": "service.adb.tcp.port carries the TCP port adbd listens on. Unset, 0 or -1 all mean network ADB is off; any other value means adbd is reachable over the network, which removes the physical-access requirement from every ADB attack. The previous form treated the literal value 0 as a finding, flagging correctly hardened devices.",
       "remediation": "Disable ADB over network by running 'adb shell setprop service.adb.tcp.port -1' and restarting ADB.",
-      "empty_is_safe": true
+      "empty_is_safe": false
     },
     {
       "category": "ADB_SECURITY",
@@ -78,7 +78,7 @@
       "id": "ADB-BINARY-HASH-001",
       "category": "ADB_SECURITY",
       "label": "adbd Binary Integrity (SHA-256 Baseline)",
-      "command": "if [ -x /system/bin/adbd ]; then sha256sum /system/bin/adbd 2>/dev/null | awk '{print $1}'; else echo 'MISSING'; fi",
+      "command": "H=$(sha256sum /system/bin/adbd 2>/dev/null | awk '{print $1}'); if [ -n \"$H\" ]; then printf '%s\\n' \"$H\"; elif ls /system/bin >/dev/null 2>&1; then echo MISSING; else echo \"UNMEASURED /system/bin not listable\"; fi",
       "safe_pattern": "^[a-f0-9]{64}$",
       "level": "info",
       "description": "Records the SHA-256 of /system/bin/adbd so the operator can diff it against a known-good per-build baseline. dm-verity should already catch tampering on locked devices; this check exposes drift on devices where verity is disabled or the system partition is remounted rw. MISSING means adbd is absent or not executable.",

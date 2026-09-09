@@ -349,8 +349,8 @@
       "id": "BIN-034",
       "category": "BINARY_HARDENING",
       "label": "Kernel Modules Disabled",
-      "command": "cat /proc/sys/kernel/modules_disabled",
-      "safe_pattern": "^1$",
+      "command": "V=$(cat /proc/sys/kernel/modules_disabled 2>/dev/null); if [ -n \"$V\" ]; then printf '%s\\n' \"$V\"; elif ls /proc/sys/kernel >/dev/null 2>&1; then echo MODULES_SYSCTL_ABSENT; else echo \"UNMEASURED /proc/sys/kernel not listable\"; fi",
+      "safe_pattern": "^1$|^MODULES_SYSCTL_ABSENT$",
       "level": "warning",
       "description": "Disabling kernel module loading after boot prevents rootkits from loading malicious kernel modules.",
       "remediation": "Lock module loading post-boot: echo 1 > /proc/sys/kernel/modules_disabled (irreversible until reboot)."

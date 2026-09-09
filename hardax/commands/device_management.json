@@ -22,7 +22,7 @@
     {
       "category": "DEVICE_MANAGEMENT",
       "label": "Sync Accounts",
-      "command": "dumpsys account 2>/dev/null | grep -i 'Account {' | wc -l",
+      "command": "D=$(dumpsys account 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys account did not answer\";; *) printf '%s\\n' \"$D\" | grep -i 'Account {' | wc -l;; esac",
       "safe_pattern": ".",
       "level": "info",
       "description": "Number of synced accounts",

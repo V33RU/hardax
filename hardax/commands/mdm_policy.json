@@ -4,7 +4,7 @@
       "id": "MDM-STATE-001",
       "category": "MDM_POLICY",
       "label": "Managed Device State (Device/Profile Owner)",
-      "command": "D=$(dumpsys device_policy 2>/dev/null); DO=$(printf '%s' \"$D\" | grep -iA1 'Device Owner' | grep -iE 'ComponentInfo|admin='); PO=$(printf '%s' \"$D\" | grep -iA1 'Profile Owner' | grep -iE 'ComponentInfo|admin='); if [ -n \"$DO\" ]; then echo MANAGED_DEVICE_OWNER; elif [ -n \"$PO\" ]; then echo MANAGED_PROFILE_OWNER; else echo UNMANAGED; fi",
+      "command": "D=$(dumpsys device_policy 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys device_policy did not answer\";; *) DO=$(printf '%s' \"$D\" | grep -iA1 'Device Owner' | grep -iE 'ComponentInfo|admin' | head -1); PO=$(printf '%s' \"$D\" | grep -iA1 'Profile Owner' | grep -iE 'ComponentInfo|admin' | head -1); [ -n \"$DO\" ] && echo \"DEVICE_OWNER $DO\" || { [ -n \"$PO\" ] && echo \"PROFILE_OWNER $PO\" || echo UNMANAGED; };; esac",
       "safe_pattern": ".",
       "level": "info",
       "description": "Reports whether the device is under enterprise management: a Device Owner (fully managed), a Profile Owner (work profile), or UNMANAGED. The DevicePolicyManager policies below only apply on managed devices; on an UNMANAGED device they are absent and reported empty, which is expected, not a finding.",
