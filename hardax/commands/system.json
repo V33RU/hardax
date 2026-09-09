@@ -3,7 +3,7 @@
     {
       "category": "SYSTEM",
       "label": "Security Patch Level",
-      "command": "SP=$(getprop ro.build.version.security_patch 2>/dev/null); if [ -z \"$SP\" ]; then echo \"UNKNOWN no security_patch property\"; else P=$(printf '%s' \"$SP\" | tr -d '-' | cut -c1-6); N=$(date +%Y%m); PY=$(( ${P%??} + 0 )); PM=$(( 1${P#????} - 100 )); NY=$(( ${N%??} + 0 )); NM=$(( 1${N#????} - 100 )); D=$(( (NY-PY)*12 + (NM-PM) )); if [ \"$D\" -lt 0 ]; then echo \"FUTURE_SPL spl=$SP months_ahead=$(( -D ))\"; elif [ \"$D\" -le 3 ]; then echo \"RECENT spl=$SP months_old=$D\"; elif [ \"$D\" -le 6 ]; then echo \"AGING spl=$SP months_old=$D\"; else echo \"OUTDATED spl=$SP months_old=$D\"; fi; fi",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); SP=$(getprop ro.build.version.security_patch 2>/dev/null); if [ -z \"$SP\" ] && [ -z \"$SDK\" ]; then echo \"UNMEASURED getprop unavailable, security_patch not read\"; elif [ -z \"$SP\" ]; then echo \"NO_SPL_PROPERTY sdk=$SDK\"; else P=$(printf '%s' \"$SP\" | tr -d '-' | cut -c1-6); N=$(date +%Y%m); PY=$(( ${P%??} + 0 )); PM=$(( 1${P#????} - 100 )); NY=$(( ${N%??} + 0 )); NM=$(( 1${N#????} - 100 )); D=$(( (NY-PY)*12 + (NM-PM) )); if [ \"$D\" -lt 0 ]; then echo \"FUTURE_SPL spl=$SP months_ahead=$(( -D ))\"; elif [ \"$D\" -le 3 ]; then echo \"RECENT spl=$SP months_old=$D\"; elif [ \"$D\" -le 6 ]; then echo \"AGING spl=$SP months_old=$D\"; else echo \"OUTDATED spl=$SP months_old=$D\"; fi; fi",
       "safe_pattern": "^(RECENT|AGING)",
       "level": "critical",
       "description": "Single authoritative answer to how old the device security patch level is. Reports months_old relative to the current month: RECENT at 3 months or less, AGING at 4 to 6, OUTDATED beyond 6, and FUTURE_SPL when the patch date is ahead of today, which no honest build produces and which spoofing tooling does. The arithmetic is integer YYYYMM subtraction and does not call 'date -d'. The earlier version did, and when 'date -d' was unavailable (toybox and busybox builds vary) it fell back to epoch 0, computed an age of roughly 20000 days and scored CRITICAL on a device with a perfectly current patch. This check replaces two other currency checks that answered the same question with different thresholds and different severities.",
@@ -24,7 +24,7 @@
     {
       "category": "SYSTEM",
       "label": "User-installed Apps",
-      "command": "pm list packages -3 2>/dev/null | wc -l",
+      "command": "D=$(pm list packages -3 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED pm list packages -3 did not answer\";; *) printf '%s\\n' \"$D\" | wc -l;; esac",
       "safe_pattern": ".+",
       "level": "info",
       "description": "Check how many user apps installed",
@@ -361,7 +361,7 @@
     {
       "category": "SYSTEM",
       "label": "SECCOMP Kernel Support",
-      "command": "if grep -qi '^Seccomp:' /proc/self/status 2>/dev/null; then M=$(grep -i '^Seccomp:' /proc/self/status 2>/dev/null | awk '{print $2}'); F=$(grep -i '^Seccomp_filters:' /proc/self/status 2>/dev/null | awk '{print $2}'); echo \"KERNEL_SECCOMP_PRESENT shell_mode=${M:-unknown} shell_filters=${F:-0}\"; else echo KERNEL_SECCOMP_ABSENT; fi",
+      "command": "S=$(cat /proc/self/status 2>/dev/null); if [ -z \"$S\" ]; then echo \"UNMEASURED /proc/self/status unreadable\"; elif printf '%s\\n' \"$S\" | grep -qi '^Seccomp:'; then M=$(printf '%s\\n' \"$S\" | grep -i '^Seccomp:' | awk '{print $2}'); F=$(printf '%s\\n' \"$S\" | grep -i '^Seccomp_filters:' | awk '{print $2}'); echo \"KERNEL_SECCOMP_PRESENT shell_mode=${M:-unknown} shell_filters=${F:-0}\"; else echo KERNEL_SECCOMP_ABSENT; fi",
       "safe_pattern": "^KERNEL_SECCOMP_PRESENT",
       "level": "warning",
       "description": "The kernel exposes a 'Seccomp:' field in /proc/<pid>/status only when CONFIG_SECCOMP is compiled in, so the presence of that field is direct proof of kernel seccomp support and needs no access to /proc/config.gz. Android uses seccomp-bpf to restrict the syscall surface of app processes and of the media and network stacks. The reported shell_mode is the mode of the auditing shell itself (0 disabled, 1 strict, 2 filter) and is expected to be 0, because adb shell is not sandboxed; it is context, not a verdict. This replaces an earlier version that read 'zcat /proc/config.gz' with safe_pattern 'CONFIG_SECCOMP=Y', which could never match because kernel config values are lowercase, and which emitted a gzip error into the result on the majority of devices where /proc/config.gz is absent.",
@@ -418,11 +418,11 @@
     {
       "category": "SYSTEM",
       "label": "ADB Root Access",
-      "command": "id 2>/dev/null",
-      "safe_pattern": "^uid=[1-9]",
+      "command": "U=$(id -u 2>/dev/null); A=$(getprop init.svc.adbd 2>/dev/null); P=$(getprop service.adb.tcp.port 2>/dev/null); if [ -z \"$U\" ]; then echo \"UNMEASURED id returned nothing\"; elif [ \"$A\" != \"running\" ]; then echo \"ADB_NOT_RUNNING adbd=${A:-unset} shell_uid=$U\"; elif [ \"$U\" = \"0\" ]; then echo \"ADB_ROOT_SHELL shell_uid=0 adb_tcp=${P:-unset}\"; else echo \"ADB_UNPRIVILEGED_SHELL shell_uid=$U\"; fi",
+      "safe_pattern": "^(ADB_NOT_RUNNING|ADB_UNPRIVILEGED_SHELL)",
       "level": "critical",
-      "description": "ADB shell should NOT run as root (uid=0)",
-      "remediation": "Use a user build (ro.build.type=user) which drops ADB to shell user. Run: adb unroot to demote."
+      "description": "Whether a root shell is reachable over ADB. The bare uid of the auditing shell is not the same question: over SSH or UART that uid describes the audit transport, not ADB, and reporting it as ADB root access invents a finding and feeds a false attack chain. This check therefore reports a finding only when adbd is actually serving AND the shell is uid 0.",
+      "remediation": "On a production device adbd should not run at all. If it must, ensure ro.debuggable=0 and ro.secure=1 so adbd drops to the shell user, and keep service.adb.tcp.port unset."
     },
     {
       "category": "SYSTEM",
@@ -457,7 +457,7 @@
     {
       "category": "SYSTEM",
       "label": "Software Bill of Materials (SBOM)",
-      "command": "pm list packages -f 2>/dev/null | wc -l",
+      "command": "D=$(pm list packages -f 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED pm list packages -f did not answer\";; *) printf '%s\\n' \"$D\" | wc -l;; esac",
       "safe_pattern": ".",
       "level": "info",
       "description": "Total packages - FDA requires SBOM for premarket submissions",
@@ -603,7 +603,7 @@
     {
       "category": "SYSTEM",
       "label": "Suspicious Executables in /data/local/tmp",
-      "command": "find /data/local/tmp -type f -executable",
+      "command": "find /data/local/tmp -type f -perm -u+x -o -type f -perm -g+x -o -type f -perm -o+x",
       "safe_pattern": "^$",
       "level": "critical",
       "description": "Executable files in /data/local/tmp - common staging location for exploits, Frida gadgets, and malware payloads",
@@ -632,7 +632,7 @@
     {
       "category": "SYSTEM",
       "label": "System Packages Total Count",
-      "command": "pm list packages -s 2>/dev/null | wc -l",
+      "command": "D=$(pm list packages -s 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED pm list packages -s did not answer\";; *) printf '%s\\n' \"$D\" | wc -l;; esac",
       "safe_pattern": "^[5-9][0-9]$|^[1-3][0-9]{2}$",
       "level": "info",
       "description": "Total system package count (typical: 80-250) - compare against device baseline for tampering",
@@ -662,7 +662,7 @@
       "id": "SYS-SECCOMP-003",
       "category": "SYSTEM",
       "label": "SECCOMP Status of Zygote",
-      "command": "pid=$(pidof zygote 2>/dev/null | awk '{print $1}'); [ -n \"$pid\" ] && cat /proc/$pid/status 2>/dev/null | grep Seccomp || echo 'zygote_not_found'",
+      "command": "pid=$(pidof zygote 2>/dev/null | awk '{print $1}'); [ -n \"$pid\" ] || pid=$(pidof zygote64 2>/dev/null | awk '{print $1}'); if [ -n \"$pid\" ]; then cat /proc/$pid/status 2>/dev/null | grep Seccomp || echo \"UNMEASURED /proc/$pid/status unreadable\"; elif ! ls /proc/1 >/dev/null 2>&1; then echo \"UNMEASURED /proc not listable\"; else echo zygote_not_found; fi",
       "safe_pattern": "Seccomp:\\s*2",
       "level": "warning",
       "description": "Zygote is the parent of all Android app processes. SECCOMP filter mode 2 on Zygote ensures all spawned apps inherit syscall filtering.",
@@ -739,7 +739,7 @@
       "id": "SYS-TEE-GATEKEEPER-001",
       "category": "SYSTEM",
       "label": "Hardware Gatekeeper HAL",
-      "command": "P=$(ls -d /vendor/lib64/hw/gatekeeper.* /system/lib64/hw/gatekeeper.* 2>/dev/null); if [ -n \"$P\" ]; then printf '%s\\n' \"$P\"; elif ls -d /vendor/lib64/hw/gatekeeper.* /system/lib64/hw/gatekeeper.* 2>&1 | grep -qi 'permission denied'; then echo UNMEASURED; else echo ABSENT; fi",
+      "command": "P=$(ls -d /vendor/lib64/hw/gatekeeper.* /system/lib64/hw/gatekeeper.* 2>/dev/null); if [ -n \"$P\" ]; then printf '%s\\n' \"$P\"; elif ! ls /vendor/lib64/hw >/dev/null 2>&1 && ! ls /system/lib64/hw >/dev/null 2>&1; then echo \"UNMEASURED neither vendor nor system hw dir listable\"; else echo ABSENT; fi",
       "safe_pattern": "gatekeeper\\.",
       "level": "warning",
       "description": "Hardware Gatekeeper HAL must be present for TEE-backed password/PIN authentication. Software fallback gatekeeper is weaker.",
@@ -803,7 +803,7 @@
       "id": "SYS-ALLOC-001",
       "category": "SYSTEM",
       "label": "Heap Allocator Hardening (Scudo / GWP-ASan)",
-      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ]; then echo SDK_UNKNOWN; elif [ \"$SDK\" -lt 30 ] 2>/dev/null; then echo \"PRE_SCUDO_SDK_$SDK\"; else G=$(getprop 2>/dev/null | grep -c 'libc.debug.gwp_asan'); M=$(getprop libc.debug.malloc.options 2>/dev/null); echo \"SCUDO_DEFAULT sdk=$SDK gwp_asan_props=$G malloc_options=${M:-unset}\"; fi",
+      "command": "SDK=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$SDK\" ]; then echo \"UNMEASURED getprop unavailable, sdk not read\"; elif [ \"$SDK\" -lt 30 ] 2>/dev/null; then echo \"PRE_SCUDO_SDK_$SDK\"; else G=$(getprop 2>/dev/null | grep -c 'libc.debug.gwp_asan'); M=$(getprop libc.debug.malloc.options 2>/dev/null); echo \"SCUDO_DEFAULT sdk=$SDK gwp_asan_props=$G malloc_options=${M:-unset}\"; fi",
       "safe_pattern": "^SCUDO_DEFAULT.*malloc_options=unset$",
       "level": "warning",
       "description": "Android 11 (API 30) made Scudo the default native heap allocator for all platform and app processes. Scudo adds chunk header checksums, delayed free lists, and randomised allocation that turn many heap overflow and use-after-free bugs into aborts instead of exploitable corruption. GWP-ASan samples a small fraction of allocations for guarded pages on top of it. Setting libc.debug.malloc.options switches processes to the debug allocator, which disables the hardened paths, so it should be unset on any production build. Builds below API 30 report PRE_SCUDO_SDK_<n> and use the older jemalloc path with none of these protections.",
@@ -962,7 +962,7 @@
       "id": "SYS-BINDERSVC-001",
       "category": "SYSTEM",
       "label": "Registered Binder Service Inventory",
-      "command": "S=$(service list 2>/dev/null | grep -c ':'); V=$(service list 2>/dev/null | grep -ciE 'vendor|oem|qti|mtk|samsung|huawei'); [ \"${S:-0}\" = \"0\" ] && echo NO_SERVICE_LIST || echo \"binder_services=$S vendor_services=$V\"",
+      "command": "L=$(service list 2>/dev/null); case \"$L\" in \"\"|*\"Found 0 services\"*) echo \"UNMEASURED service list returned no services\";; *) S=$(printf '%s\\n' \"$L\" | grep -cE '^[0-9]+[[:space:]]'); V=$(printf '%s\\n' \"$L\" | grep -ciE 'vendor|oem|qti|mtk|samsung|huawei'); [ \"${S:-0}\" = \"0\" ] && echo NO_SERVICE_LIST || echo \"binder_services=$S vendor_services=$V\";; esac",
       "safe_pattern": ".",
       "level": "info",
       "empty_is_safe": false,

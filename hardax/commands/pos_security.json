@@ -3,7 +3,7 @@
     {
       "category": "POS_SECURITY",
       "label": "TEE Implementation",
-      "command": "(gk=$(getprop ro.hardware.gatekeeper 2>/dev/null); ks=$(getprop ro.hardware.keystore 2>/dev/null); wv=$(getprop ro.hardware.weaver 2>/dev/null); sb=$(pm list features 2>/dev/null | grep -i strongbox); km=$(service list 2>/dev/null | grep -iE 'keymint|keymaster' | head -1); out=''; [ -n \"$wv\" ] && out=\"weaver=$wv \"; [ -n \"$sb\" ] && out=\"${out}strongbox=present \"; [ -n \"$km\" ] && out=\"${out}keymint_or_keymaster=present \"; [ -n \"$gk\" ] && [ \"$gk\" != 'default' ] && [ \"$gk\" != 'software' ] && out=\"${out}gatekeeper=$gk \"; [ -n \"$ks\" ] && [ \"$ks\" != 'default' ] && [ \"$ks\" != 'software' ] && out=\"${out}keystore=$ks \"; echo ${out:-NOT_FOUND})",
+      "command": "( gk=$(getprop ro.hardware.gatekeeper 2>/dev/null); ks=$(getprop ro.hardware.keystore 2>/dev/null); wv=$(getprop ro.hardware.weaver 2>/dev/null); sdk=$(getprop ro.build.version.sdk 2>/dev/null); sb=$(pm list features 2>/dev/null | grep -i strongbox); km=$(service list 2>/dev/null | grep -iE 'keymint|keymaster' | head -1); svc=$(service list 2>/dev/null | head -1); out=''; [ -n \"$wv\" ] && out=\"weaver=$wv \"; [ -n \"$sb\" ] && out=\"${out}strongbox=present \"; [ -n \"$km\" ] && out=\"${out}keymint_or_keymaster=present \"; [ -n \"$gk\" ] && [ \"$gk\" != 'default' ] && [ \"$gk\" != 'software' ] && out=\"${out}gatekeeper=$gk \"; [ -n \"$ks\" ] && [ \"$ks\" != 'default' ] && [ \"$ks\" != 'software' ] && out=\"${out}keystore=$ks \"; if [ -n \"$out\" ]; then echo \"$out\"; elif [ -z \"$sdk\" ] && [ -z \"$svc\" ]; then echo \"UNMEASURED neither getprop nor service list answered\"; else echo NOT_FOUND; fi )",
       "safe_pattern": "^(?!NOT_FOUND).+",
       "level": "critical",
       "description": "PCI-DSS: TEE/hardware-backed key storage required for payment operations. Checks gatekeeper, keystore, weaver props + StrongBox feature + KeyMint/Keymaster service. Outputs detected signals or NOT_FOUND. Skips 'default'/'software' (pure SW fallback).",
@@ -48,7 +48,7 @@
     {
       "category": "POS_SECURITY",
       "label": "Payment Apps Installed",
-      "command": "pm list packages 2>/dev/null | grep -iE 'pay|wallet|pos|terminal|merchant|square|clover|toast|stripe|verifone|ingenico|pax' | wc -l",
+      "command": "D=$(pm list packages 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED pm list packages did not answer\";; *) printf '%s\\n' \"$D\" | grep -iE 'pay|wallet|pos|terminal|merchant|square|clover|toast|stripe|verifone|ingenico|pax' | wc -l;; esac",
       "safe_pattern": ".*",
       "level": "info",
       "description": "Count of payment-related applications installed",

@@ -18,7 +18,7 @@
         "linux"
       ],
       "type": "assert",
-      "command": "sh -c 'if command -v getenforce >/dev/null 2>&1; then getenforce 2>/dev/null; elif [ -r /sys/fs/selinux/enforce ]; then v=$(cat /sys/fs/selinux/enforce 2>/dev/null); [ \"$v\" = \"1\" ] && echo Enforcing || echo Permissive; else echo Permissive; fi'",
+      "command": "G=\"\"; command -v getenforce >/dev/null 2>&1 && G=$(getenforce 2>/dev/null); V=$(cat /sys/fs/selinux/enforce 2>/dev/null); if [ -n \"$G\" ]; then printf '%s\\n' \"$G\"; elif [ \"$V\" = \"1\" ]; then echo Enforcing; elif [ \"$V\" = \"0\" ]; then echo Permissive; elif cat /proc/mounts 2>/dev/null | grep -q selinuxfs; then echo \"UNMEASURED selinuxfs mounted but enforce node unreadable\"; else echo \"UNMEASURED no getenforce and no selinuxfs\"; fi",
       "safe_pattern": "^Enforcing$",
       "fail_pattern": "^(Permissive|Disabled|UNKNOWN)$",
       "level": "critical",
@@ -52,7 +52,7 @@
         "linux"
       ],
       "type": "assert",
-      "command": "sh -c 'if [ -r /sys/fs/selinux/enforce ]; then cat /sys/fs/selinux/enforce 2>/dev/null; else echo NO_FILE; fi'",
+      "command": "V=$(cat /sys/fs/selinux/enforce 2>/dev/null); if [ -n \"$V\" ]; then printf '%s\\n' \"$V\"; elif cat /proc/mounts 2>/dev/null | grep -q selinuxfs; then echo \"UNMEASURED selinuxfs mounted but enforce node unreadable\"; else echo \"UNMEASURED selinuxfs not mounted, enforce node not readable\"; fi",
       "safe_pattern": "^1$",
       "fail_pattern": "^(0|NO_FILE)$",
       "level": "critical",
@@ -69,7 +69,7 @@
         "linux"
       ],
       "type": "assert",
-      "command": "sh -c 'if [ -e /sys/fs/selinux/policy ] || [ -e /sys/fs/selinux/enforce ] || command -v getenforce >/dev/null 2>&1; then echo PRESENT; else echo MISSING; fi'",
+      "command": "if ls /sys/fs/selinux/policy >/dev/null 2>&1 || ls /sys/fs/selinux/enforce >/dev/null 2>&1 || command -v getenforce >/dev/null 2>&1; then echo PRESENT; elif ! ls /sys/fs/selinux >/dev/null 2>&1 && ! ls /sys/fs >/dev/null 2>&1; then echo \"UNMEASURED /sys/fs not listable\"; else echo MISSING; fi",
       "safe_pattern": "^PRESENT$",
       "fail_pattern": "^MISSING$",
       "level": "critical",
@@ -86,7 +86,7 @@
         "android"
       ],
       "type": "assert_optional",
-      "command": "sh -c 'if command -v selinuxenabled >/dev/null 2>&1; then selinuxenabled >/dev/null 2>&1; rc=$?; [ $rc -eq 0 ] && echo ENABLED || echo DISABLED; else echo NO_TOOL; fi'",
+      "command": "if command -v selinuxenabled >/dev/null 2>&1; then if selinuxenabled >/dev/null 2>&1; then echo ENABLED; elif cat /proc/mounts 2>/dev/null | grep -q selinuxfs; then echo \"UNMEASURED selinuxenabled failed but selinuxfs is mounted\"; else echo DISABLED; fi; else echo NO_TOOL; fi",
       "safe_pattern": "^(ENABLED|NO_TOOL)$",
       "fail_pattern": "^DISABLED$",
       "level": "critical",
@@ -102,7 +102,7 @@
         "linux"
       ],
       "type": "assert_optional",
-      "command": "sh -c 'if command -v sestatus >/dev/null 2>&1; then (sestatus 2>/dev/null | grep -qi \"SELinux status: *enabled\" && sestatus 2>/dev/null | grep -qi \"Current mode: *enforcing\") && echo ENFORCING || echo NOT_ENFORCING; else echo NO_TOOL; fi'",
+      "command": "if command -v sestatus >/dev/null 2>&1; then O=$(sestatus 2>/dev/null); if [ -z \"$O\" ]; then echo \"UNMEASURED sestatus produced no output\"; elif printf '%s\\n' \"$O\" | grep -qi 'SELinux status: *enabled' && printf '%s\\n' \"$O\" | grep -qi 'Current mode: *enforcing'; then echo ENFORCING; else echo NOT_ENFORCING; fi; else echo NO_TOOL; fi",
       "safe_pattern": "^(ENFORCING|NO_TOOL)$",
       "fail_pattern": "^NOT_ENFORCING$",
       "level": "critical",
@@ -135,7 +135,7 @@
         "linux"
       ],
       "type": "assert",
-      "command": "sh -c 'grep -Eq \"(^|[^[:alnum:]_])selinuxfs([^[:alnum:]_]|$)\" /proc/mounts 2>/dev/null && echo MOUNTED || echo NOT_MOUNTED'",
+      "command": "M=$(cat /proc/mounts 2>/dev/null); if [ -z \"$M\" ]; then echo \"UNMEASURED /proc/mounts unreadable\"; elif printf '%s\\n' \"$M\" | grep -Eq \"(^|[^[:alnum:]_])selinuxfs([^[:alnum:]_]|$)\"; then echo MOUNTED; else echo NOT_MOUNTED; fi",
       "safe_pattern": "^MOUNTED$",
       "fail_pattern": "^NOT_MOUNTED$",
       "level": "warning",
@@ -416,7 +416,7 @@
     {
       "category": "SELINUX",
       "label": "MLS is enabled in the loaded policy (/sys/fs/selinux/mls = 1)",
-      "command": "sh -c 'out=$(cat /sys/fs/selinux/mls 2>/dev/null); if [ -z \"$out\" ]; then echo NA; else echo \"$out\"; fi'",
+      "command": "V=$(cat /sys/fs/selinux/mls 2>/dev/null); if [ -n \"$V\" ]; then printf '%s\\n' \"$V\"; elif cat /proc/mounts 2>/dev/null | grep -q selinuxfs; then echo \"UNMEASURED selinuxfs mounted but mls node unreadable\"; else echo \"UNMEASURED selinuxfs not mounted, mls node not readable\"; fi",
       "safe_pattern": "^1$",
       "level": "critical",
       "empty_is_safe": false,

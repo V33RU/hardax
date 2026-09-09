@@ -72,3 +72,20 @@ def test_readme_badge_counts_match_reality():
     m = re.search(r"badge/categories-(\d+)", text)
     assert m and int(m.group(1)) == n_cats, (
         f"README categories badge {m.group(1) if m else '?'} != actual {n_cats}")
+
+
+def test_readme_prose_check_counts_match_reality():
+    """The badge was enforced but the prose was not, so the README shipped
+    "816 security checks" to PyPI while the badge and the actual bundle said
+    826. Every number in the README that claims a check count is pinned here.
+    """
+    import re, os
+    from conftest import load_all_checks
+    n = len(load_all_checks())
+    readme = os.path.join(REPO_ROOT, "README.md")
+    text = open(readme, encoding="utf-8").read()
+    claims = re.findall(r"(\d{3,4})\s+(?:[Ss]ecurity\s+)?[Cc]hecks", text)
+    wrong = sorted({c for c in claims if int(c) != n})
+    assert not wrong, (
+        "README claims %s check(s) but the bundle has %d: %s"
+        % ("/".join(wrong), n, readme))

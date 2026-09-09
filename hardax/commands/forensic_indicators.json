@@ -12,7 +12,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Recent System Crashes",
-      "command": "dumpsys dropbox --print 2>/dev/null | grep -cE 'system_server_crash|system_app_crash' | head -1",
+      "command": "D=$(dumpsys dropbox --print 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys dropbox --print did not answer\";; *) printf '%s\\n' \"$D\" | grep -cE 'system_server_crash|system_app_crash' | head -1;; esac",
       "safe_pattern": "^[0-5]$",
       "level": "warning",
       "description": "Excessive system crashes may indicate exploitation attempts or instability",
@@ -21,7 +21,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "ANR Events Count",
-      "command": "dumpsys dropbox --print 2>/dev/null | grep -cE 'data_app_anr|system_app_anr' | head -1",
+      "command": "D=$(dumpsys dropbox --print 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys dropbox --print did not answer\";; *) printf '%s\\n' \"$D\" | grep -cE 'data_app_anr|system_app_anr' | head -1;; esac",
       "safe_pattern": "^[0-9]$",
       "level": "info",
       "description": "High ANR count may indicate resource exhaustion or DoS conditions",
@@ -30,7 +30,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Kernel Panic History",
-      "command": "dumpsys dropbox --print 2>/dev/null | grep -cE 'SYSTEM_TOMBSTONE|kernel_panic' | head -1",
+      "command": "D=$(dumpsys dropbox --print 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys dropbox --print did not answer\";; *) printf '%s\\n' \"$D\" | grep -cE 'SYSTEM_TOMBSTONE|kernel_panic' | head -1;; esac",
       "safe_pattern": "^0$",
       "level": "critical",
       "description": "Kernel panics may indicate kernel exploitation or hardware tampering",
@@ -48,7 +48,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Clipboard Sensitive Data",
-      "command": "cmd clipboard get-primary-clip 2>/dev/null | grep -icE '(password|passwd|token|secret|bearer|api[_-]?key|cvv|ssn)[[:space:]]*[:=][[:space:]]*[^[:space:]]{6,}|(^|[^0-9])[0-9]{13,16}([^0-9]|$)' | head -1",
+      "command": "D=$(cmd clipboard get-primary-clip 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED cmd clipboard get-primary-clip did not answer\";; *) printf '%s\\n' \"$D\" | grep -icE '(password|passwd|token|secret|bearer|api[_-]?key|cvv|ssn)[[:space:]]*[:=][[:space:]]*[^[:space:]]{6,}|(^|[^0-9])[0-9]{13,16}([^0-9]|$)' | head -1;; esac",
       "safe_pattern": "^0$",
       "level": "warning",
       "description": "Clipboard contains sensitive keywords (passwords, tokens, credentials)",
@@ -86,7 +86,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Corporate MDM Accounts",
-      "command": "dumpsys account 2>/dev/null | grep -icE 'exchange|activesync|microsoft|office365|mdm|workspace|intune' | head -1",
+      "command": "D=$(dumpsys account 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys account did not answer\";; *) printf '%s\\n' \"$D\" | grep -icE 'exchange|activesync|microsoft|office365|mdm|workspace|intune' | head -1;; esac",
       "safe_pattern": ".*",
       "level": "info",
       "description": "Enterprise accounts detected - device may be under MDM management",
@@ -95,7 +95,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Email Accounts Count",
-      "command": "dumpsys account 2>/dev/null | grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}' | wc -l",
+      "command": "D=$(dumpsys account 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys account did not answer\";; *) printf '%s\\n' \"$D\" | grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}' | wc -l;; esac",
       "safe_pattern": "^[0-5]$",
       "level": "info",
       "description": "Number of email accounts - more accounts increase attack surface",
@@ -104,7 +104,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Multi-User Profiles Count",
-      "command": "pm list users 2>/dev/null | wc -l || echo 1",
+      "command": "D=$(pm list users 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED pm list users did not answer\";; *) printf '%s\\n' \"$D\" | wc -l || echo 1;; esac",
       "safe_pattern": "^[1-2]$",
       "level": "info",
       "description": "Multiple user profiles may have inconsistent security configurations",
@@ -113,7 +113,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Work Profile Present",
-      "command": "dumpsys user 2>/dev/null | grep -ci -E 'work profile|managed profile' || echo 0",
+      "command": "D=$(dumpsys user 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys user did not answer\";; *) printf '%s\\n' \"$D\" | grep -ciE 'work profile|managed profile';; esac",
       "safe_pattern": ".*",
       "level": "info",
       "description": "Work profile provides data separation but grants MDM access",
@@ -122,7 +122,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Secondary User Profiles",
-      "command": "pm list users 2>/dev/null | grep -v 'UserInfo{0' | wc -l",
+      "command": "D=$(pm list users 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED pm list users did not answer\";; *) printf '%s\\n' \"$D\" | grep -v 'UserInfo{0' | wc -l;; esac",
       "safe_pattern": "^0$",
       "level": "info",
       "description": "Secondary users may bypass primary user security policies",
@@ -132,7 +132,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Background Data Whitelist Apps",
-      "command": "cmd netpolicy list restrict-background-whitelist 2>/dev/null | wc -l || echo 0",
+      "command": "D=$(cmd netpolicy list restrict-background-whitelist 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED cmd netpolicy list restrict-background-w did not answer\";; *) printf '%s\\n' \"$D\" | wc -l || echo 0;; esac",
       "safe_pattern": "^[0-9]$",
       "level": "info",
       "description": "Apps whitelisted for background data may exfiltrate data silently",
@@ -141,7 +141,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Active VoIP Telecom Calls",
-      "command": "dumpsys telecom 2>/dev/null | grep -ciE 'state=ACTIVE|state=DIALING|state=RINGING' | head -1",
+      "command": "D=$(dumpsys telecom 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys telecom did not answer\";; *) printf '%s\\n' \"$D\" | grep -ciE 'state=ACTIVE|state=DIALING|state=RINGING' | head -1;; esac",
       "safe_pattern": "^0$",
       "level": "info",
       "description": "Active calls detected - avoid sensitive discussion during audit",
@@ -161,7 +161,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Active Window Overlays",
-      "command": "dumpsys window 2>/dev/null | grep -ci 'TYPE_APPLICATION_OVERLAY' | head -1",
+      "command": "D=$(dumpsys window 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys window did not answer\";; *) printf '%s\\n' \"$D\" | grep -ci 'TYPE_APPLICATION_OVERLAY' | head -1;; esac",
       "safe_pattern": "^0$",
       "level": "warning",
       "description": "Active window overlays may enable tapjacking or credential theft",
@@ -171,7 +171,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "System Services Total Count",
-      "command": "dumpsys -l 2>/dev/null | wc -l || echo 0",
+      "command": "D=$(dumpsys -l 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys -l did not answer\";; *) printf '%s\\n' \"$D\" | wc -l || echo 0;; esac",
       "safe_pattern": "^[5-9][0-9]$|^[1-2][0-9]{2}$",
       "level": "info",
       "description": "Unusual number of system services (<50 or >300) may indicate tampering",
@@ -180,7 +180,7 @@
     {
       "category": "FORENSIC_INDICATORS",
       "label": "Non-Standard System Services",
-      "command": "dumpsys -l 2>/dev/null | grep -vicE 'android|google|samsung|qualcomm|mediatek|huawei|xiaomi|oppo|vivo|sony' | head -1",
+      "command": "D=$(dumpsys -l 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys -l did not answer\";; *) printf '%s\\n' \"$D\" | grep -vicE 'android|google|samsung|qualcomm|mediatek|huawei|xiaomi|oppo|vivo|sony' | head -1;; esac",
       "safe_pattern": "^[0-9]$",
       "level": "info",
       "description": "Non-standard services detected - review for potential threats",

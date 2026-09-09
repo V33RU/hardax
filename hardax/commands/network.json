@@ -67,7 +67,7 @@
     {
       "category": "NETWORK",
       "label": "Wi-Fi Security (WPA3)",
-      "command": "WIFI=$(settings get global wifi_on 2>/dev/null); [ \"$WIFI\" = \"1\" ] && dumpsys wifi 2>/dev/null | grep -oE 'WPA[23][^,\" ]*' | head -3 || echo 'wifi_off'",
+      "command": "W=$(settings get global wifi_on 2>/dev/null); case \"$W\" in \"\"|null|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"Found 0 services\"*) echo \"UNMEASURED settings get global wifi_on did not answer\";; 1) D=$(dumpsys wifi 2>/dev/null); case \"$D\" in \"\"|null|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"Found 0 services\"*) echo \"UNMEASURED dumpsys wifi did not answer\";; *) printf '%s\\n' \"$D\" | grep -oE 'WPA[23][^,\" ]*' | sort -u | head -5 | tr '\\n' ' ';; esac;; *) echo wifi_off;; esac",
       "safe_pattern": "WPA3|wifi_off",
       "level": "warning",
       "description": "WPA3 should be preferred over WPA2 for stronger Wi-Fi security. Check skipped when Wi-Fi is off.",
@@ -470,7 +470,7 @@
     {
       "category": "NETWORK",
       "label": "WiFi Networks Saved",
-      "command": "cmd wifi list-networks 2>/dev/null | wc -l",
+      "command": "D=$(cmd wifi list-networks 2>/dev/null); case \"$D\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"does not exist\"*|*\"Found 0 services\"*) echo \"UNMEASURED cmd wifi list-networks did not answer\";; *) printf '%s\\n' \"$D\" | wc -l;; esac",
       "safe_pattern": ".",
       "level": "info",
       "description": "Number of saved WiFi networks",
@@ -578,7 +578,8 @@
       "safe_pattern": "^(PRE_A14_SDK_|1)$",
       "level": "info",
       "description": "Android 14 added the ability to reject null-ciphered (unencrypted) cellular connections at the modem, so circuit-switched voice and SMS can no longer be silently downgraded to no encryption by a rogue base station and passively intercepted over the air. Requires radio HAL 2.0+, and the OEM chooses whether to expose the toggle (Settings > Network & internet > SIMs > Require encryption). 1 = protection enabled (SAFE). UNSET = the user has not enabled it, the modem does not support it, or this build stores the toggle under a different key - reported as INFO, not a finding, because the exact settings key is not confirmed across OEM builds. Verify the toggle's presence in the Mobile network settings UI when UNSET. Complements the 'Allow 2G Disabled' check: 2G-off blocks the legacy downgrade path, null-cipher protection blocks unencrypted connections on modern radio layers.",
-      "remediation": "On Android 14+ with radio HAL 2.0+, enable encryption requirement under Settings > Network & internet > SIMs > Require encryption. For cellular POS terminals and other devices carrying sensitive traffic over mobile data, treat modem-level encryption enforcement as required posture alongside disabling 2G."
+      "remediation": "On Android 14+ with radio HAL 2.0+, enable encryption requirement under Settings > Network & internet > SIMs > Require encryption. For cellular POS terminals and other devices carrying sensitive traffic over mobile data, treat modem-level encryption enforcement as required posture alongside disabling 2G.",
+      "binder_optional": true
     },
     {
       "category": "NETWORK",
@@ -587,7 +588,8 @@
       "safe_pattern": "^(PRE_A16_SDK_|1)$",
       "level": "info",
       "description": "Android 16 added a Mobile network security section (Settings Safety Center) with a toggle that raises system notifications when the device connects to an unencrypted cellular network or when the network requests device identifiers such as IMSI or IMEI - the tell-tale behavior of IMSI catchers (Stingrays) and rogue base stations. 1 = notifications enabled (SAFE). UNSET = not enabled, unsupported modem (requires radio HAL 3.0+), or a different key on this OEM build - reported as INFO because the exact settings key is not confirmed across OEM builds. For journalists, executives and field staff in hostile RF environments this toggle is the only stock-Android visibility into cell-network identifier harvesting.",
-      "remediation": "On Android 16+ with a supporting modem, enable network notifications under Settings > Security & privacy > Mobile network security. Combine with 'Allow 2G Disabled' and 'Null Cipher Protection' for full stock-Android cellular defense."
+      "remediation": "On Android 16+ with a supporting modem, enable network notifications under Settings > Security & privacy > Mobile network security. Combine with 'Allow 2G Disabled' and 'Null Cipher Protection' for full stock-Android cellular defense.",
+      "binder_optional": true
     },
     {
       "category": "NETWORK",
@@ -597,7 +599,8 @@
       "level": "verify",
       "description": "Android 16 introduced platform support for Certificate Transparency (CT) verification: TLS certificates can be checked against public append-only CT logs, defeating mis-issued or covertly issued certificates that chain to a trusted CA. Enforcement is controlled by device_config flags in the network_security namespace (delivered via Google Play services) plus per-app opt-in through networkSecurityConfig. This dumps any certificate_transparency flags currently set, for manual review: flag names and defaults are server-controlled and change across rollout waves, so no fixed safe value exists. NO_CT_FLAGS means no CT flag is currently set on this device (enforcement follows the platform default). Pre-A16 builds report PRE_A16_SDK_<n>.",
       "remediation": "No direct device-side fix. For in-house apps, opt in to CT enforcement via networkSecurityConfig (certificateTransparency enabled) so mis-issued certificates are rejected even before platform-wide enforcement reaches this device.",
-      "requires_manual_review": true
+      "requires_manual_review": true,
+      "binder_optional": true
     },
     {
       "id": "NET-ESIM-001",

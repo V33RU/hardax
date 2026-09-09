@@ -73,7 +73,8 @@
       "empty_is_safe": false,
       "requires_manual_review": true,
       "description": "Reports lockout, failed-attempt and strong-auth state from lock_settings, plus the permissions on the Gatekeeper key blobs and the lock settings database. Gatekeeper enforces escalating delays after failed unlock attempts, and its counter must live in tamper-resistant storage (see ATT-026 on RPMB) or the throttling can be reset by rolling back the counter, turning a four-digit PIN into an offline brute force. Reported for review because the dump format is OEM-specific and a restricted or absent view is itself a good sign.",
-      "remediation": "Confirm the Gatekeeper failure counter is backed by RPMB or equivalent replay-protected storage rather than plain userdata, and that the key blobs are not readable outside the system UID."
+      "remediation": "Confirm the Gatekeeper failure counter is backed by RPMB or equivalent replay-protected storage rather than plain userdata, and that the key blobs are not readable outside the system UID.",
+      "binder_optional": true
     }
   ]
 }

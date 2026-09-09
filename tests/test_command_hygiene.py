@@ -355,3 +355,125 @@ def test_count_emitting_checks_can_still_pass():
     assert not offenders, (
         "checks emitting count=N whose safe_pattern can never match any count:\n"
         + "\n".join(offenders))
+
+
+# tokens a check prints when its probe could not answer. The engine only routes
+# hardax.UNMEASURED_TOKENS to VERIFY; anything else here is scored as a real
+# measurement, so a failed probe becomes a finding on evidence never collected.
+_CANNOT_DETERMINE = (
+    "UNKNOWN", "NA", "N/A", "NO_FILE", "MISSING", "NOT_FOUND", "NOTSUPPORTED",
+    "ABSENT", "SDK_UNKNOWN", "NOT_MOUNTED", "UNAVAILABLE", "UNSUPPORTED",
+    "NOT_PRESENT", "NOT_SET", "UNDETERMINED", "NO_DATA", "UNREADABLE",
+)
+
+
+def test_cannot_determine_tokens_have_an_unmeasured_branch():
+    """A probe that could not answer must not be reported as a bad state.
+
+    Found by running all 827 checks with every Android tool failing: checks
+    printed their own word for "I could not tell" (UNKNOWN, NA, NO_FILE,
+    MISSING, NOT_FOUND, NotSupported, ABSENT, SDK_UNKNOWN, NOT_MOUNTED) which
+    no safe_pattern matches, so an unreadable device scored identically to a
+    broken one. The worst case declared SELinux "Permissive" when neither
+    getenforce nor selinuxfs was reachable.
+
+    These words are legitimate when the probe DID answer: `bootctl Present`
+    reporting ABSENT is a real determination. What is not legitimate is having
+    no way to say "the probe failed". So the rule is structural: a check that
+    can print one of these words, and whose safe_pattern rejects it, must also
+    carry a branch that emits one of hardax.UNMEASURED_TOKENS.
+    """
+    # `command -v X` cannot fail to measure: X is either on PATH or it is not,
+    # so "absent" there is a determination, not an unanswered probe.
+    ALLOW = {"bootctl Present", "avbctl Present"}
+    import hardax
+    offenders = []
+    for c in load_all_checks():
+        cmd = c["command"]
+        if c["label"] in ALLOW:
+            assert "command -v" in cmd, c["label"]
+            continue
+        if any(t in cmd for t in hardax.UNMEASURED_TOKENS):
+            continue                      # has a failure branch
+        for tok in _CANNOT_DETERMINE:
+            if not re.search(r"echo\s+[\"\']?%s\b" % re.escape(tok), cmd, re.I):
+                continue
+            try:
+                if re.search(c["safe_pattern"], tok, re.I | re.M):
+                    continue              # the pattern accounts for it
+            except re.error:
+                pass
+            offenders.append("  %s [%s]: can print %r (a finding) but has no "
+                             "UNMEASURED branch" % (c["_file"], c["label"], tok))
+            break
+    assert not offenders, (
+        "checks that cannot distinguish a failed probe from a bad state:\n"
+        + "\n".join(sorted(set(offenders))))
+
+
+# find predicates that exist in GNU findutils but not in toybox, which is what
+# ships as /system/bin/find and /vendor/bin/find on Android. toybox rejects the
+# whole invocation with "find: bad arg '-X'", so the check produces nothing and,
+# with empty_is_safe, reports the directory clean without ever reading it.
+_GNU_ONLY_FIND = ("-executable", "-readable", "-writable", "-printf", "-newermt",
+                  "-regextype", "-daystart", "-lname", "-ilname", "-fprintf",
+                  "-anewer", "-cnewer", "-samefile", "-empty")
+
+
+def test_find_uses_no_gnu_only_predicates():
+    """Confirmed on an Android 13 device: `find /data/local/tmp -type f
+    -executable` returns "find: bad arg '-executable'" and exit 1 against
+    /vendor/bin/find (toybox). The check had empty_is_safe, so it reported
+    SAFE on every scan and had never looked in the directory.
+
+    Caught only because the evidence record now keeps stderr: the result was
+    one of 112 SAFE-on-silence rows, and the single one whose stderr was
+    non-empty. Use POSIX predicates instead, e.g. `-perm -u+x` for -executable.
+    """
+    offenders = []
+    for c in load_all_checks():
+        cmd = c["command"]
+        if "find" not in cmd:
+            continue
+        for pred in _GNU_ONLY_FIND:
+            if re.search(r"\bfind\b[^|;&]*" + re.escape(pred) + r"\b", cmd):
+                offenders.append("  %s [%s]: find %s"
+                                 % (c["_file"], c["label"], pred))
+    assert not offenders, (
+        "GNU-only find predicates; toybox rejects the whole command:\n"
+        + "\n".join(sorted(set(offenders))))
+
+
+def test_binder_output_is_not_counted_without_a_guard():
+    """A failed binder call must never be counted as a measurement.
+
+    Observed on an Android 13 device whose shell has no binder access:
+    `pm list users | wc -l` printed one error line, wc counted it, and the
+    check reported "1 user profile". Same shape gave "WiFi Networks Saved 1",
+    "User-installed Apps 1", "System Packages Total Count 1", and best of all
+    "Registered Binder Service Inventory -> binder_services=1" on a device with
+    zero services, because `grep -c ':'` matched the "Found 0 services:" header.
+
+    33 checks had this. `2>/dev/null` made it invisible: the error was
+    suppressed, the count came back 0, and it looked like a clean measurement.
+
+    A check may still count binder output, but it must first capture that
+    output and refuse to count it when the service did not answer.
+    """
+    import hardax
+    counting = re.compile(r"\|\s*(wc\s+-l|grep\s+-[a-zA-Z]*c[a-zA-Z]*\s)")
+    offenders = []
+    for c in load_all_checks():
+        cmd = c["command"]
+        if not counting.search(cmd):
+            continue
+        head = hardax.splitUnquotedPipes(cmd, limit=1)[0]
+        if not hardax.commandNeedsBinder(head):
+            continue
+        if any(t in cmd for t in hardax.UNMEASURED_TOKENS):
+            continue          # captures the output and guards it
+        offenders.append("  %s [%s]: counts %s output with no guard"
+                         % (c["_file"], c["label"], head.strip()[:40]))
+    assert not offenders, (
+        "binder output counted without checking the service answered:\n"
+        + "\n".join(sorted(set(offenders))))

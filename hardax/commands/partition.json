@@ -3,11 +3,21 @@
     {
       "category": "PARTITION",
       "label": "OverlayFS Active (adb remount)",
-      "command": "M=$(mount 2>/dev/null); if [ -z \"$M\" ]; then echo UNMEASURED; else printf '%s\\n' \"$M\" | grep -c '^overlay'; fi",
-      "safe_pattern": "^0$",
+      "command": "M=$(cat /proc/mounts 2>/dev/null); [ -n \"$M\" ] || M=$(mount 2>/dev/null); if [ -z \"$M\" ]; then echo \"UNMEASURED no_mount_table\"; else O=$(printf '%s\\n' \"$M\" | awk '$1==\"overlay\"{print ($2==\"on\")?$3:$2}' ); F=$(printf '%s\\n' \"$O\" | grep -xE '/|/system|/system_ext|/vendor|/product|/odm|/oem|/vendor_dlkm|/system_dlkm|/odm_dlkm' | tr '\\n' ' '); S=$(printf '%s\\n' \"$M\" | awk '{mp=($2==\"on\")?$3:$2; if(mp==\"/mnt/scratch\"||mp==\"/cache/overlay\") print mp}' | tr '\\n' ' '); N=$(printf '%s' \"$F\" | wc -w); T=$(printf '%s\\n' \"$O\" | grep -c .); echo \"firmware_overlays=$N other_overlays=$((T-N)) firmware_paths=[$F] remount_scratch=[$S]\"; fi",
+      "safe_pattern": "^firmware_overlays=0\\b.*remount_scratch=\\[\\]",
       "level": "critical",
-      "description": "OverlayFS mounts indicate 'adb remount' was used, making system partitions writable. This breaks dm-verity and allows persistent firmware modification.",
-      "remediation": "Reboot the device to clear overlayfs mounts. Avoid using 'adb remount' on production devices.",
+      "description": "OverlayFS mounted ON a firmware partition (/, /system, /system_ext, /vendor, /product, /odm, /oem, or a *_dlkm) means 'adb remount' or an equivalent overlay is active: read-only firmware becomes writable and dm-verity no longer covers what the running system reads. A /mnt/scratch or /cache/overlay mount is the persistent backing store adb remount creates and is reported alongside. Overlay mounts on any other path, notably container runtimes rooted under /data, are counted as other_overlays and do not affect firmware integrity.",
+      "remediation": "Only act when firmware_overlays is non-zero or remount_scratch is non-empty. Reboot to drop the overlay, then confirm every firmware partition mounts 'ro' again. If a scratch mount persists across reboot, run 'adb enable-verity' and reflash the affected partitions. A non-zero other_overlays with firmware_overlays=0 is normal on devices that run containers and needs no action.",
+      "empty_is_safe": false
+    },
+    {
+      "category": "PARTITION",
+      "label": "OverlayFS Mount Inventory",
+      "command": "M=$(cat /proc/mounts 2>/dev/null); [ -n \"$M\" ] || M=$(mount 2>/dev/null); if [ -z \"$M\" ]; then echo \"UNMEASURED no_mount_table\"; else printf '%s\\n' \"$M\" | awk '$1==\"overlay\"{print ($2==\"on\")?$3:$2}'  | head -20 | sed 's|^|overlay_at |'; echo \"count=$(printf '%s\\n' \"$M\" | awk '$1==\"overlay\"{c++}END{print c+0}')\"; fi",
+      "safe_pattern": "^count=\\d+$",
+      "level": "info",
+      "description": "Every OverlayFS mount point on the device, so an analyst can see where each overlay actually sits instead of inferring intent from a bare count. Read this together with 'OverlayFS Active (adb remount)': that check decides severity, this one records the evidence behind it.",
+      "remediation": "Informational. Confirm each listed path is an expected container or runtime overlay. Any entry that is a firmware mount point is handled by the 'OverlayFS Active (adb remount)' check.",
       "empty_is_safe": false
     },
     {
@@ -108,7 +118,7 @@
     {
       "category": "PARTITION",
       "label": "noexec on /data Partition",
-      "command": "mount 2>/dev/null | grep ' /data ' | grep -c 'noexec'",
+      "command": "M=$(cat /proc/mounts 2>/dev/null); [ -n \"$M\" ] || M=$(mount 2>/dev/null); D=$(printf '%s\\n' \"$M\" | grep ' /data '); if [ -z \"$M\" ]; then echo \"UNMEASURED no mount table readable\"; elif [ -z \"$D\" ]; then echo \"UNMEASURED no /data entry in mount table\"; else printf '%s\\n' \"$D\" | grep -c 'noexec'; fi",
       "safe_pattern": "^[1-9]",
       "level": "info",
       "description": "Android executes app code from /data (dalvik-cache, app native libraries), so /data cannot carry noexec on a stock build. Recorded for inventory only. The achievable /data mount controls are nosuid and nodev, checked separately.",
@@ -117,7 +127,7 @@
     {
       "category": "PARTITION",
       "label": "nosuid on /data Partition",
-      "command": "mount 2>/dev/null | grep ' /data ' | grep -c 'nosuid'",
+      "command": "M=$(cat /proc/mounts 2>/dev/null); [ -n \"$M\" ] || M=$(mount 2>/dev/null); D=$(printf '%s\\n' \"$M\" | grep ' /data '); if [ -z \"$M\" ]; then echo \"UNMEASURED no mount table readable\"; elif [ -z \"$D\" ]; then echo \"UNMEASURED no /data entry in mount table\"; else printf '%s\\n' \"$D\" | grep -c 'nosuid'; fi",
       "safe_pattern": "^[1-9]",
       "level": "warning",
       "description": "/data should be mounted nosuid to prevent setuid binaries placed by apps from gaining root. Missing nosuid is a privilege escalation vector.",
@@ -126,7 +136,7 @@
     {
       "category": "PARTITION",
       "label": "nodev on /data Partition",
-      "command": "mount 2>/dev/null | grep ' /data ' | grep -c 'nodev'",
+      "command": "M=$(cat /proc/mounts 2>/dev/null); [ -n \"$M\" ] || M=$(mount 2>/dev/null); D=$(printf '%s\\n' \"$M\" | grep ' /data '); if [ -z \"$M\" ]; then echo \"UNMEASURED no mount table readable\"; elif [ -z \"$D\" ]; then echo \"UNMEASURED no /data entry in mount table\"; else printf '%s\\n' \"$D\" | grep -c 'nodev'; fi",
       "safe_pattern": "^[1-9]",
       "level": "warning",
       "description": "/data should be mounted nodev to block device file creation (character/block devices) by unprivileged apps.",
@@ -172,11 +182,11 @@
     {
       "category": "PARTITION",
       "label": "Unexpected Loop Device Mounts",
-      "command": "M=$(mount 2>/dev/null); if [ -z \"$M\" ]; then echo UNMEASURED; else printf '%s\\n' \"$M\" | grep -c '^/dev/loop'; fi",
-      "safe_pattern": "^0$",
+      "command": "M=$(cat /proc/mounts 2>/dev/null); [ -n \"$M\" ] || M=$(mount 2>/dev/null); if [ -z \"$M\" ]; then echo \"UNMEASURED no_mount_table\"; else L=$(printf '%s\\n' \"$M\" | awk '$1 ~ /^\\/dev\\/(block\\/)?loop/ {mp=($2==\"on\")?$3:$2; if (mp !~ /^\\/apex\\//) print mp}'); A=$(printf '%s\\n' \"$M\" | awk '$1 ~ /^\\/dev\\/(block\\/)?loop/ {mp=($2==\"on\")?$3:$2; if (mp ~ /^\\/apex\\//) c++} END{print c+0}'); N=$(printf '%s\\n' \"$L\" | grep -c .); echo \"non_apex_loop=$N apex_loop=$A paths=[$(printf '%s' \"$L\" | tr '\\n' ' ')]\"; fi",
+      "safe_pattern": "^non_apex_loop=0\\b",
       "level": "warning",
-      "description": "Loop device mounts outside of APEX are unusual and may indicate a side-loaded image or hidden filesystem.",
-      "remediation": "Identify and unmount unexpected loop devices: 'losetup -d /dev/loop<N>'. Investigate the backing image.",
+      "description": "A loop-mounted filesystem outside /apex/ can be a side-loaded image or a hidden filesystem. APEX Mainline modules are themselves loop mounts on Android 10+ and are excluded by mount point, not by count, so a normal device reports non_apex_loop=0 with a non-zero apex_loop.",
+      "remediation": "Identify each path in paths=[] and the image behind it (losetup -a, or readlink the backing file). Unmount and remove any image that is not part of the shipping build. A non-zero apex_loop on its own is normal.",
       "empty_is_safe": false
     },
     {
@@ -210,11 +220,11 @@
     {
       "category": "PARTITION",
       "label": "fstab Encryption Required",
-      "command": "D=$(cat /vendor/etc/fstab.* /system/etc/fstab.* /etc/fstab* 2>/dev/null | grep -E '[[:space:]]/data[[:space:]]'); [ -n \"$D\" ] && printf '%s\\n' \"$D\" | grep -c -E 'fileencryption|forceencrypt|forcefdeorfbe|encryptable'",
-      "safe_pattern": "^[1-9]",
+      "command": "P=\"/vendor/etc/fstab.* /odm/etc/fstab.* /system/etc/fstab.* /etc/fstab* /first_stage_ramdisk/fstab.*\"; D=$(cat $P 2>/dev/null | grep -vE '^[[:space:]]*#' | grep -E '[[:space:]]/data[[:space:]]'); G=$(cat /proc/device-tree/firmware/android/fstab/userdata/fsmgr_flags 2>/dev/null | tr -d '\\000'); S=$(grep -lE '[[:space:]]/data[[:space:]]' $P 2>/dev/null | tr '\\n' ' '); [ -n \"$G\" ] && S=\"$S device-tree\"; A=\"$D $G\"; if [ -z \"$D$G\" ]; then echo \"UNMEASURED no_readable_data_fstab_entry\"; else case \"$A\" in *fileencryption=*) E=fbe ;; *forceencrypt*|*forcefdeorfbe*) E=fde ;; *encryptable=*) E=encryptable_only ;; *) E=none ;; esac; case \"$A\" in *metadata_encryption=*) M=yes ;; *) M=no ;; esac; echo \"data_encryption=$E metadata=$M src=[$S]\"; fi",
+      "safe_pattern": "^data_encryption=(fbe|fde)\\b",
       "level": "critical",
-      "description": "fstab must enforce encryption for /data. Missing forceencrypt/fileencryption means devices boot without encryption.",
-      "remediation": "Add 'fileencryption=aes-256-xts:aes-256-cts' to the /data entry in fstab and rebuild the vendor image.",
+      "description": "The /data entry in the fstab must request encryption. fileencryption= is FBE (Android 10+), forceencrypt/forcefdeorfbe is legacy FDE, and encryptable= alone only permits encryption without requiring it. Searched in /vendor/etc, /odm/etc, /system/etc, /etc and the first-stage ramdisk, plus the device-tree fstab node that many SoCs use instead of a file. When no /data entry is readable the check reports UNMEASURED rather than asserting encryption is missing: on that device the runtime answer comes from 'Userdata Encryption State' (ro.crypto.state) and 'Userdata Encryption Type' (ro.crypto.type), which measure effect rather than policy.",
+      "remediation": "On data_encryption=none or encryptable_only, add 'fileencryption=aes-256-xts:aes-256-cts' (and 'metadata_encryption=aes-256-xts' for metadata encryption) to the /data entry and rebuild the vendor image. On UNMEASURED, read the fstab from the boot or vendor_boot ramdisk offline, and confirm ro.crypto.state is 'encrypted' on the running device.",
       "empty_is_safe": false
     },
     {
@@ -238,7 +248,7 @@
     {
       "category": "PARTITION",
       "label": "Metadata Partition Accessible",
-      "command": "ls /dev/block/by-name/metadata 2>/dev/null && echo present || echo absent",
+      "command": "if ls /dev/block/by-name/metadata >/dev/null 2>&1; then echo present; elif ! ls /dev/block/by-name >/dev/null 2>&1; then echo \"UNMEASURED /dev/block/by-name not listable\"; else echo absent; fi",
       "safe_pattern": "^present$",
       "level": "info",
       "description": "Metadata partition stores FBE/FDE keys and state. Required for encrypted userdata on Android 9+.",
@@ -257,7 +267,7 @@
     {
       "category": "PARTITION",
       "label": "noexec on /storage/emulated User Storage",
-      "command": "out=$(mount 2>/dev/null | grep ' /storage/emulated ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'noexec' && echo OK || echo MISSING; else echo NA; fi",
+      "command": "M=$(cat /proc/mounts 2>/dev/null); [ -n \"$M\" ] || M=$(mount 2>/dev/null); if [ -z \"$M\" ]; then echo \"UNMEASURED no mount table readable\"; else out=$(printf '%s\\n' \"$M\" | grep ' /storage/emulated '); if [ -n \"$out\" ]; then printf '%s\\n' \"$out\" | grep -q 'noexec' && echo OK || echo MISSING; else echo NA; fi; fi",
       "safe_pattern": "^(OK|NA)$",
       "level": "warning",
       "description": "User-facing storage (the modern /sdcard at /storage/emulated) should be mounted noexec. Apps and attackers commonly drop binaries here; without noexec they can be executed directly. NA means the path is not mounted on this device.",
@@ -266,7 +276,7 @@
     {
       "category": "PARTITION",
       "label": "nosuid on /storage/emulated User Storage",
-      "command": "out=$(mount 2>/dev/null | grep ' /storage/emulated ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'nosuid' && echo OK || echo MISSING; else echo NA; fi",
+      "command": "M=$(cat /proc/mounts 2>/dev/null); [ -n \"$M\" ] || M=$(mount 2>/dev/null); if [ -z \"$M\" ]; then echo \"UNMEASURED no mount table readable\"; else out=$(printf '%s\\n' \"$M\" | grep ' /storage/emulated '); if [ -n \"$out\" ]; then printf '%s\\n' \"$out\" | grep -q 'nosuid' && echo OK || echo MISSING; else echo NA; fi; fi",
       "safe_pattern": "^(OK|NA)$",
       "level": "critical",
       "description": "User storage must be nosuid. A missing nosuid flag lets a planted setuid root binary keep its privileges when executed from user storage, a direct privilege-escalation path. NA means the path is not mounted on this device.",
@@ -275,7 +285,7 @@
     {
       "category": "PARTITION",
       "label": "noexec on /mnt/media_rw (USB OTG)",
-      "command": "out=$(mount 2>/dev/null | grep ' /mnt/media_rw ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'noexec' && echo OK || echo MISSING; else echo NA; fi",
+      "command": "M=$(cat /proc/mounts 2>/dev/null); [ -n \"$M\" ] || M=$(mount 2>/dev/null); if [ -z \"$M\" ]; then echo \"UNMEASURED no mount table readable\"; else out=$(printf '%s\\n' \"$M\" | grep ' /mnt/media_rw '); if [ -n \"$out\" ]; then printf '%s\\n' \"$out\" | grep -q 'noexec' && echo OK || echo MISSING; else echo NA; fi; fi",
       "safe_pattern": "^(OK|NA)$",
       "level": "warning",
       "description": "USB OTG storage mounted under /mnt/media_rw must be noexec to stop malware on inserted drives from executing. NA means no USB storage is currently attached.",
@@ -284,7 +294,7 @@
     {
       "category": "PARTITION",
       "label": "nosuid on /mnt/media_rw (USB OTG)",
-      "command": "out=$(mount 2>/dev/null | grep ' /mnt/media_rw ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'nosuid' && echo OK || echo MISSING; else echo NA; fi",
+      "command": "M=$(cat /proc/mounts 2>/dev/null); [ -n \"$M\" ] || M=$(mount 2>/dev/null); if [ -z \"$M\" ]; then echo \"UNMEASURED no mount table readable\"; else out=$(printf '%s\\n' \"$M\" | grep ' /mnt/media_rw '); if [ -n \"$out\" ]; then printf '%s\\n' \"$out\" | grep -q 'nosuid' && echo OK || echo MISSING; else echo NA; fi; fi",
       "safe_pattern": "^(OK|NA)$",
       "level": "critical",
       "description": "USB storage must be nosuid; a setuid binary on a USB drive must not retain root when executed. NA means no USB storage is currently attached.",
@@ -293,7 +303,7 @@
     {
       "category": "PARTITION",
       "label": "noexec on /cache",
-      "command": "out=$(mount 2>/dev/null | grep ' /cache ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'noexec' && echo OK || echo MISSING; else echo NA; fi",
+      "command": "M=$(cat /proc/mounts 2>/dev/null); [ -n \"$M\" ] || M=$(mount 2>/dev/null); if [ -z \"$M\" ]; then echo \"UNMEASURED no mount table readable\"; else out=$(printf '%s\\n' \"$M\" | grep ' /cache '); if [ -n \"$out\" ]; then printf '%s\\n' \"$out\" | grep -q 'noexec' && echo OK || echo MISSING; else echo NA; fi; fi",
       "safe_pattern": "^(OK|NA)$",
       "level": "warning",
       "description": "/cache is writable scratch space. Without noexec, dropped binaries can be executed. NA means /cache is not a separate partition on this device (common on A/B devices that have removed /cache).",
@@ -302,7 +312,7 @@
     {
       "category": "PARTITION",
       "label": "nosuid on /cache",
-      "command": "out=$(mount 2>/dev/null | grep ' /cache ' || true); if [ -n \"$out\" ]; then echo \"$out\" | grep -q 'nosuid' && echo OK || echo MISSING; else echo NA; fi",
+      "command": "M=$(cat /proc/mounts 2>/dev/null); [ -n \"$M\" ] || M=$(mount 2>/dev/null); if [ -z \"$M\" ]; then echo \"UNMEASURED no mount table readable\"; else out=$(printf '%s\\n' \"$M\" | grep ' /cache '); if [ -n \"$out\" ]; then printf '%s\\n' \"$out\" | grep -q 'nosuid' && echo OK || echo MISSING; else echo NA; fi; fi",
       "safe_pattern": "^(OK|NA)$",
       "level": "critical",
       "description": "/cache must be nosuid to prevent setuid escalation from this writable region. NA means /cache is not a separate partition on this device.",
@@ -311,7 +321,7 @@
     {
       "category": "PARTITION",
       "label": "noexec on /metadata",
-      "command": "out=$(mount 2>/dev/null | grep ' /metadata ' || true); if [ -z \"$out\" ]; then echo NA; elif printf '%s\\n' \"$out\" | grep -q 'noexec'; then echo OK; else echo \"MISSING\"; printf '%s\\n' \"$out\"; fi",
+      "command": "M=$(cat /proc/mounts 2>/dev/null); [ -n \"$M\" ] || M=$(mount 2>/dev/null); out=$(printf '%s\\n' \"$M\" | grep ' /metadata '); if [ -z \"$M\" ]; then echo \"UNMEASURED no mount table readable\"; elif [ -z \"$out\" ]; then echo NA; elif printf '%s\\n' \"$out\" | grep -q 'noexec'; then echo OK; else echo \"MISSING\"; printf '%s\\n' \"$out\"; fi",
       "safe_pattern": "^(OK|NA)$",
       "level": "warning",
       "description": "/metadata stores file-based encryption metadata and should never need to execute binaries. NA means the device has no metadata partition (older A-only devices).",
@@ -320,7 +330,7 @@
     {
       "category": "PARTITION",
       "label": "nosuid on /metadata",
-      "command": "out=$(mount 2>/dev/null | grep ' /metadata ' || true); if [ -z \"$out\" ]; then echo NA; elif printf '%s\\n' \"$out\" | grep -q 'nosuid'; then echo OK; else echo \"MISSING\"; printf '%s\\n' \"$out\"; fi",
+      "command": "M=$(cat /proc/mounts 2>/dev/null); [ -n \"$M\" ] || M=$(mount 2>/dev/null); out=$(printf '%s\\n' \"$M\" | grep ' /metadata '); if [ -z \"$M\" ]; then echo \"UNMEASURED no mount table readable\"; elif [ -z \"$out\" ]; then echo NA; elif printf '%s\\n' \"$out\" | grep -q 'nosuid'; then echo OK; else echo \"MISSING\"; printf '%s\\n' \"$out\"; fi",
       "safe_pattern": "^(OK|NA)$",
       "level": "critical",
       "description": "/metadata must be nosuid; it is writable and a setuid binary placed there must not gain privilege. NA means the device has no metadata partition.",
@@ -330,12 +340,13 @@
       "id": "PART-APEXVER-001",
       "category": "PARTITION",
       "label": "APEX Active Versions and Rollback State",
-      "command": "A=$(cmd -w apexservice getActivePackages 2>/dev/null | head -12); [ -z \"$A\" ] && A=$(ls -d /apex/*/ 2>/dev/null | sed 's#/apex/##;s#/##' | grep -v '@' | head -12 | tr '\\n' ' '); S=$(ls -d /apex/*@* 2>/dev/null | wc -l); [ -z \"$A\" ] && echo NO_APEX || echo \"active=$A versioned_mounts=${S:-0}\"",
+      "command": "A=$(cmd -w apexservice getActivePackages 2>/dev/null | head -12); case \"$A\" in \"\"|*\"Can't find service\"*|*\"Failure calling service\"*|*\"Failed transaction\"*|*\"Found 0 services\"*) A=\"\";; esac; [ -z \"$A\" ] && A=$(ls -d /apex/*/ 2>/dev/null | sed 's#/apex/##;s#/##' | grep -v '@' | head -12 | tr '\\n' ' '); S=$(ls -d /apex/*@* 2>/dev/null | wc -l); [ -z \"$A\" ] && echo \"UNMEASURED apexservice silent and /apex not listable\" || echo \"apex=$A staged=$S\"",
       "safe_pattern": ".",
       "level": "info",
       "empty_is_safe": false,
       "description": "Lists the active APEX modules and how many versioned mount points are present. APEX delivers updatable system components (ART, conscrypt, media, DNS resolver, tethering) outside the full OTA, each signed independently and verified at activation. The security question is which version is actually active: a module rolled back or pinned to an older build reintroduces whatever it had been patched for, and a versioned mount left behind indicates a staged or reverted activation. The existing APEX checks cover signing and mount state; none covered the active version set.",
-      "remediation": "Compare the active module versions against the expected set for this build and security patch level. Investigate any module pinned below the platform version, since APEX modules carry their own security fixes independent of the OTA."
+      "remediation": "Compare the active module versions against the expected set for this build and security patch level. Investigate any module pinned below the platform version, since APEX modules carry their own security fixes independent of the OTA.",
+      "binder_optional": true
     },
     {
       "id": "PART-FSCK-001",
