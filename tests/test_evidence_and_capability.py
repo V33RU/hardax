@@ -289,12 +289,12 @@ def _run_against(check, table, tmp_path):
 CONTAINER_TABLE = (
     "/dev/block/dm-15 /system_ext ext4 ro,seclabel 0 0\n"
     "/dev/block/dm-17 /vendor ext4 ro,seclabel 0 0\n"
-    "overlay /data/cb/containers/a/overlay_rootfs overlay "
-    "rw,lowerdir=/mnt/vendor/cb/containers/a/ro,"
-    "upperdir=/data/cb/containers/a/overlay_rootfs,"
-    "workdir=/data/cb/containers/a/work 0 0\n"
-    "overlay /data/cb/containers/b/overlay_rootfs overlay rw,lowerdir=/x 0 0\n"
-    "overlay /data/cb/containers/c/overlay_rootfs overlay rw,lowerdir=/x 0 0\n"
+    "overlay /data/rt/containers/a/overlay_rootfs overlay "
+    "rw,lowerdir=/mnt/vendor/rt/containers/a/ro,"
+    "upperdir=/data/rt/containers/a/overlay_rootfs,"
+    "workdir=/data/rt/containers/a/work 0 0\n"
+    "overlay /data/rt/containers/b/overlay_rootfs overlay rw,lowerdir=/x 0 0\n"
+    "overlay /data/rt/containers/c/overlay_rootfs overlay rw,lowerdir=/x 0 0\n"
 )
 
 REMOUNT_TABLE = (
@@ -307,7 +307,7 @@ REMOUNT_TABLE = (
 
 def test_container_overlays_are_not_an_adb_remount(tmp_path):
     """Observed on an Android 13 device running containerised services: three
-    overlay mounts under /data/<runtime>/containers/*/overlay_rootfs were
+    overlay mounts under a container runtime's writable layer were
     reported CRITICAL as "adb remount active, dm-verity bypassed".
 
     The old command was `mount | grep -c '^overlay'`, which counts overlays
@@ -366,7 +366,7 @@ def test_inventory_lists_where_each_overlay_sits(tmp_path):
     out, safe = _run_against(chk, CONTAINER_TABLE, tmp_path)
     assert safe, out
     assert out.count("overlay_at ") == 3
-    assert "/data/cb/containers/a/overlay_rootfs" in out
+    assert "/data/rt/containers/a/overlay_rootfs" in out
     assert "count=3" in out
 
 
