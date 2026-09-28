@@ -147,11 +147,12 @@
     {
       "category": "CERTIFICATE_AUDIT",
       "label": "Network Security Config Files (sample)",
-      "command": "find /data/app -name 'network_security_config.xml' 2>/dev/null | head -5",
-      "safe_pattern": ".+",
+      "command": "A=$(ls -d /data/app/*/*/base.apk /data/app/*/base.apk 2>/dev/null | head -80); if [ -z \"$A\" ]; then if ls /data/app >/dev/null 2>&1; then echo \"no_readable_apks\"; else echo \"UNMEASURED /data/app not listable\"; fi; else N=$(printf '%s\\n' \"$A\" | grep -c .); U=$(command -v unzip >/dev/null 2>&1 && echo yes || echo no); echo \"installed_apks=$N unzip_available=$U\"; fi",
+      "safe_pattern": ".",
       "level": "info",
-      "description": "Apps containing custom network security configs (sample up to 5 paths)",
-      "remediation": "Audit each config for trust-anchors allowing user CAs or cleartext traffic."
+      "description": "Counts installed APKs and reports whether unzip is available on this transport, which determines whether any APK-resource check can run at all. The previous form searched the filesystem for a file named network_security_config.xml. That file never exists on disk: it is compiled into the APK under res/xml/ and /data/app/<pkg>/base.apk is a ZIP archive, so the search returned empty on every device scanned and the result was meaningless. Per-app configuration is covered by \"Installed APKs Shipping a Network Security Configuration\" and the two weakening-declaration checks alongside it.",
+      "remediation": "Informational. When unzip_available=no the APK resource checks report UNMEASURED rather than clean, and per-app network security configuration must be reviewed offline with aapt or apkanalyzer.",
+      "empty_is_safe": false
     },
     {
       "category": "CERTIFICATE_AUDIT",
@@ -197,6 +198,39 @@
       "level": "warning",
       "description": "Shows global HTTP proxy host configuration",
       "remediation": "Clear the global proxy host via \"settings put global global_http_proxy_host null\"."
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "id": "CERT-NSC-DEBUG-001",
+      "label": "Installed APK Ships debug-overrides in Its Network Security Config",
+      "command": "command -v unzip >/dev/null 2>&1 || { echo \"UNMEASURED unzip unavailable, APK resources cannot be read from this shell\"; exit 0; }; A=$(ls -d /data/app/*/*/base.apk /data/app/*/base.apk 2>/dev/null | head -60); if [ -z \"$A\" ]; then if ls /data/app >/dev/null 2>&1; then echo \"no_readable_apks\"; else echo \"UNMEASURED /data/app not listable\"; fi; exit 0; fi; T=0; N=0; L=\"\"; for a in $A; do T=$((T+1)); X=$(unzip -p \"$a\" 'res/xml/*.xml' 2>/dev/null | tr -d '\\0'); if printf '%s' \"$X\" | grep -qE 'debug-overrides'; then N=$((N+1)); L=\"$L $(basename $(dirname \"$a\"))\"; fi; done; echo \"apks_scanned=$T apks_with_debug_overrides=$N [$L]\"",
+      "safe_pattern": "^(no_readable_apks|apks_scanned=[0-9]+ apks_with_debug_overrides=0\\b)",
+      "level": "high",
+      "empty_is_safe": false,
+      "description": "A debug-overrides block adds extra trust anchors and disables certificate pinning whenever android:debuggable is true. It is inert on a release build, but its presence in a shipping APK means the release and debug trust configuration were never separated, and anything that flips the debuggable flag, a repackaged APK or a userdebug image, activates it. Read from the APK's compiled resources: element names survive in the AXML string pool as UTF-16, so they are recoverable, but boolean attribute values are stored as typed integers and are NOT recoverable from a shell. This check therefore reports that the block exists, not what it evaluates to.",
+      "remediation": "Remove debug-overrides from the shipping network security config and keep debug trust anchors in a debug-only build variant."
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "id": "CERT-NSC-PINS-001",
+      "label": "Installed APK Declares overridePins in Its Network Security Config",
+      "command": "command -v unzip >/dev/null 2>&1 || { echo \"UNMEASURED unzip unavailable, APK resources cannot be read from this shell\"; exit 0; }; A=$(ls -d /data/app/*/*/base.apk /data/app/*/base.apk 2>/dev/null | head -60); if [ -z \"$A\" ]; then if ls /data/app >/dev/null 2>&1; then echo \"no_readable_apks\"; else echo \"UNMEASURED /data/app not listable\"; fi; exit 0; fi; T=0; N=0; L=\"\"; for a in $A; do T=$((T+1)); X=$(unzip -p \"$a\" 'res/xml/*.xml' 2>/dev/null | tr -d '\\0'); if printf '%s' \"$X\" | grep -qE 'overridePins'; then N=$((N+1)); L=\"$L $(basename $(dirname \"$a\"))\"; fi; done; echo \"apks_scanned=$T apks_with_override_pins=$N [$L]\"",
+      "safe_pattern": "^(no_readable_apks|apks_scanned=[0-9]+ apks_with_override_pins=0\\b)",
+      "level": "high",
+      "empty_is_safe": false,
+      "description": "overridePins disables certificate pinning for chains signed by the named trust anchor source. Where that source is the user CA store, any certificate a user or an MDM installs defeats the app's pinning entirely, which is the standard interception setup. As above, the attribute name is recoverable from the compiled resource but its true or false value is not, so this reports declaration rather than effective state.",
+      "remediation": "Remove overridePins from production configurations. If it is needed for interception during testing, confine it to a debug-overrides block in a debug build variant."
+    },
+    {
+      "category": "CERTIFICATE_AUDIT",
+      "id": "CERT-NSC-INV-001",
+      "label": "Installed APKs Shipping a Network Security Configuration",
+      "command": "command -v unzip >/dev/null 2>&1 || { echo \"UNMEASURED unzip unavailable, APK resources cannot be read from this shell\"; exit 0; }; A=$(ls -d /data/app/*/*/base.apk /data/app/*/base.apk 2>/dev/null | head -60); if [ -z \"$A\" ]; then if ls /data/app >/dev/null 2>&1; then echo \"no_readable_apks\"; else echo \"UNMEASURED /data/app not listable\"; fi; exit 0; fi; T=0; N=0; L=\"\"; for a in $A; do T=$((T+1)); X=$(unzip -p \"$a\" 'res/xml/*.xml' 2>/dev/null | tr -d '\\0'); if printf '%s' \"$X\" | grep -qE 'domain-config|base-config|trust-anchors'; then N=$((N+1)); L=\"$L $(basename $(dirname \"$a\"))\"; fi; done; echo \"apks_scanned=$T apks_with_nsc=$N [$L]\"",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Inventory of installed APKs that carry a network security configuration, identified by the presence of its elements in the compiled resources. An app with a custom configuration has deliberately changed its TLS trust, cleartext or pinning behaviour away from the platform default, so these are the packages worth reviewing with a proper APK analyser. Whether each configuration weakens or strengthens the default cannot be determined from a device shell, because the boolean attribute values are not present as strings in the compiled resource.",
+      "remediation": "Informational. Extract the listed APKs and decode their network security configuration with aapt or apkanalyzer to read the actual cleartextTrafficPermitted, certificateTransparency and trust-anchor values, which a shell cannot recover."
     }
   ]
 }

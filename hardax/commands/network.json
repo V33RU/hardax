@@ -766,6 +766,17 @@
       "empty_is_safe": false,
       "description": "Inventories the Wi-Fi firmware blobs and driver version strings on the device. Wi-Fi chipset firmware runs on a separate processor with DMA access to host memory and parses attacker-supplied frames before the host stack ever sees them, which is the class of bug behind Broadpwn and the Broadcom and Qualcomm over-the-air remote code execution findings. It updates on the SoC vendor cadence, not the Android bulletin cadence. The Bluetooth controller has one check; Wi-Fi firmware had none. Informational: this records the version for correlation against vendor advisories, since no shell probe can attest the blob.",
       "remediation": "Record the firmware and driver versions and check them against the SoC vendor security advisories, which are published separately from the Android bulletin. Wi-Fi firmware fixes frequently do not reach a device through the monthly patch level alone."
+    },
+    {
+      "category": "NETWORK",
+      "id": "NET-ECH-001",
+      "label": "Encrypted Client Hello Platform State (Android 17+)",
+      "command": "S=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$S\" ]; then echo \"UNMEASURED getprop unavailable\"; elif [ \"$S\" -lt 37 ] 2>/dev/null; then echo \"PRE_A17_SDK_$S\"; else E=$(device_config list network_security 2>/dev/null | grep -iE 'ech|encrypted_client_hello' | head -5 | tr '\\n' ' '); [ -z \"$E\" ] && echo \"ECH_FLAGS_NOT_SET sdk=$S\" || echo \"sdk=$S $E\"; fi",
+      "safe_pattern": ".",
+      "level": "info",
+      "empty_is_safe": false,
+      "description": "Encrypted Client Hello encrypts the SNI field of the TLS handshake, removing the plaintext hostname that otherwise lets any network intermediary see which domain a device is contacting. It is available from Android 17 and enabled by default there; on earlier releases it does not exist. Reported as platform state only: whether an individual app negotiates ECH depends on its networking library and on per-domain domainEncryption settings inside the APK, neither of which is visible from a device shell.",
+      "remediation": "Informational. On Android 17 and later, confirm apps handling sensitive destinations use a networking library that has adopted ECH."
     }
   ]
 }

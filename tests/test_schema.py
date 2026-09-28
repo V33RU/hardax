@@ -89,3 +89,32 @@ def test_readme_prose_check_counts_match_reality():
     assert not wrong, (
         "README claims %s check(s) but the bundle has %d: %s"
         % ("/".join(wrong), n, readme))
+
+
+def test_labels_are_unique_across_all_files():
+    """Two checks sharing a label are indistinguishable in every report, in the
+    XLSX filter and in any diff between runs, and the analysis engine keys
+    attack-chain membership on the label. Ids were already pinned; labels were
+    not."""
+    import collections
+    seen = collections.Counter(c["label"] for c in load_all_checks())
+    dups = {l: n for l, n in seen.items() if n > 1}
+    assert not dups, "duplicate check labels: %s" % dups
+
+
+def test_no_two_checks_scan_the_same_name_set():
+    """Guard against re-adding a binary-presence check that duplicates an
+    existing one. Two checks may legitimately share a path list, but not a path
+    list AND the same `grep -E` name alternation."""
+    import re as _re
+    seen = {}
+    dups = []
+    for c in load_all_checks():
+        m = _re.search(r"for d in ([^;]+); do.*?grep -E '([^']+)'", c["command"], _re.S)
+        if not m:
+            continue
+        key = (m.group(1).strip(), m.group(2))
+        if key in seen:
+            dups.append("%s duplicates %s" % (c["label"], seen[key]))
+        seen[key] = c["label"]
+    assert not dups, "checks scanning an identical path+name set:\n  " + "\n  ".join(dups)
