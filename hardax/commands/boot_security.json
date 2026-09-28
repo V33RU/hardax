@@ -308,6 +308,22 @@
       "empty_is_safe": false,
       "description": "Reports the boot mode the device came up in and whether the userspace fastboot and recovery binaries are present. A production device should report normal. A device booted into recovery, fastboot or charger mode during an audit is not in the state the rest of the checks assume, and fastbootd in particular exposes flashing of dynamic partitions from userspace, which is the path used to modify the super partition without a full bootloader unlock. The existing Recovery Partition Access check covers the block device; nothing covered the boot mode or the userspace flashing binary.",
       "remediation": "Audit the device in normal boot mode. Confirm fastbootd only accepts commands when the bootloader is unlocked, and that the recovery binary is not reachable from a normal boot."
+    },
+    {
+      "category": "BOOT_SECURITY",
+      "id": "BOOT-FLASHTOOL-001",
+      "label": "Firmware Flashing Tools Present on the Running System",
+      "command": "F=\"\"; D=\"\"; L=0; for d in /system/bin /system/xbin /system/sbin /sbin /su/bin /su/xbin /vendor/bin /vendor/xbin /product/bin /odm/bin /data/local/bin /data/local/xbin /data/local/tmp /debug_ramdisk /apex/*/bin; do if ls \"$d\" >/dev/null 2>&1; then L=$((L+1)); for n in $(ls -a \"$d\" 2>/dev/null | grep -E '^(fastboot|flash_image|nandwrite|nanddump|mtd_debug|flashtool|edl|emmc_appsboot)$'); do e=$(ls -ld \"$d/$n\" 2>/dev/null | awk '{print $1\":\"$3\":\"$4}'); [ -n \"$e\" ] && F=\"$F $d/$n=$e\"; done; else ls \"$d\" 2>&1 | grep -qi 'permission denied' && D=\"$D $d\"; fi; done; N=$(printf '%s\\n' $F | grep -c .); DC=$(printf '%s\\n' $D | grep -c .); if [ \"$L\" = \"0\" ]; then echo \"UNMEASURED no executable directory listable\"; elif [ \"$N\" = \"0\" ] && [ \"$DC\" != \"0\" ]; then echo \"UNMEASURED flash_tool_binaries=0 but $DC director(ies) could not be read\"; else echo \"flash_tool_binaries=$N denied_dirs=$DC [$F]\"; fi",
+      "safe_pattern": "^flash_tool_binaries=0\\b",
+      "level": "high",
+      "empty_is_safe": false,
+      "description": "Flashing utilities present on the running system let a process with block-device access rewrite firmware without entering the bootloader, which is where verified boot and the unlock state would otherwise gate the write. Checking whether fastbootd is reachable does not cover binaries sitting in the filesystem.",
+      "remediation": "Remove flashing utilities from the shipping image. Firmware updates should go through the signed OTA path, not an on-device flasher.",
+      "nist_800_53": "CM-7",
+      "tags": [
+        "pci-dss-2.2.4",
+        "least-functionality"
+      ]
     }
   ]
 }

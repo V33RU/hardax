@@ -51,7 +51,11 @@ DENIED_BIN = os.path.join(FIXTURES, "denied_bin")
 # and mask the check's behaviour on Android.
 ANDROID_ROOTS = ("/proc", "/sys", "/vendor", "/system", "/odm", "/product",
                  "/metadata", "/cache", "/apex", "/firmware", "/data", "/sdcard",
-                 "/storage", "/mnt", "/dev", "/first_stage_ramdisk", "/persist")
+                 "/storage", "/mnt", "/dev", "/first_stage_ramdisk", "/persist",
+                 # Android-only executable roots. Without these the harness reads
+                 # the host's real /sbin, where a Linux workstation genuinely has
+                 # mtd_debug, nanddump and friends.
+                 "/sbin", "/su", "/debug_ramdisk")
 
 # /dev/null and friends must keep working: they are shell plumbing, not device
 # state, and redirecting them into a directory that does not exist turns every

@@ -23,12 +23,17 @@
     {
       "category": "ADB_SECURITY",
       "label": "System Debug Binaries",
-      "command": "ls /system/bin/gdbserver /system/bin/strace 2>/dev/null",
-      "safe_pattern": "^$",
+      "command": "F=\"\"; D=\"\"; L=0; for d in /system/bin /system/xbin /system/sbin /sbin /su/bin /su/xbin /vendor/bin /vendor/xbin /product/bin /odm/bin /data/local/bin /data/local/xbin /data/local/tmp /debug_ramdisk /apex/*/bin; do if ls \"$d\" >/dev/null 2>&1; then L=$((L+1)); for n in $(ls -a \"$d\" 2>/dev/null | grep -E '^(gdb|gdbserver|strace|ltrace|lldb|lldb-server|valgrind|ndk-gdb|gcore)$'); do e=$(ls -ld \"$d/$n\" 2>/dev/null | awk '{print $1\":\"$3\":\"$4}'); [ -n \"$e\" ] && F=\"$F $d/$n=$e\"; done; else ls \"$d\" 2>&1 | grep -qi 'permission denied' && D=\"$D $d\"; fi; done; N=$(printf '%s\\n' $F | grep -c .); DC=$(printf '%s\\n' $D | grep -c .); if [ \"$L\" = \"0\" ]; then echo \"UNMEASURED no executable directory listable\"; elif [ \"$N\" = \"0\" ] && [ \"$DC\" != \"0\" ]; then echo \"UNMEASURED debug_binaries=0 but $DC director(ies) could not be read\"; else echo \"debug_binaries=$N denied_dirs=$DC [$F]\"; fi",
+      "safe_pattern": "^debug_binaries=0\\b",
       "level": "warning",
-      "description": "Presence of debug tools increases attack surface",
-      "remediation": "Remove debug binaries with 'adb shell rm /system/bin/gdbserver /system/bin/strace' on a remounted system.",
-      "empty_is_safe": true
+      "description": "Debuggers and tracers on a shipping device let any process that can run them attach to another and read its memory, which defeats process isolation regardless of SELinux. The previous form checked two fixed paths for two tools with stderr suppressed, so a denied read and a clean device were indistinguishable. This searches every executable directory, reports mode and owner per hit, and counts directories it could not enter. simpleperf is deliberately excluded because it ships in AOSP.",
+      "remediation": "Remove debuggers and tracers from production images. If a vendor needs gdbserver for RMA, restrict it to 0700 root:root and gate it on an unlocked bootloader.",
+      "empty_is_safe": false,
+      "nist_800_53": "CM-7",
+      "tags": [
+        "pci-dss-2.2.4",
+        "least-functionality"
+      ]
     },
     {
       "category": "ADB_SECURITY",

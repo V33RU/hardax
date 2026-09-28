@@ -540,3 +540,279 @@ def test_evidence_collector_is_not_counted_as_a_pass():
         dev, [make_check(label="c", safe_pattern=".", level="info")])
     assert rows[0]["status"] == "INFO"
     assert counts["safe"] == 0
+
+
+# ── renamed su binaries ──────────────────────────────────────────────────────
+
+SU_CHECK = "Renamed su Binary (su variants) and Their Permissions"
+
+
+def _run_su_check(tmp_path, planted, denied=False):
+    """Run the su-variant check against a fixture tree of executable dirs.
+
+    planted maps a directory name to {filename: octal mode}.
+    """
+    _skip_without_posix_shell()
+    import os
+    chk = _overlay_check(SU_CHECK)
+    dirs = []
+    for d, files in planted.items():
+        p = tmp_path / d
+        p.mkdir()
+        for name, mode in files.items():
+            f = p / name
+            f.write_text("")
+            os.chmod(str(f), mode)
+        dirs.append(str(p))
+    unreadable = None
+    if denied:
+        unreadable = tmp_path / "denied"
+        unreadable.mkdir()
+        os.chmod(str(unreadable), 0o000)
+        dirs.append(str(unreadable))
+    cmd = chk["command"]
+    real = cmd[cmd.index("for d in ") + 9: cmd.index("; do")]
+    try:
+        out = subprocess.run(["sh", "-c", cmd.replace(real, " ".join(dirs))],
+                             capture_output=True, text=True).stdout.strip()
+    finally:
+        # restore the mode or pytest cannot remove its own tmp_path afterwards
+        if unreadable is not None:
+            os.chmod(str(unreadable), 0o755)
+    return out, bool(re.search(chk["safe_pattern"], out, re.M))
+
+
+def test_renamed_su_binary_is_detected_with_its_mode(tmp_path):
+    """A root helper does not have to be called su. Checking only
+    /system/bin/su and /system/xbin/su misses suX, su1, .su, daemonsu and the
+    rest, which is the entire point of renaming it."""
+    out, safe = _run_su_check(tmp_path, {
+        "xbin": {"suX": 0o4755},
+        "vendorbin": {"daemonsu": 0o6755},
+        "datalocal": {"su1": 0o755},
+    })
+    assert not safe, out
+    assert "su_variants=3" in out
+    assert "setuid=2" in out, "setuid bit must be counted separately from presence"
+    assert "suX=-rwsr-xr-x" in out, "mode must be reported alongside the path"
+
+
+def test_binaries_merely_starting_with_su_are_not_flagged(tmp_path):
+    """surfaceflinger, sulogin and suspend all begin with su and are legitimate.
+    An over-broad pattern here would fire on every Android device."""
+    out, safe = _run_su_check(tmp_path, {
+        "bin": {"surfaceflinger": 0o755, "sulogin": 0o755,
+                "suspend": 0o755, "sh": 0o755},
+    })
+    assert safe, out
+    assert "su_variants=0" in out
+
+
+def test_denied_directory_is_counted_not_treated_as_empty(tmp_path):
+    out, safe = _run_su_check(tmp_path, {"xbin": {"suX": 0o4755}}, denied=True)
+    assert not safe, out
+    assert "denied_dirs=1" in out
+
+
+def test_no_listable_directory_reports_unmeasured(tmp_path):
+    out, safe = _run_su_check(tmp_path, {}, denied=True)
+    assert hardax.isUnmeasured(out) == "UNMEASURED", out
+    rows, _ = hardax.runChecks(FakeDevice(default=out), [_overlay_check(SU_CHECK)])
+    assert rows[0]["status"] == "VERIFY"
+
+
+def test_world_writable_su_variant_is_counted(tmp_path):
+    out, _ = _run_su_check(tmp_path, {"xbin": {"su": 0o777}})
+    assert "group_or_world_writable=1" in out, out
+
+
+# ── unnecessary-binary detection (PCI-DSS 2.2.4 / NIST CM-7) ─────────────────
+
+def _run_scan_check(label, tmp_path, planted, denied=False):
+    """Run a path-scanning presence check against a fixture of executable dirs."""
+    _skip_without_posix_shell()
+    import os
+    chk = _overlay_check(label)
+    dirs = []
+    if planted:
+        d = tmp_path / "bin"
+        d.mkdir()
+        for name, mode in planted.items():
+            f = d / name
+            f.write_text("")
+            os.chmod(str(f), mode)
+        dirs.append(str(d))
+    blocked = None
+    if denied:
+        blocked = tmp_path / "blocked"
+        blocked.mkdir()
+        os.chmod(str(blocked), 0o000)
+        dirs.append(str(blocked))
+    cmd = chk["command"]
+    real = cmd[cmd.index("for d in ") + 9: cmd.index("; do")]
+    try:
+        out = subprocess.run(["sh", "-c", cmd.replace(real, " ".join(dirs))],
+                             capture_output=True, text=True).stdout.strip()
+    finally:
+        if blocked is not None:
+            os.chmod(str(blocked), 0o755)
+    return out, bool(re.search(chk["safe_pattern"], out, re.M))
+
+
+def test_factory_and_ftm_binaries_are_detected(tmp_path):
+    """A Bluetooth FTM tool takes raw HCI opcodes and drives the controller
+    directly, bypassing the framework entirely. Nothing else in the suite looks
+    for this class of binary."""
+    out, safe = _run_scan_check(
+        "Factory, FTM and Diagnostic Test Binaries Present", tmp_path,
+        {"bt_ftm_test": 0o755, "qttestservice": 0o755, "diag_mdlog": 0o755,
+         "surfaceflinger": 0o755, "sh": 0o755})
+    assert not safe, out
+    assert "factory_test_binaries=3" in out
+    assert "surfaceflinger" not in out
+
+
+def test_dormant_offensive_binaries_are_detected(tmp_path):
+    """Process and port checks only see these once they run. A staged
+    frida-server or netcat sitting on disk is the pre-stage."""
+    out, safe = _run_scan_check(
+        "Network and Exfiltration Binaries Present on Disk", tmp_path,
+        {"nc": 0o755, "socat": 0o755, "frida-server": 0o700, "logcat": 0o755})
+    assert not safe, out
+    assert "offensive_net_binaries=3" in out
+
+
+def test_simpleperf_is_not_flagged_as_a_debugger(tmp_path):
+    """simpleperf ships in AOSP; flagging it would fire on every device."""
+    out, safe = _run_scan_check("System Debug Binaries", tmp_path,
+                                {"simpleperf": 0o755, "sh": 0o755})
+    assert safe, out
+    assert "debug_binaries=0" in out
+
+
+def test_debug_binaries_search_is_no_longer_two_fixed_paths(tmp_path):
+    out, safe = _run_scan_check("System Debug Binaries", tmp_path,
+                                {"gdbserver": 0o755, "ltrace": 0o755})
+    assert not safe, out
+    assert "debug_binaries=2" in out
+    assert "=-rwx" in out, "mode must be reported per hit"
+
+
+def test_nothing_found_but_directories_denied_is_not_clean(tmp_path):
+    """The defect this whole class keeps reproducing: an empty result from a
+    walk that could not read anything is not a pass."""
+    out, safe = _run_scan_check(
+        "Network and Exfiltration Binaries Present on Disk", tmp_path,
+        {"sh": 0o755}, denied=True)
+    assert not safe, out
+    assert hardax.isUnmeasured(out) == "UNMEASURED", out
+
+
+def test_suid_binary_is_now_a_finding_not_an_inventory(tmp_path):
+    """AOSP ships zero setuid binaries. This was info level with safe_pattern
+    '.', so it printed a list and could never raise a finding."""
+    import os
+    _skip_without_posix_shell()
+    chk = _overlay_check("SUID Binaries")
+    d = tmp_path / "sys"
+    d.mkdir()
+    for name, mode in (("plain", 0o755), ("suidbin", 0o4755)):
+        f = d / name
+        f.write_text("")
+        os.chmod(str(f), mode)
+    cmd = chk["command"].replace("/system /vendor /product /odm /apex /data", str(d))
+    out = subprocess.run(["sh", "-c", cmd], capture_output=True, text=True).stdout.strip()
+    assert chk["level"] in ("high", "critical"), "must be failable, not info"
+    assert not re.search(chk["safe_pattern"], out, re.M), out
+    assert "suid_binaries=1" in out
+
+
+# ── network security configuration inside installed APKs ────────────────────
+
+def _fake_axml(names):
+    """A compiled-AXML-shaped blob: element and attribute names as UTF-16LE.
+
+    Real AXML keeps names in a UTF-16 string pool, which is why a plain
+    `grep -a` finds nothing and `tr -d '\\0' | grep` finds them. Boolean
+    attribute values are typed integers and never appear as strings, which is
+    the hard limit on what a device shell can determine.
+    """
+    out = b"\x03\x00\x08\x00"
+    for n in names:
+        out += n.encode("utf-16-le") + b"\x00\x00"
+    return out
+
+
+def _apk(path, xml_files):
+    import zipfile
+    with zipfile.ZipFile(str(path), "w") as z:
+        for name, names in xml_files.items():
+            z.writestr("res/xml/" + name, _fake_axml(names))
+
+
+def _run_apk_check(label, tmp_path, apks):
+    _skip_without_posix_shell()
+    import shutil
+    if not shutil.which("unzip"):
+        pytest.skip("unzip not available on this host")
+    chk = _overlay_check(label)
+    root = tmp_path / "app"
+    root.mkdir()
+    for pkg, xmls in apks.items():
+        d = root / pkg
+        d.mkdir()
+        _apk(d / "base.apk", xmls)
+    cmd = chk["command"].replace(
+        "/data/app/*/*/base.apk /data/app/*/base.apk",
+        "%s/*/base.apk" % root).replace("ls /data/app ", "ls %s " % root)
+    out = subprocess.run(["sh", "-c", cmd], capture_output=True, text=True).stdout.strip()
+    return out, bool(re.search(chk["safe_pattern"], out, re.M))
+
+
+NSC_DEBUG = {"nsc.xml": ["network-security-config", "base-config",
+                         "trust-anchors", "debug-overrides", "certificates"]}
+NSC_PINS = {"nsc.xml": ["network-security-config", "domain-config", "domain",
+                        "trust-anchors", "overridePins", "pin-set"]}
+NSC_CLEAN = {"nsc.xml": ["network-security-config", "base-config",
+                         "trust-anchors", "certificates", "system"]}
+
+
+def test_debug_overrides_in_a_shipping_apk_is_detected(tmp_path):
+    out, safe = _run_apk_check(
+        "Installed APK Ships debug-overrides in Its Network Security Config",
+        tmp_path, {"com.a": NSC_DEBUG, "com.b": NSC_CLEAN})
+    assert not safe, out
+    assert "apks_with_debug_overrides=1" in out
+
+
+def test_override_pins_declaration_is_detected(tmp_path):
+    out, safe = _run_apk_check(
+        "Installed APK Declares overridePins in Its Network Security Config",
+        tmp_path, {"com.a": NSC_PINS, "com.b": NSC_CLEAN})
+    assert not safe, out
+    assert "apks_with_override_pins=1" in out
+
+
+@pytest.mark.parametrize("label", [
+    "Installed APK Ships debug-overrides in Its Network Security Config",
+    "Installed APK Declares overridePins in Its Network Security Config",
+])
+def test_clean_configs_do_not_fire(label, tmp_path):
+    out, safe = _run_apk_check(label, tmp_path, {"com.b": NSC_CLEAN})
+    assert safe, (label, out)
+
+
+def test_nsc_inventory_counts_apps_with_a_config(tmp_path):
+    out, safe = _run_apk_check(
+        "Installed APKs Shipping a Network Security Configuration",
+        tmp_path, {"com.a": NSC_DEBUG, "com.b": NSC_CLEAN, "com.c": NSC_PINS})
+    assert "apks_with_nsc=3" in out, out
+
+
+def test_dead_network_security_config_find_is_gone():
+    """The old command searched the filesystem for network_security_config.xml.
+    That file is compiled into the APK under res/xml and never exists on disk,
+    so it returned empty on every device ever scanned."""
+    chk = _overlay_check("Network Security Config Files (sample)")
+    assert "-name 'network_security_config.xml'" not in chk["command"]
+    assert "unzip_available" in chk["command"]

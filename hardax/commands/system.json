@@ -91,11 +91,17 @@
     {
       "category": "SYSTEM",
       "label": "SUID Binaries",
-      "command": "find /system /vendor -type f -perm -4000 | head -10",
-      "safe_pattern": ".",
-      "level": "info",
-      "description": "SUID binaries - review for privilege escalation",
-      "remediation": "Review each SUID binary. Remove the SUID bit from unnecessary ones: chmod u-s <binary> (requires remount)."
+      "command": "R=$(find /system /vendor /product /odm /apex /data -xdev -type f -perm -4000 2>&1); D=$(printf '%s\\n' \"$R\" | grep -c 'Permission denied'); F=$(printf '%s\\n' \"$R\" | grep -v 'Permission denied' | grep '^/' | head -40); N=$(printf '%s\\n' \"$F\" | grep -c '^/'); L=$(printf '%s\\n' \"$F\" | head -12 | tr '\\n' ' '); if [ \"$N\" = \"0\" ] && [ \"$D\" != \"0\" ]; then echo \"UNMEASURED suid_binaries=0 but $D director(ies) denied during the walk\"; else echo \"suid_binaries=$N enumeration_denied=$D [$L]\"; fi",
+      "safe_pattern": "^suid_binaries=0\\b",
+      "level": "high",
+      "description": "AOSP ships no setuid binaries: the platform replaced them with file capabilities years ago, so any setuid-root executable on a shipping Android build is either vendor-added or attacker-planted, and each one is a direct privilege-escalation candidate. This was previously an info-level inventory whose safe_pattern matched any output, so it printed a list and could never raise a finding. The search now also covers /product, /odm, /apex and /data, and counts directories the walk could not enter so a partial result is not read as clean.",
+      "remediation": "Identify every setuid binary reported and remove the bit, replacing the privilege it grants with a file capability or a service. A setuid executable under /data is attacker persistence and should be treated as a compromise indicator.",
+      "empty_is_safe": false,
+      "nist_800_53": "CM-7",
+      "tags": [
+        "pci-dss-2.2.4",
+        "least-functionality"
+      ]
     },
     {
       "category": "SYSTEM",
@@ -902,12 +908,17 @@
       "id": "SYS-SGID-001",
       "category": "SYSTEM",
       "label": "SGID Binaries Inventory",
-      "command": "find /system /vendor /product /apex -xdev -type f -perm -2000 | head -20",
-      "safe_pattern": ".",
-      "level": "info",
-      "empty_is_safe": true,
-      "description": "Lists set-group-ID binaries on the read-only system partitions. Android ships very few, so the list should be short and stable across builds of the same firmware. An SGID binary runs with the group of its owner regardless of who invokes it, so an unexpected entry is a privilege boundary worth examining. Reported as an inventory rather than pass or fail because a small set of legitimate SGID binaries is normal and the exact set is OEM-specific. The companion SUID Binaries check covers the set-user-ID case; nothing covered SGID before.",
-      "remediation": "Compare the list against the same firmware build on a known-good device. Investigate any binary that is not part of the stock image, and remove the SGID bit from anything that does not require it."
+      "command": "R=$(find /system /vendor /product /odm /apex /data -xdev -type f -perm -2000 2>&1); D=$(printf '%s\\n' \"$R\" | grep -c 'Permission denied'); F=$(printf '%s\\n' \"$R\" | grep -v 'Permission denied' | grep '^/' | head -40); N=$(printf '%s\\n' \"$F\" | grep -c '^/'); L=$(printf '%s\\n' \"$F\" | head -12 | tr '\\n' ' '); if [ \"$N\" = \"0\" ] && [ \"$D\" != \"0\" ]; then echo \"UNMEASURED sgid_binaries=0 but $D director(ies) denied during the walk\"; else echo \"sgid_binaries=$N enumeration_denied=$D [$L]\"; fi",
+      "safe_pattern": "^sgid_binaries=0\\b",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "Setgid executables grant the group privilege of the binary rather than the caller, which on Android maps to capability groups such as inet, log and sdcard_rw. As with setuid, AOSP ships none, so any hit is vendor-added or planted. This was an info-level inventory that could never fail; it is now a detection covering /product, /odm, /apex and /data with the denied-directory count reported alongside.",
+      "remediation": "Remove the setgid bit and grant the required group through the service definition instead of the binary.",
+      "nist_800_53": "CM-7",
+      "tags": [
+        "pci-dss-2.2.4",
+        "least-functionality"
+      ]
     },
     {
       "id": "SYS-WWEXEC-001",
