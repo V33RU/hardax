@@ -6,6 +6,9 @@ what went wrong, so a future change that reintroduces the bug fails loudly
 instead of quietly reporting a device secure.
 """
 
+import os
+import shutil
+
 import pytest
 
 import hardax
@@ -816,3 +819,625 @@ def test_dead_network_security_config_find_is_gone():
     chk = _overlay_check("Network Security Config Files (sample)")
     assert "-name 'network_security_config.xml'" not in chk["command"]
     assert "unzip_available" in chk["command"]
+
+
+# ── verified boot signing key ────────────────────────────────────────────────
+
+AVB_PATH_GLOB = ("for p in /dev/block/by-name/vbmeta$S "
+                 "/dev/block/bootdevice/by-name/vbmeta$S "
+                 "/dev/block/by-name/vbmeta /dev/block/bootdevice/by-name/vbmeta "
+                 "/dev/block/platform/*/by-name/vbmeta$S "
+                 "/dev/block/platform/*/by-name/vbmeta; do")
+
+
+def _avb_image(path, algorithm_type, signature_size, key_bits=None):
+    """A vbmeta image with a real AVB public key blob in its aux block.
+
+    The zeros matter: `od` collapses repeated identical lines to "*" unless
+    -v is passed, which silently truncated the hex dump and made the parse
+    return nothing. A real vbmeta.img happened to have varied bytes and hid it.
+
+    Layout verified against a real vbmeta.img. Header: magic "AVB0" at 0,
+    authentication_data_block_size u64 at 12, auxiliary_data_block_size u64 at
+    20, algorithm_type u32 at 28, signature_offset/size u64 at 48/56,
+    public_key_offset/size u64 at 64/72. The aux block holds the public key,
+    an AvbRSAPublicKeyHeader whose key_num_bits is a big-endian u32 at its
+    offset 0, followed by the modulus and rr.
+
+    key_bits defaults to signature_size * 8, which is the relationship RSA
+    guarantees. Passing it explicitly builds an image whose key and signature
+    length disagree, which is what the MISMATCH branch exists to catch.
+    """
+    import struct
+    if key_bits is None:
+        key_bits = signature_size * 8
+    if signature_size:
+        pk = (struct.pack(">II", key_bits, 0x12345678)
+              + b"\x11" * (key_bits // 8) + b"\x22" * (key_bits // 8))
+    else:
+        pk = b""                                  # unsigned: no key at all
+    auth = 32 + signature_size                    # hash then signature
+    b = bytearray(256)
+    b[0:4] = b"AVB0"
+    struct.pack_into(">II", b, 4, 1, 0)           # required libavb 1.0
+    struct.pack_into(">Q", b, 12, auth)
+    struct.pack_into(">Q", b, 20, len(pk))
+    struct.pack_into(">I", b, 28, algorithm_type)
+    struct.pack_into(">QQ", b, 48, 32, signature_size)
+    struct.pack_into(">QQ", b, 64, 0, len(pk))
+    b[176:189] = b"avbtool 1.1.0"
+    path.write_bytes(bytes(b) + b"\x00" * auth + pk + b"\x00" * 2048)
+    return str(path)
+
+
+def _run_avb(label, tmp_path, img=None, raw=None):
+    _skip_without_posix_shell()
+    chk = _overlay_check(label)
+    if raw is not None:
+        p = tmp_path / "vbmeta.img"
+        p.write_bytes(raw)
+        img = str(p)
+    cmd = chk["command"].replace(AVB_PATH_GLOB, "for p in %s; do" % (img or "/nonexistent"))
+    out = subprocess.run(["sh", "-c", cmd], capture_output=True, text=True).stdout.strip()
+    return out, bool(re.search(chk["safe_pattern"], out, re.M))
+
+
+SIGNED_CHECK = "vbmeta Is Cryptographically Signed"
+KEY_CHECK = "Verified Boot Signing Key Strength"
+
+
+def test_unsigned_vbmeta_is_detected(tmp_path):
+    """AVB permits algorithm_type NONE: a vbmeta with no signature at all.
+    The bootloader still reports a verified boot state and the device still
+    looks locked, so no property-based check sees this."""
+    img = _avb_image(tmp_path / "u.img", 0, 0)
+    out, safe = _run_avb(SIGNED_CHECK, tmp_path, img)
+    assert not safe, out
+    assert "vbmeta_signed=no" in out
+
+
+def test_signed_vbmeta_passes(tmp_path):
+    img = _avb_image(tmp_path / "s.img", 2, 512)      # SHA256_RSA4096
+    out, safe = _run_avb(SIGNED_CHECK, tmp_path, img)
+    assert safe, out
+    assert "alg=SHA256_RSA4096" in out and "key_bits=4096" in out
+
+
+def test_rsa2048_signing_key_is_flagged(tmp_path):
+    img = _avb_image(tmp_path / "w.img", 1, 256)      # SHA256_RSA2048
+    out, safe = _run_avb(KEY_CHECK, tmp_path, img)
+    assert not safe, out
+    assert "avb_key=WEAK" in out and "key_bits=2048" in out
+
+
+def test_rsa4096_and_rsa8192_pass(tmp_path):
+    for n, (alg, sz, bits) in enumerate([(2, 512, 4096), (3, 1024, 8192), (5, 512, 4096)]):
+        img = _avb_image(tmp_path / ("ok%d.img" % n), alg, sz)
+        out, safe = _run_avb(KEY_CHECK, tmp_path, img)
+        assert safe, out
+        assert "key_bits=%d" % bits in out
+
+
+def test_key_strength_defers_to_the_signing_check_when_unsigned(tmp_path):
+    """One defect must not produce two findings. An unsigned image is the
+    signing check's to report, so the strength check stands down."""
+    img = _avb_image(tmp_path / "u.img", 0, 0)
+    out, _ = _run_avb(KEY_CHECK, tmp_path, img)
+    assert hardax.isUnmeasured(out) == "NOT_APPLICABLE", out
+    rows, _ = hardax.runChecks(FakeDevice(default=out), [_overlay_check(KEY_CHECK)])
+    assert rows[0]["status"] == "VERIFY"
+
+
+def test_non_avb_or_unreadable_partition_is_unmeasured(tmp_path):
+    out, safe = _run_avb(SIGNED_CHECK, tmp_path, raw=b"\x00" * 80)
+    assert not safe
+    assert hardax.isUnmeasured(out) == "UNMEASURED", out
+    out, safe = _run_avb(SIGNED_CHECK, tmp_path, img="/nonexistent/vbmeta")
+    assert hardax.isUnmeasured(out) == "UNMEASURED", out
+
+
+# --------------------------------------------------------------------------
+# Verified boot hash tree digest algorithm (BOOT-VERITYHASH-001)
+# --------------------------------------------------------------------------
+
+VERITY_HASH_CHECK = "Verified Boot Hash Tree Digest Algorithm"
+
+
+def _hashtree_descriptor(algo, partition):
+    """One AvbHashtreeDescriptor, big-endian, per libavb.
+
+    Field order: tag u64=1, num_bytes_following u64, dm_verity_version u32,
+    image_size u64, tree_offset u64, tree_size u64, data_block_size u32,
+    hash_block_size u32, fec_num_roots u32, fec_offset u64, fec_size u64,
+    hash_algorithm[32] at offset 88, then the name and digest lengths.
+
+    hash_algorithm is a null-padded ASCII string, which is the only reason a
+    device shell can recover it at all: nothing here is ASN.1.
+    """
+    import struct
+    d = bytearray(176)
+    struct.pack_into(">QQ", d, 0, 1, 168)
+    struct.pack_into(">I", d, 16, 1)
+    d[88:88 + len(algo)] = algo.encode()
+    struct.pack_into(">III", d, 120, len(partition), 32, 32)
+    return bytes(d) + partition.encode() + b"\x00" * 64
+
+
+def _vbmeta_with_descriptors(path, descriptors):
+    """A vbmeta image whose aux block holds the given descriptors.
+
+    The trailing zeros are deliberate: a real vbmeta partition is mostly empty
+    after the aux block, and the hash algorithm has to survive being read out
+    of that.
+    """
+    import struct
+    aux = b"".join(descriptors) + b"\xde\xad" * 256
+    h = bytearray(256)
+    h[0:4] = b"AVB0"
+    struct.pack_into(">II", h, 4, 1, 0)
+    struct.pack_into(">Q", h, 20, len(aux))
+    struct.pack_into(">I", h, 28, 2)
+    struct.pack_into(">QQ", h, 128, 0, sum(len(d) for d in descriptors))
+    h[176:189] = b"avbtool 1.1.0"
+    path.write_bytes(bytes(h) + aux + b"\x00" * 4096)
+    return path
+
+
+def _run_verity_hash(tmp_path, image=None):
+    """Run the real command with /dev/block rerooted under tmp_path."""
+    _skip_without_posix_shell()
+    chk = _overlay_check(VERITY_HASH_CHECK)
+    root = tmp_path / "root"
+    (root / "dev" / "block" / "by-name").mkdir(parents=True, exist_ok=True)
+    if image is not None:
+        shutil.copyfile(str(image), str(root / "dev" / "block" / "by-name" / "vbmeta"))
+    cmd = chk["command"].replace("/dev/block/", str(root) + "/dev/block/")
+    out = subprocess.run(["sh", "-c", cmd], capture_output=True, text=True).stdout.strip()
+    return out, bool(re.search(chk["safe_pattern"], out, re.M))
+
+
+def test_sha256_hashtree_reads_clean(tmp_path):
+    img = _vbmeta_with_descriptors(tmp_path / "ok.img", [
+        _hashtree_descriptor("sha256", "system"),
+        _hashtree_descriptor("sha256", "vendor"),
+    ])
+    out, safe = _run_verity_hash(tmp_path, img)
+    assert safe, out
+    assert "algs=sha256" in out, out
+
+
+def test_sha1_hashtree_is_detected(tmp_path):
+    """dm-verity is on and every other verity check passes; the digest is
+    still SHA-1. One weak partition among strong ones has to surface."""
+    img = _vbmeta_with_descriptors(tmp_path / "weak.img", [
+        _hashtree_descriptor("sha1", "system"),
+        _hashtree_descriptor("sha256", "vendor"),
+    ])
+    out, safe = _run_verity_hash(tmp_path, img)
+    assert not safe, out
+    assert out.startswith("verity_hash=WEAK"), out
+    assert "sha1" in out and "sha256" in out, out
+
+
+def test_vbmeta_with_no_hash_descriptors_is_unmeasured(tmp_path):
+    """A top-level vbmeta holding only chain descriptors names no algorithm of
+    its own. That is an unanswered question, not a clean result."""
+    img = _vbmeta_with_descriptors(tmp_path / "chain.img", [])
+    out, safe = _run_verity_hash(tmp_path, img)
+    assert not safe, out
+    assert hardax.isUnmeasured(out) == "UNMEASURED", out
+    assert "vbmeta_images=1" in out, out
+
+
+def test_no_readable_vbmeta_is_unmeasured_not_clean(tmp_path):
+    """The whole defect class this suite guards against: a probe that reads
+    nothing must not report the device as safe."""
+    out, safe = _run_verity_hash(tmp_path, None)
+    assert not safe, out
+    assert hardax.isUnmeasured(out) == "UNMEASURED", out
+
+
+def test_non_avb_partition_does_not_count_as_an_image(tmp_path):
+    """The AVB0 magic gates every byte read after it, so a partition that is
+    readable but is not an AVB image cannot contribute a stray token."""
+    p = tmp_path / "junk.img"
+    p.write_bytes(b"sha1" + b"\x00" * 4096)
+    out, safe = _run_verity_hash(tmp_path, p)
+    assert not safe, out
+    assert hardax.isUnmeasured(out) == "UNMEASURED", out
+    assert "no readable vbmeta" in out, out
+
+
+# --------------------------------------------------------------------------
+# Userdata contents encryption cipher (STOR-FBECIPHER-001)
+#
+# Scope is contents_mode only. The first version of this check also scored
+# filenames_mode, which "Userdata Filenames Encryption Cipher" already scores, so an
+# Adiantum device produced two findings for one condition and an hctr2 device
+# got two checks disagreeing. test_contents_and_filenames_are_scored_once
+# pins the split.
+# --------------------------------------------------------------------------
+
+FBE_CIPHER_CHECK = "Userdata Contents Encryption Cipher"
+
+
+def _run_fbe(tmp_path, props=None):
+    """Run the real command with getprop stubbed to the given properties.
+
+    props=None stands in for a shell where getprop is denied or absent.
+    """
+    _skip_without_posix_shell()
+    chk = _overlay_check(FBE_CIPHER_CHECK)
+    bindir = tmp_path / "bin"
+    bindir.mkdir(exist_ok=True)
+    if props is None:
+        # getprop present but answering nothing and failing, which is what a
+        # denied or non-Android shell looks like. Stubbed rather than left to
+        # the host's PATH so the result does not depend on the test machine.
+        lines = ['#!/bin/sh', 'exit 1', '']
+    else:
+        lines = ['#!/bin/sh', 'case "$1" in']
+        for k, v in props.items():
+            lines.append('%s) echo "%s";;' % (k, v))
+        lines += ['*) echo "";;', 'esac', '']
+    stub = bindir / "getprop"
+    stub.write_text("\n".join(lines))
+    stub.chmod(0o755)
+    # Prepend, never replace: replacing PATH loses `sh` itself.
+    env = dict(os.environ, PATH=str(bindir) + os.pathsep + os.environ.get("PATH", ""))
+    out = subprocess.run(["sh", "-c", chk["command"]], capture_output=True,
+                         text=True, env=env).stdout.strip()
+    return out, bool(re.search(chk["safe_pattern"], out, re.M))
+
+
+def test_unset_cipher_properties_report_the_aosp_default(tmp_path):
+    """Unset does not mean unknown here: vold falls back to aes-256-xts. The
+    output has to say the verdict rests on a default, not a measurement."""
+    out, safe = _run_fbe(tmp_path, {"ro.crypto.type": "file",
+                                    "ro.build.version.sdk": "34"})
+    assert safe, out
+    assert "aosp-default" in out, out
+
+
+def test_explicit_strong_cipher_reads_clean(tmp_path):
+    out, safe = _run_fbe(tmp_path, {
+        "ro.crypto.type": "file",
+        "ro.crypto.volume.contents_mode": "aes-256-xts",
+        "ro.crypto.volume.filenames_mode": "aes-256-cts",
+        "ro.build.version.sdk": "34"})
+    assert safe, out
+    assert "aosp-default" not in out, out
+
+
+def test_filenames_mode_never_changes_this_verdict(tmp_path):
+    """filenames_mode is context here, not a scored field. aes-256-hctr2 is a
+    valid modern mode; this check must not score it either way, or the two
+    could disagree on the same device."""
+    for fm in ("aes-256-cts", "aes-256-hctr2", "adiantum", "something-odd"):
+        out, safe = _run_fbe(tmp_path, {
+            "ro.crypto.type": "file",
+            "ro.crypto.volume.contents_mode": "aes-256-xts",
+            "ro.crypto.volume.filenames_mode": fm,
+            "ro.build.version.sdk": "34"})
+        assert safe, (fm, out)
+        assert "filenames_mode_context=%s" % fm in out, out
+
+
+def test_weak_contents_cipher_is_caught(tmp_path):
+    """The device reports state=encrypted and type=file and every other
+    storage check passes. Only the contents mode shows the weakness."""
+    out, safe = _run_fbe(tmp_path, {
+        "ro.crypto.type": "file",
+        "ro.crypto.volume.contents_mode": "aes-128-cbc",
+        "ro.build.version.sdk": "34"})
+    assert not safe, out
+    assert out.startswith("fbe_contents=UNEXPECTED"), out
+
+
+def test_adiantum_is_named_in_evidence_but_is_not_a_finding(tmp_path):
+    """Adiantum is sanctioned where the SoC has no AES acceleration. It is a
+    tradeoff to record, not a misconfiguration, so it gets its own token in
+    the evidence and does not become a finding. It must not become one here
+    either, because Adiantum sets both modes and the filenames check already
+    reports it, which is how this check first produced a duplicate."""
+    out, safe = _run_fbe(tmp_path, {
+        "ro.crypto.type": "file",
+        "ro.crypto.volume.contents_mode": "adiantum",
+        "ro.crypto.volume.filenames_mode": "adiantum",
+        "ro.build.version.sdk": "34"})
+    assert safe, out
+    assert out.startswith("fbe_contents=ADIANTUM"), out
+    assert "contents_mode=adiantum" in out, out
+
+
+def test_full_disk_encryption_is_not_applicable(tmp_path):
+    """FDE has no per-volume cipher. Reporting a finding here would double up
+    with the encryption-type check on the same legacy device."""
+    out, safe = _run_fbe(tmp_path, {"ro.crypto.type": "block",
+                                    "ro.build.version.sdk": "28"})
+    assert not safe, out
+    assert hardax.isUnmeasured(out) == "NOT_APPLICABLE", out
+
+
+def test_getprop_that_does_not_answer_is_unmeasured(tmp_path):
+    out, safe = _run_fbe(tmp_path, None)
+    assert not safe, out
+    assert hardax.isUnmeasured(out) == "UNMEASURED", out
+
+
+def test_crypto_type_unset_is_unmeasured(tmp_path):
+    out, safe = _run_fbe(tmp_path, {"ro.build.version.sdk": "34"})
+    assert not safe, out
+    assert hardax.isUnmeasured(out) == "UNMEASURED", out
+
+
+def test_each_cipher_check_depends_on_exactly_one_property(tmp_path):
+    """Neither cipher property may drive both checks.
+
+    The first version of this check scored filenames_mode as well, which the
+    filenames cipher check already scores, so an Adiantum device got
+    two findings for one condition. The invariant that prevents it is not
+    "the two never fire together": contents and filenames are independent
+    settings and can genuinely both be wrong. It is that each verdict is a
+    function of one property alone, so no single value is scored twice.
+    """
+    _skip_without_posix_shell()
+    other = _overlay_check("Userdata Filenames Encryption Cipher")
+    CONTENTS = ("aes-256-xts", "adiantum", "aes-128-cbc", "")
+    FILENAMES = ("aes-256-cts", "aes-256-hctr2", "adiantum", "")
+
+    def verdicts(contents, filenames):
+        props = {"ro.crypto.type": "file", "ro.build.version.sdk": "34"}
+        if contents:
+            props["ro.crypto.volume.contents_mode"] = contents
+        if filenames:
+            props["ro.crypto.volume.filenames_mode"] = filenames
+        _, mine = _run_fbe(tmp_path, props)
+        env = dict(os.environ, PATH=str(tmp_path / "bin") + os.pathsep
+                   + os.environ.get("PATH", ""))
+        out = subprocess.run(["sh", "-c", other["command"]], capture_output=True,
+                             text=True, env=env).stdout.strip()
+        return mine, bool(re.search(other["safe_pattern"], out, re.M))
+
+    # This check's verdict must be constant across every filenames value.
+    for contents in CONTENTS:
+        seen = {verdicts(contents, f)[0] for f in FILENAMES}
+        assert len(seen) == 1, (
+            "contents=%r gives different verdicts depending on filenames_mode: %s"
+            % (contents, seen))
+
+    # The filenames check's verdict must be constant across every contents value.
+    for filenames in FILENAMES:
+        seen = {verdicts(c, filenames)[1] for c in CONTENTS}
+        assert len(seen) == 1, (
+            "filenames=%r gives different verdicts depending on contents_mode: %s"
+            % (filenames, seen))
+
+
+def test_key_size_comes_from_the_key_not_the_signature(tmp_path):
+    """The reported size must be key_num_bits from the public key blob.
+
+    The first version of this check computed signature_size * 8, which is an
+    inference from the signature rather than a reading of the key. This image
+    carries a 2048-bit key with a header claiming a 4096-bit signature: the
+    old arithmetic would call it strong.
+    """
+    img = _avb_image(tmp_path / "lie.img", 2, 512, key_bits=2048)
+    out, safe = _run_avb(KEY_CHECK, tmp_path, img)
+    assert not safe, out
+    assert "avb_key=MISMATCH" in out, out
+    assert "key_bits=2048" in out and "sig_bits=4096" in out, out
+
+
+def test_both_key_and_signature_sizes_are_reported(tmp_path):
+    """A verdict the reader can check needs both numbers on the row."""
+    img = _avb_image(tmp_path / "ok.img", 2, 512)
+    out, safe = _run_avb(KEY_CHECK, tmp_path, img)
+    assert safe, out
+    assert "key_bits=4096" in out and "sig_bits=4096" in out, out
+
+
+def test_signed_header_with_no_public_key_is_unmeasured(tmp_path):
+    """algorithm_type says signed but public_key_size is 0. There is no key to
+    measure, so the honest answer is unmeasured rather than a strength call."""
+    import struct
+    b = bytearray(256)
+    b[0:4] = b"AVB0"
+    struct.pack_into(">II", b, 4, 1, 0)
+    struct.pack_into(">Q", b, 12, 544)
+    struct.pack_into(">I", b, 28, 2)              # claims SHA256_RSA4096
+    struct.pack_into(">QQ", b, 48, 32, 512)
+    struct.pack_into(">QQ", b, 64, 0, 0)          # but no public key
+    out, safe = _run_avb(KEY_CHECK, tmp_path, raw=bytes(b) + b"\x00" * 1024)
+    assert not safe, out
+    assert hardax.isUnmeasured(out) == "UNMEASURED", out
+    assert "public_key_size is 0" in out, out
+
+
+# --------------------------------------------------------------------------
+# v1-only APK signatures (APP-SIGV1ONLY-001)
+# --------------------------------------------------------------------------
+
+SIGV1_CHECK = "Packages Without a v2 or Newer APK Signature"
+_APK_SIG_MAGIC = b"APK Sig Block 42"
+
+
+def _sig_apk(path, v2=False):
+    """A minimal APK, optionally carrying a real APK Signing Block.
+
+    The block sits between the last local file entry and the central
+    directory: an 8-byte length, the payload, the same length again, then the
+    16-byte magic, whose final byte is the one immediately before the central
+    directory. Inserting it shifts the directory, so the offset in the End of
+    Central Directory record has to be rewritten or the archive is corrupt and
+    the check counts it unparsed rather than signed.
+    """
+    import io
+    import struct
+    import zipfile
+    buf = io.BytesIO()
+    z = zipfile.ZipFile(buf, "w")
+    z.writestr("AndroidManifest.xml", b"\x03\x00\x08\x00" + b"\x00" * 200)
+    z.writestr("classes.dex", b"dex\n035\x00" + b"\x41" * 2000)
+    z.writestr("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\n")
+    z.writestr("META-INF/CERT.SF", "Signature-Version: 1.0\n")
+    z.writestr("META-INF/CERT.RSA", b"\x30\x82" + b"\x00" * 800)
+    z.close()
+    data = bytearray(buf.getvalue())
+    if v2:
+        eocd = data.rfind(b"PK\x05\x06")
+        cd = struct.unpack_from("<I", data, eocd + 16)[0]
+        payload = b"\x55" * 256
+        blocklen = len(payload) + 8 + len(_APK_SIG_MAGIC)
+        block = (struct.pack("<Q", blocklen) + payload
+                 + struct.pack("<Q", blocklen) + _APK_SIG_MAGIC)
+        data = bytearray(bytes(data[:cd]) + block + bytes(data[cd:]))
+        eocd = data.rfind(b"PK\x05\x06")
+        struct.pack_into("<I", data, eocd + 16, cd + len(block))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(bytes(data))
+    return path
+
+
+def _run_sigv1(tmp_path, specs):
+    """specs: list of (name, v2). Builds a fake app tree and runs the check."""
+    _skip_without_posix_shell()
+    chk = _overlay_check(SIGV1_CHECK)
+    root = tmp_path / "root"
+    (root / "data" / "app").mkdir(parents=True, exist_ok=True)
+    for name, v2 in specs:
+        _sig_apk(root / "data" / "app" / name / "base.apk", v2=v2)
+    cmd = chk["command"].replace('"/data/app ', '"%s/data/app ' % root)
+    for p in ("/system/app", "/system/priv-app", "/vendor/app",
+              "/product/app", "/system_ext/app"):
+        cmd = cmd.replace(p, str(root) + p)
+    out = subprocess.run(["sh", "-c", cmd], capture_output=True,
+                         text=True).stdout.strip()
+    return out, bool(re.search(chk["safe_pattern"], out, re.M))
+
+
+def test_v2_signed_packages_read_clean(tmp_path):
+    out, safe = _run_sigv1(tmp_path, [("a", True), ("b", True)])
+    assert safe, out
+    assert "v1_only=0 v2plus=2" in out, out
+
+
+def test_v1_only_package_is_caught_among_v2_ones(tmp_path):
+    """Janus (CVE-2017-13156) needs v1 as the only scheme. One legacy package
+    in a fleet of correctly signed ones has to surface, and be named."""
+    out, safe = _run_sigv1(tmp_path, [("modern", True), ("legacy", False)])
+    assert not safe, out
+    assert "v1_only=1 v2plus=1" in out, out
+    assert "legacy" in out, out
+
+
+def test_signing_block_is_located_structurally_not_searched(tmp_path):
+    """The magic is matched at the 16 bytes before the central directory, not
+    found by scanning. A copy of the magic elsewhere in the archive must not
+    make a v1-only package look signed: GNU and busybox grep disagree on
+    binary input, which is why a byte search was rejected.
+    """
+    out, safe = _run_sigv1(tmp_path, [("decoy", False)])
+    assert not safe, out
+    p = tmp_path / "root" / "data" / "app" / "decoy" / "base.apk"
+    # Plant the magic inside a stored entry, away from the directory edge.
+    import io
+    import zipfile
+    buf = io.BytesIO()
+    z = zipfile.ZipFile(buf, "w")
+    z.writestr("assets/decoy.bin", _APK_SIG_MAGIC * 4)
+    z.writestr("META-INF/CERT.SF", "Signature-Version: 1.0\n")
+    z.close()
+    p.write_bytes(buf.getvalue())
+    out, safe = _run_sigv1(tmp_path, [])
+    assert not safe, out
+    assert "v1_only=1" in out or hardax.isUnmeasured(out), out
+
+
+def test_zip_comment_counts_as_unparsed_not_signed(tmp_path):
+    """A trailing comment moves the End of Central Directory record, so the
+    fixed-offset read no longer lands on it. That must be reported as unparsed
+    rather than guessed either way."""
+    out, _ = _run_sigv1(tmp_path, [("c", True)])
+    p = tmp_path / "root" / "data" / "app" / "c" / "base.apk"
+    p.write_bytes(p.read_bytes() + b"trailing comment bytes")
+    out, safe = _run_sigv1(tmp_path, [])
+    assert not safe, out
+    assert hardax.isUnmeasured(out) == "UNMEASURED", out
+
+
+def test_no_readable_apk_is_unmeasured_not_zero(tmp_path):
+    """The false-clean case: nothing parsed must not report v1_only=0."""
+    out, safe = _run_sigv1(tmp_path, [])
+    assert not safe, out
+    assert hardax.isUnmeasured(out) == "UNMEASURED", out
+
+
+# --------------------------------------------------------------------------
+# Legacy targetSdkVersion (APP-TARGETSDK-001)
+# --------------------------------------------------------------------------
+
+TARGETSDK_CHECK = "Packages Targeting an SDK Below the Cleartext Default"
+
+
+def _run_targetsdk(dumpsys_output):
+    """Run the real command with dumpsys stubbed to the given text."""
+    _skip_without_posix_shell()
+    chk = _overlay_check(TARGETSDK_CHECK)
+    stub = "D=$(cat <<'XEOF'\n%s\nXEOF\n)" % dumpsys_output
+    cmd = chk["command"].replace("D=$(dumpsys package packages 2>/dev/null)", stub)
+    out = subprocess.run(["sh", "-c", cmd], capture_output=True,
+                         text=True).stdout.strip()
+    return out, bool(re.search(chk["safe_pattern"], out, re.M))
+
+
+def test_all_modern_targets_read_clean():
+    out, safe = _run_targetsdk("Package [a] targetSdk=34\nPackage [b] targetSdk=28")
+    assert safe, out
+    assert "legacy_targetsdk=0 of 2" in out, out
+
+
+def test_package_below_the_cleartext_default_is_caught():
+    """targetSdk under 28 gets cleartext permitted by default, so such a
+    package can ship no network security config, satisfy the NSC checks, and
+    still send plaintext."""
+    out, safe = _run_targetsdk("Package [a] targetSdk=34\nPackage [b] targetSdk=22")
+    assert not safe, out
+    assert "legacy_targetsdk=1 of 2" in out, out
+    assert "min_observed=22" in out, out
+
+
+def test_exactly_28_is_not_a_finding():
+    """The boundary is the point of the check: 28 is where the default flips."""
+    out, safe = _run_targetsdk("Package [a] targetSdk=28")
+    assert safe, out
+    out, safe = _run_targetsdk("Package [a] targetSdk=27")
+    assert not safe, out
+
+
+def test_dead_binder_is_unmeasured_not_zero():
+    out, safe = _run_targetsdk("")
+    assert not safe, out
+    assert hardax.isUnmeasured(out) == "UNMEASURED", out
+
+
+def test_dumpsys_answering_without_values_is_unmeasured():
+    """An answer with no targetSdk in it is not a fleet of zero legacy
+    packages. Counting it as clean is the false-clean defect."""
+    out, safe = _run_targetsdk("Packages:\n  nothing useful here\n")
+    assert not safe, out
+    assert hardax.isUnmeasured(out) == "UNMEASURED", out
+
+
+def test_targetsdk_is_gated_rather_than_guessing_without_binder():
+    """The value is a typed integer in the binary manifest, not a string in
+    the pool, so there is no file-based fallback. Verified against a real APK:
+    the attribute name is in the pool, no SDK level is. The check must be
+    reported as not applicable rather than degrade to a guess.
+    """
+    chk = _overlay_check(TARGETSDK_CHECK)
+    assert hardax.commandNeedsBinder(chk["command"])
+    assert not chk.get("binder_optional", False)
+    rows, _ = hardax.runChecks(
+        FakeDevice(default=""), [chk], capabilities={"binder": False})
+    assert rows[0]["status"] == "SKIPPED", rows[0]["status"]
