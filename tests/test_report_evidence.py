@@ -125,3 +125,77 @@ def test_json_report_still_carries_the_full_record(scanned, tmp_path):
     payload = json.loads(p.read_text(encoding="utf-8"))
     for check in payload["checks"]:
         assert "evidence" in check and check["evidence"]["basis"]
+
+
+# ── certificate findings as ordinary check rows ──────────────────────────────
+
+def _cert(cn, key_type="RSA", key_bits=4096, sig="sha256WithRSAEncryption",
+          status="VALID", not_after="2040-01-01"):
+    return {"cn": cn, "filename": cn + ".0", "issuer": cn,
+            "not_before": "2020-01-01", "not_after": not_after,
+            "days_old": 1, "days_until_expiry": 1, "status": status,
+            "risk": "safe", "key_type": key_type, "key_bits": key_bits,
+            "sig_alg": sig}
+
+
+def test_certificate_findings_are_ordinary_check_rows():
+    """The certificate audit parses on the host because no Android shell reads
+    ASN.1. Its results used to live in a separate table, so an expired or weak
+    trust anchor never reached the findings counts, the risk score or the
+    attack chains. These rows put them back in the normal stream."""
+    rows = hardax.certificateFindings([_cert("Good")])
+    assert rows, "expected certificate rows"
+    sample = rows[0]
+    for key in ("timestamp", "category", "evidence", "id", "label", "level",
+                "bucket", "status", "command", "result", "description",
+                "remediation", "needs_verification"):
+        assert key in sample, "missing %r; row shape must match runChecks" % key
+    ev = sample["evidence"]
+    assert set(("stdout", "stderr", "exit_code", "basis")) <= set(ev)
+    assert ev["exit_code"] is None, "no device command ran for a host-side finding"
+    assert "host-side" in sample["command"]
+
+
+def test_weak_key_and_weak_signature_are_separate_findings():
+    rows = {r["id"]: r for r in hardax.certificateFindings([
+        _cert("Weak", key_bits=1024, sig="sha1WithRSAEncryption"),
+        _cert("Strong"),
+    ])}
+    assert rows["CERT-WEAKKEY-001"]["status"] == "CRITICAL"
+    assert "weak_key_cas=1 of 2" in rows["CERT-WEAKKEY-001"]["result"]
+    assert rows["CERT-WEAKSIG-001"]["status"] == "CRITICAL"
+    assert rows["CERT-EXPIRED-001"]["status"] == "SAFE"
+
+
+def test_expired_trust_anchor_now_reaches_the_findings():
+    rows = {r["id"]: r for r in hardax.certificateFindings([
+        _cert("Old", status="EXPIRED", not_after="2020-01-01"), _cert("Good")])}
+    assert rows["CERT-EXPIRED-001"]["status"] == "WARNING"
+    assert "Old" in rows["CERT-EXPIRED-001"]["evidence"]["stdout"]
+
+
+def test_strong_store_passes_on_evidence_not_silence():
+    rows = {r["id"]: r for r in hardax.certificateFindings(
+        [_cert("A"), _cert("B", key_type="EC", key_bits=384)])}
+    for r in rows.values():
+        assert r["status"] == "SAFE"
+        assert "of 2 examined" in r["evidence"]["stdout"], r["evidence"]["stdout"]
+
+
+def test_unreadable_store_is_unmeasured_not_clean():
+    for certs in ([], None, [{"status": "USER_CERT", "cn": "x"}]):
+        rows = hardax.certificateFindings(certs)
+        assert all(r["status"] == "VERIFY" for r in rows), certs
+        assert all(hardax.isUnmeasured(r["evidence"]["stdout"]) for r in rows)
+
+
+def test_key_strength_thresholds():
+    assert hardax.certKeyIsWeak("RSA", 1024) and not hardax.certKeyIsWeak("RSA", 2048)
+    assert hardax.certKeyIsWeak("DSA", 1024) and not hardax.certKeyIsWeak("DSA", 3072)
+    assert hardax.certKeyIsWeak("EC", 224) and not hardax.certKeyIsWeak("EC", 256)
+    assert not hardax.certKeyIsWeak("Ed25519", 256)
+    assert not hardax.certKeyIsWeak("", 0), "unknown key facts must not read as weak"
+    for a in ("sha1WithRSAEncryption", "md5WithRSAEncryption", "SHA1"):
+        assert hardax.certSigIsWeak(a), a
+    for a in ("sha256WithRSAEncryption", "ecdsa-with-SHA384", ""):
+        assert not hardax.certSigIsWeak(a), a

@@ -59,7 +59,7 @@ for _stream in (sys.stdout, sys.stderr):
 #  VERSION & CONSTANTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-__version__ = "6.3.0"
+__version__ = "6.3.1"
 
 REQUIRED_CHECK_KEYS = {"category", "label", "command", "safe_pattern", "level", "description"}
 
@@ -2315,6 +2315,75 @@ def _readCertBytes(device: Device, path: str):
     return None, None
 
 
+
+# ── certificate key and signature facts ──────────────────────────────────────
+# A device shell cannot parse X.509: there is no openssl in AOSP and toybox has
+# nothing that reads ASN.1. The device hands over raw certificate bytes and the
+# parsing happens here, on the host, which is why the certificate audit is the
+# one subsystem that is not a JSON check.
+
+WEAK_SIG_ALGS = ("md5", "sha1", "md2", "md4")
+MIN_RSA_BITS = 2048
+MIN_DSA_BITS = 2048
+MIN_EC_BITS = 256
+
+
+def _certKeyFacts(cert) -> tuple:
+    """Return (key_type, key_bits) for a parsed certificate, ("", 0) if unknown."""
+    try:
+        pk = cert.public_key()
+    except Exception:
+        return "", 0
+    name = type(pk).__name__.lower()
+    try:
+        if "rsa" in name:
+            return "RSA", int(pk.key_size)
+        if "dsa" in name:
+            return "DSA", int(pk.key_size)
+        if "ellipticcurve" in name or "ec" in name:
+            return "EC", int(pk.curve.key_size)
+        if "ed25519" in name:
+            return "Ed25519", 256
+        if "ed448" in name:
+            return "Ed448", 448
+    except Exception:
+        pass
+    return name or "", 0
+
+
+def _certSigAlg(cert) -> str:
+    """Signature algorithm name, lowercased, or "" when it cannot be read."""
+    try:
+        n = cert.signature_algorithm_oid._name
+        if n and n != "Unknown OID":
+            return str(n).lower()
+    except Exception:
+        pass
+    try:
+        return str(cert.signature_hash_algorithm.name).lower()
+    except Exception:
+        return ""
+
+
+def certKeyIsWeak(keyType: str, keyBits: int) -> bool:
+    if not keyType or not keyBits:
+        return False
+    if keyType == "RSA":
+        return keyBits < MIN_RSA_BITS
+    if keyType == "DSA":
+        return keyBits < MIN_DSA_BITS
+    if keyType == "EC":
+        return keyBits < MIN_EC_BITS
+    return False
+
+
+def certSigIsWeak(sigAlg: str) -> bool:
+    a = (sigAlg or "").lower()
+    if not a:
+        return False
+    return any(w in a for w in WEAK_SIG_ALGS)
+
+
 def auditCertificates(device: Device) -> List[Dict[str, Any]]:
     """Pull and analyze system + user certificates from the device (no artificial limit)."""
     certs: List[Dict[str, Any]] = []
@@ -2396,6 +2465,8 @@ def auditCertificates(device: Device) -> List[Dict[str, Any]]:
                     cn = p[3:]
                     break
 
+            keyType, keyBits = _certKeyFacts(cert)
+            sigAlg = _certSigAlg(cert)
             certs.append({
                 "filename": certPath.split("/")[-1],
                 "cn": cn[:50] + "..." if len(cn) > 50 else cn,
@@ -2406,6 +2477,12 @@ def auditCertificates(device: Device) -> List[Dict[str, Any]]:
                 "days_until_expiry": daysUntilExpiry,
                 "status": status,
                 "risk": risk,
+                # A trust anchor's key and signature matter independently of its
+                # expiry: a CA certificate is typically valid for two decades, so
+                # "not expired" says very little about whether it is sound.
+                "key_type": keyType,
+                "key_bits": keyBits,
+                "sig_alg": sigAlg,
             })
         except Exception:
             # keep going on any single-file error
@@ -2471,6 +2548,117 @@ def evidenceLines(row):
     code = ev.get("exit_code")
     if code is not None:
         out.append(("Exit code", str(code)))
+    return out
+
+
+
+CERT_ANALYSIS_COMMAND = ("[host-side] X.509 parsed from certificate bytes read off the "
+                         "device; a shell cannot parse ASN.1")
+
+
+def certificateFindings(certs: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    """Turn the certificate audit into ordinary check rows.
+
+    The certificate audit is the one subsystem that parses on the host rather
+    than on the device, because no Android shell can read ASN.1. Its results
+    used to land in a separate table, which meant an expired or weak trust
+    anchor never reached the findings counts, the risk score or the attack
+    chains. These rows put them back into the normal stream, with the same
+    evidence record every other check carries.
+    """
+    def row(ident, label, level, status, result, basis, stdout, desc, rem):
+        return {
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "category": "CERTIFICATE_AUDIT",
+            "evidence": {"stdout": stdout[:_EVIDENCE_MAX], "stderr": "",
+                         "exit_code": None, "basis": basis},
+            "id": ident, "label": label, "level": level, "severity": "",
+            "bucket": bucketFromLevel(level), "status": status, "matched": "False",
+            "command": CERT_ANALYSIS_COMMAND, "result": result, "description": desc,
+            "why": "", "risk_if_fail": "", "expected_secure_state": "",
+            "control_area": "", "nist_800_53": "", "cis_id": "", "tags": [],
+            "needs_verification": status == "VERIFY", "baseline": "",
+            "remediation": rem,
+        }
+
+    parsed = [c for c in (certs or []) if c.get("status") != "USER_CERT"]
+    if not parsed:
+        unread = ("UNMEASURED no system certificate was readable or parseable "
+                  "from this transport")
+        basis = "check reported UNMEASURED: the property could not be measured here"
+        return [
+            row("CERT-WEAKKEY-001", "Trusted CA With a Weak Key", "critical",
+                "VERIFY", unread, basis, unread,
+                "A trust anchor's key strength is independent of its expiry.", ""),
+            row("CERT-WEAKSIG-001", "Trusted CA With a Weak Signature Algorithm",
+                "critical", "VERIFY", unread, basis, unread,
+                "A trust anchor signed with MD5 or SHA-1 is forgeable.", ""),
+            row("CERT-EXPIRED-001", "Expired Trusted CA Certificate", "warning",
+                "VERIFY", unread, basis, unread,
+                "An expired root left in the store is dead weight at best.", ""),
+        ]
+
+    def fmt(c):
+        return "%s  key=%s-%s  sig=%s  expires=%s" % (
+            c.get("cn", "?"), c.get("key_type") or "?", c.get("key_bits") or "?",
+            c.get("sig_alg") or "?", c.get("not_after", "?"))
+
+    weakKey = [c for c in parsed if certKeyIsWeak(c.get("key_type", ""), c.get("key_bits", 0))]
+    weakSig = [c for c in parsed if certSigIsWeak(c.get("sig_alg", ""))]
+    expired = [c for c in parsed if c.get("status") == "EXPIRED"]
+    unknown = [c for c in parsed if not c.get("key_bits")]
+    n = len(parsed)
+
+    out = []
+    for ident, label, level, hits, key, desc, rem in (
+        ("CERT-WEAKKEY-001", "Trusted CA With a Weak Key", "critical", weakKey,
+         "weak_key_cas",
+         "Every certificate in the system trust store is a root of trust for TLS "
+         "on this device. A root carrying an RSA or DSA key under 2048 bits, or "
+         "an elliptic-curve key under 256 bits, can be attacked directly, and a "
+         "forged certificate chaining to it is accepted by every app that uses "
+         "the platform trust store. Key strength is independent of expiry: a CA "
+         "certificate is typically valid for two decades, so a long validity "
+         "window is exactly where a weak key does the most damage. Parsed on the "
+         "host from bytes read off the device, because no Android shell can "
+         "parse ASN.1.",
+         "Remove the certificate from the system trust store and rebuild the "
+         "image. If an internal CA is involved, reissue the root at 3072 bits or "
+         "more and redeploy before removing the old anchor."),
+        ("CERT-WEAKSIG-001", "Trusted CA With a Weak Signature Algorithm",
+         "critical", weakSig, "weak_sig_cas",
+         "A certificate signed with MD5 or SHA-1 rests on a hash with practical "
+         "collision attacks, so a chosen-prefix collision allows a forged "
+         "certificate that validates against the same signature. On a trust "
+         "anchor this undermines every chain that terminates at it. Self-signed "
+         "roots are a weaker case than intermediates, because the signature on a "
+         "self-signed root is not the thing being relied on, but their presence "
+         "still indicates a trust store that has not been curated.",
+         "Remove the certificate and replace it with a SHA-256 or stronger "
+         "equivalent from the same authority."),
+        ("CERT-EXPIRED-001", "Expired Trusted CA Certificate", "warning", expired,
+         "expired_cas",
+         "An expired root in the trust store is not exploitable on its own, "
+         "because validation rejects it, but it shows the store is not "
+         "maintained and it masks which anchors are actually in use. On a device "
+         "whose clock can be moved backwards, an expired anchor becomes live "
+         "again.",
+         "Remove expired roots from the shipping image and establish a review "
+         "cycle tied to the platform's certificate updates."),
+    ):
+        if hits:
+            lst = "\n".join(fmt(c) for c in hits[:20])
+            more = "" if len(hits) <= 20 else "\n(and %d more)" % (len(hits) - 20)
+            stdout = "%s=%d of %d examined\n%s%s" % (key, len(hits), n, lst, more)
+            out.append(row(ident, label, level, "CRITICAL" if level == "critical" else "WARNING",
+                           "%s=%d of %d certificates examined" % (key, len(hits), n),
+                           "host-side X.509 analysis of %d certificates: %d matched" % (n, len(hits)),
+                           stdout, desc, rem))
+        else:
+            stdout = "%s=0 of %d examined  key_facts_unavailable=%d" % (key, n, len(unknown))
+            out.append(row(ident, label, level, "SAFE", stdout,
+                           "host-side X.509 analysis of %d certificates: none matched" % n,
+                           stdout, desc, rem))
     return out
 
 
@@ -2720,13 +2908,15 @@ def writeXlsxReport(path: str, deviceInfo: Dict[str, str],
     if certs:
         wc = wb.create_sheet("Certificates")
         ccols = [("Common Name", 40), ("Issuer", 40), ("Valid From", 13), ("Valid Until", 13),
-                 ("Days Old", 10), ("Days To Expiry", 14), ("Status", 16), ("Risk", 10)]
+                 ("Days Old", 10), ("Days To Expiry", 14), ("Status", 16), ("Risk", 10),
+                 ("Key Type", 10), ("Key Bits", 9), ("Signature Alg", 26)]
         _hdr(wc, 1, [c[0] for c in ccols], [c[1] for c in ccols])
         for ri, c in enumerate(certs, start=2):
             for ci, val in enumerate([c.get("cn", ""), c.get("issuer", ""), c.get("not_before", ""),
                                       c.get("not_after", ""), c.get("days_old", ""),
                                       c.get("days_until_expiry", ""), c.get("status", ""),
-                                      c.get("risk", "")], 1):
+                                      c.get("risk", ""), c.get("key_type", ""),
+                                      c.get("key_bits", ""), c.get("sig_alg", "")], 1):
                 wc.cell(ri, ci, val)
         wc.freeze_panes = "A2"
 
@@ -3513,6 +3703,14 @@ Examples:
     certs = []
     if not args.skip_certs:
         certs = auditCertificates(device)
+        # Fold the certificate audit back into the normal check stream. Parsing
+        # happens on the host because no Android shell reads ASN.1, but the
+        # result is an ordinary finding: it belongs in the counts, the risk
+        # score and the attack chains like any other.
+        certRows = certificateFindings(certs)
+        rows.extend(certRows)
+        for r in certRows:
+            counts[r["status"].lower()] = counts.get(r["status"].lower(), 0) + 1
 
     # Deterministic analysis layer: operates only on the confirmed findings
     # above (no device commands, no network). On by default; --no-analyze skips.

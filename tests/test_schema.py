@@ -118,3 +118,46 @@ def test_no_two_checks_scan_the_same_name_set():
             dups.append("%s duplicates %s" % (c["label"], seen[key]))
         seen[key] = c["label"]
     assert not dups, "checks scanning an identical path+name set:\n  " + "\n  ".join(dups)
+
+
+def test_readme_category_table_counts_match_reality():
+    """The total was pinned but the per-category table was not, so the README
+    shipped a category table summing to 816 while the bundle had 855. Nine of
+    the 29 rows were stale. Every row is pinned here.
+    """
+    import re, collections, os
+    from conftest import load_all_checks
+    real = collections.Counter(c["category"] for c in load_all_checks())
+    readme = os.path.join(REPO_ROOT, "README.md")
+    rows = re.findall(r"^\| \*\*([A-Z_]+)\*\* \| (\d+) \|",
+                      open(readme, encoding="utf-8").read(), re.M)
+    assert rows, "category table not found in " + readme
+    wrong = ["%s: README %s, bundle %d" % (c, n, real.get(c, 0))
+             for c, n in rows if real.get(c) != int(n)]
+    assert not wrong, "stale category counts in README.md: " + "; ".join(wrong)
+    listed = {c for c, _ in rows}
+    assert listed == set(real), (
+        "category table and bundle disagree on which categories exist: "
+        "only in README %s, only in bundle %s"
+        % (sorted(listed - set(real)), sorted(set(real) - listed)))
+
+
+def test_no_shadowed_helpers_within_a_test_file():
+    """A second def of the same name silently replaces the first.
+
+    Appending a helper named _apk to a file that already had one made three
+    unrelated NSC tests fail, because they were calling the new function with
+    the old signature. Python raises nothing for this, so it is pinned here.
+    """
+    import ast
+    import glob
+    import collections
+    problems = []
+    for path in sorted(glob.glob(os.path.join(REPO_ROOT, "tests", "*.py"))):
+        tree = ast.parse(open(path, encoding="utf-8").read())
+        names = [n.name for n in tree.body
+                 if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+        dupes = [n for n, c in collections.Counter(names).items() if c > 1]
+        if dupes:
+            problems.append("%s: %s" % (os.path.basename(path), sorted(dupes)))
+    assert not problems, "module-level names defined twice: " + "; ".join(problems)

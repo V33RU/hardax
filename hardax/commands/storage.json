@@ -209,12 +209,12 @@
     },
     {
       "category": "STORAGE",
-      "label": "External Storage Encryption",
+      "label": "Userdata Filenames Encryption Cipher",
       "command": "V=$(getprop ro.crypto.volume.filenames_mode 2>/dev/null); [ -z \"$V\" ] && echo \"UNMEASURED ro.crypto.volume.filenames_mode unset\" || printf '%s\\n' \"$V\"",
-      "safe_pattern": "^aes-256-cts$",
+      "safe_pattern": "^(aes-256-cts|aes-256-hctr2|adiantum)$",
       "level": "warning",
-      "description": "External storage filenames should be encrypted",
-      "remediation": "Enable file-based encryption for external storage. Set ro.crypto.volume.filenames_mode to aes-256-cts.",
+      "description": "Scores ro.crypto.volume.filenames_mode, the cipher protecting file names under file-based encryption. This property covers internal userdata, not external storage, which is what the label used to say. Three values are accepted. aes-256-cts is the long-standing default. aes-256-hctr2 is the newer mode, length-preserving and preferred on recent releases. adiantum is used on devices without AES acceleration, where it sets both the contents and the filenames mode. The pattern previously accepted aes-256-cts alone, which reported two correctly configured devices as findings. The contents cipher is scored separately by STOR-FBECIPHER-001; each check owns one property so a single misconfiguration cannot produce two findings.",
+      "remediation": "Pin the filenames mode in the userdata fstab entry rather than inheriting it, for example fileencryption=aes-256-xts:aes-256-cts:v2. Changing the mode requires a data wipe.",
       "empty_is_safe": false
     },
     {
@@ -248,6 +248,17 @@
       "remediation": "Investigate any eol_info of 0x03 or higher, or a life_time estimate far above what the deployment age would explain. Plan replacement before the flash becomes read-only.",
       "why": "Wear state is provenance and reliability evidence readable without physical access.",
       "risk_if_fail": "A worn or previously-used flash device is deployed as if new."
+    },
+    {
+      "id": "STOR-FBECIPHER-001",
+      "category": "STORAGE",
+      "label": "Userdata Contents Encryption Cipher",
+      "command": "T=$(getprop ro.crypto.type 2>/dev/null); C=$(getprop ro.crypto.volume.contents_mode 2>/dev/null); F=$(getprop ro.crypto.volume.filenames_mode 2>/dev/null); S=$(getprop ro.build.version.sdk 2>/dev/null); if [ -z \"$S\" ] && [ -z \"$T\" ]; then echo \"UNMEASURED getprop did not answer, ro.crypto.type not read\"; exit 0; fi; case \"$T\" in block) echo \"NOT_APPLICABLE ro.crypto.type=block, full-disk encryption has no per-volume contents cipher\"; exit 0;; \"\") echo \"UNMEASURED ro.crypto.type unset, cannot tell whether file-based encryption is in use\"; exit 0;; file) :;; *) echo \"UNMEASURED ro.crypto.type=$T is not a value this check knows\"; exit 0;; esac; CB=$C; [ -z \"$C\" ] && CB=\"aes-256-xts(aosp-default)\" && C=aes-256-xts; FB=$F; [ -z \"$F\" ] && FB=\"aes-256-cts(aosp-default)\"; case \"$C\" in aes-256-xts) V=OK;; adiantum) V=ADIANTUM;; *) V=UNEXPECTED;; esac; echo \"fbe_contents=$V contents_mode=$CB filenames_mode_context=$FB\"",
+      "safe_pattern": "^fbe_contents=(OK|ADIANTUM)\\b",
+      "level": "warning",
+      "empty_is_safe": false,
+      "description": "Scores ro.crypto.volume.contents_mode, the cipher protecting file contents, which no other check reads. A device can report state=encrypted and type=file while contents are encrypted with something weaker than AES-256-XTS, because the mode is an fstab option the integrator controls. Scope is deliberately limited to the contents mode. The filenames mode is printed as context only and is not scored here, because the Userdata Filenames Encryption Cipher check already scores that property; scoring it in both places made one misconfiguration produce two findings. When the property is unset the AOSP default applies, aes-256-xts, and the output labels that value as a default rather than as a measured override so the basis for the verdict stays visible. Adiantum is reported by name but is not treated as a finding: it is sanctioned for devices without AES acceleration, so it is a deliberate tradeoff that belongs in the evidence rather than in the findings list. Full-disk encryption has no per-volume contents cipher and is reported as not applicable.",
+      "remediation": "Pin the contents cipher in the userdata fstab entry rather than inheriting it, for example fileencryption=aes-256-xts:aes-256-cts:v2. Where Adiantum is in use because the SoC has no AES acceleration, record that decision. Changing the mode requires a data wipe."
     }
   ]
 }
