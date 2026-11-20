@@ -63,6 +63,8 @@ METHODS = [
     ("Process table (ps)", r"\bps -"),
     ("Kernel and app logs (dmesg, logcat)", r"\b(dmesg|logcat)\b"),
     ("Raw block device reads (dd)", r"\bdd if="),
+    ("Kernel config symbols (config.gz, /boot/config)", r"config\.gz|/boot/config-"),
+    ("Loaded kernel modules (/proc/modules)", r"/proc/modules"),
 ]
 
 ENFORCED = [

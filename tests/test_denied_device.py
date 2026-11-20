@@ -55,7 +55,12 @@ ANDROID_ROOTS = ("/proc", "/sys", "/vendor", "/system", "/odm", "/product",
                  # Android-only executable roots. Without these the harness reads
                  # the host's real /sbin, where a Linux workstation genuinely has
                  # mtd_debug, nanddump and friends.
-                 "/sbin", "/su", "/debug_ramdisk")
+                 "/sbin", "/su", "/debug_ramdisk",
+                 # /boot is a kernel-config fallback source for the checks that
+                 # read CONFIG_* symbols. It is absent on Android but present on
+                 # a Linux workstation, so without it the harness answers from
+                 # the host's own kernel config whenever `uname -r` succeeds.
+                 "/boot")
 
 # /dev/null and friends must keep working: they are shell plumbing, not device
 # state, and redirecting them into a directory that does not exist turns every

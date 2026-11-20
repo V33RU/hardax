@@ -251,9 +251,12 @@ def test_binder_required_checks_are_still_gated():
 
 # ── overlayfs mount-point awareness ──────────────────────────────────────────
 
+import contextlib
+import io
 import re
 import subprocess
-from conftest import load_all_checks
+import sys
+from conftest import load_all_checks, REPO_ROOT
 
 
 def _overlay_check(label):
@@ -1441,3 +1444,299 @@ def test_targetsdk_is_gated_rather_than_guessing_without_binder():
     rows, _ = hardax.runChecks(
         FakeDevice(default=""), [chk], capabilities={"binder": False})
     assert rows[0]["status"] == "SKIPPED", rows[0]["status"]
+
+
+# ---------------------------------------------------------------------------
+# Kernel and USB attack-surface configuration checks (v6.4.0)
+#
+# These score a configuration lever rather than a patch level: whether a kernel
+# subsystem or USB class driver is reachable at all. Each reads three
+# independent sources (kernel config, loaded modules, module files on disk) so
+# a device that merely autoloads the driver on first use is still reported.
+#
+# The harness builds a fake root and rewrites the absolute paths with the same
+# reroot() the denied-device harness uses, so /proc, /sys, /vendor and /boot
+# all resolve inside the fixture and the host's own kernel config can never
+# answer for the device under test.
+# ---------------------------------------------------------------------------
+
+SURFACE_CHECKS = {
+    "watch_queue":        "Kernel watch_queue Notification Surface",
+    "ebt_snat":           "Bridge Netfilter ebtables Target Surface",
+    "af_alg":             "AF_ALG Crypto User API Socket Surface",
+    "ktls":               "Kernel TLS Offload Receive Path Surface",
+    "uvc_driver":         "USB Video Class Driver Binding Surface",
+    "usb_audio_driver":   "USB Audio Class Driver Binding Surface",
+}
+
+MODULE_DIRS = ("vendor/lib/modules", "vendor_dlkm/lib/modules",
+               "system/lib/modules", "system_dlkm/lib/modules",
+               "odm/lib/modules", "lib/modules")
+
+
+def _surface_root(tmp_path, name, config=None, modules=None, ondisk=None,
+                  boot_config=None):
+    """Build a fake device root for a surface check.
+
+    config       text written to /proc/config.gz (gzipped), or None to omit it
+    modules      text written to /proc/modules, or None to omit the file
+    ondisk       list of module filenames to plant under a module directory
+    boot_config  text written to /boot/config-$(uname -r), the fallback source
+    """
+    import gzip
+    root = tmp_path / ("root_" + name)
+    (root / "proc").mkdir(parents=True, exist_ok=True)
+    if config is not None:
+        with gzip.open(str(root / "proc" / "config.gz"), "wt") as fh:
+            fh.write(config)
+    if modules is not None:
+        (root / "proc" / "modules").write_text(modules)
+    if boot_config is not None:
+        (root / "boot").mkdir(parents=True, exist_ok=True)
+        kver = subprocess.run(["uname", "-r"], capture_output=True,
+                              text=True).stdout.strip()
+        (root / "boot" / ("config-" + kver)).write_text(boot_config)
+    if ondisk:
+        d = root / MODULE_DIRS[0]
+        d.mkdir(parents=True, exist_ok=True)
+        for fn in ondisk:
+            (d / fn).write_text("")
+    return root
+
+
+def _run_surface(tmp_path, key, **kw):
+    """Run a surface check against a fixture root; return (output, is_safe)."""
+    _skip_without_posix_shell()
+    sys.path.insert(0, os.path.join(REPO_ROOT, "tests"))
+    from test_denied_device import reroot
+    chk = _overlay_check(SURFACE_CHECKS[key])
+    root = _surface_root(tmp_path, key, **kw)
+    out = subprocess.run(["sh", "-c", reroot(chk["command"], str(root))],
+                         capture_output=True, text=True).stdout.strip()
+    return out, bool(re.search(chk["safe_pattern"], out, re.M))
+
+
+def test_every_surface_check_is_binder_free():
+    """These run over files, so they must survive a transport with no binder."""
+    for key, label in SURFACE_CHECKS.items():
+        chk = _overlay_check(label)
+        assert not hardax.commandNeedsBinder(chk["command"]), key
+
+
+def test_watch_queue_enabled_in_config_is_a_finding(tmp_path):
+    out, safe = _run_surface(tmp_path, "watch_queue",
+                             config="CONFIG_WATCH_QUEUE=y\n")
+    assert not safe, out
+    assert "watch_queue=ENABLED" in out, out
+
+
+def test_watch_queue_not_set_reads_clean(tmp_path):
+    out, safe = _run_surface(tmp_path, "watch_queue",
+                             config="# CONFIG_WATCH_QUEUE is not set\n")
+    assert safe, out
+    assert "watch_queue=DISABLED" in out, out
+
+
+def test_watch_queue_without_readable_config_is_not_observable(tmp_path):
+    """No kernel config source at all must not read as disabled."""
+    out, _ = _run_surface(tmp_path, "watch_queue")
+    assert out.startswith("NOT_OBSERVABLE"), out
+    assert "NOT_OBSERVABLE" in hardax.UNMEASURED_TOKENS
+    assert _status_for("watch_queue", out) == "VERIFY", out
+
+
+def test_watch_queue_falls_back_to_boot_config(tmp_path):
+    """A Linux target over SSH has no /proc/config.gz but does have /boot."""
+    out, safe = _run_surface(tmp_path, "watch_queue",
+                             boot_config="CONFIG_WATCH_QUEUE=y\n")
+    assert not safe, out
+    assert "watch_queue=ENABLED" in out, out
+
+
+def _status_for(key, out):
+    chk = _overlay_check(SURFACE_CHECKS[key])
+    with contextlib.redirect_stdout(io.StringIO()):
+        rows, _ = hardax.runChecks(
+            FakeDevice(default=out), [chk],
+            capabilities={"binder": True})
+    return rows[0]["status"]
+
+
+@pytest.mark.parametrize("key,module,ko,symbol", [
+    ("ebt_snat", "ebt_snat", "ebt_snat.ko", "CONFIG_BRIDGE_EBT_SNAT"),
+    ("af_alg", "algif_skcipher", "algif_skcipher.ko", "CONFIG_CRYPTO_USER_API"),
+    ("ktls", "tls", "tls.ko", "CONFIG_TLS"),
+    ("uvc_driver", "uvcvideo", "uvcvideo.ko", "CONFIG_USB_VIDEO_CLASS"),
+    ("usb_audio_driver", "snd_usb_audio", "snd-usb-audio.ko",
+     "CONFIG_SND_USB_AUDIO"),
+])
+def test_surface_detected_from_each_of_the_three_sources(tmp_path, key, module,
+                                                         ko, symbol):
+    """Loaded module, kernel config and on-disk module each prove reachability.
+
+    A device that ships the module but has not loaded it yet is still
+    reachable, because the kernel autoloads on first use. Reporting only the
+    loaded set would call that device clean.
+    """
+    out, safe = _run_surface(tmp_path, key, modules=module + " 16384 0 - Live")
+    assert not safe, out
+    assert "basis=loaded" in out, out
+
+    out, safe = _run_surface(tmp_path, key, config=symbol + "=m\n",
+                             modules="")
+    assert not safe, out
+    assert "basis=module" in out, out
+
+    out, safe = _run_surface(tmp_path, key, config="# %s is not set\n" % symbol,
+                             modules="", ondisk=[ko])
+    assert not safe, out
+    assert "basis=ondisk" in out, out
+
+
+@pytest.mark.parametrize("key,symbol", [
+    ("ebt_snat", "CONFIG_BRIDGE_EBT_SNAT"),
+    ("af_alg", "CONFIG_CRYPTO_USER_API"),
+    ("ktls", "CONFIG_TLS"),
+    ("uvc_driver", "CONFIG_USB_VIDEO_CLASS"),
+    ("usb_audio_driver", "CONFIG_SND_USB_AUDIO"),
+])
+def test_surface_absent_everywhere_reads_clean(tmp_path, key, symbol):
+    out, safe = _run_surface(tmp_path, key,
+                             config="# %s is not set\n" % symbol, modules="")
+    assert safe, out
+    assert "=DISABLED" in out, out
+
+
+@pytest.mark.parametrize("key", sorted(set(SURFACE_CHECKS) - {"watch_queue"}))
+def test_surface_with_nothing_readable_is_unmeasured(tmp_path, key):
+    """Neither the config nor /proc/modules readable must not read as clean."""
+    out, _ = _run_surface(tmp_path, key)
+    assert out.startswith("UNMEASURED"), out
+    assert _status_for(key, out) == "VERIFY", out
+
+
+def test_ktls_does_not_match_config_tls_device(tmp_path):
+    """CONFIG_TLS is matched exactly.
+
+    CONFIG_TLS_DEVICE and CONFIG_TLS_TOE start with the same text. A prefix
+    match would report kernel TLS enabled on a kernel that only has the
+    offload stubs, which is a different subsystem.
+    """
+    out, safe = _run_surface(
+        tmp_path, "ktls", modules="",
+        config="CONFIG_TLS_DEVICE=y\nCONFIG_TLS_TOE=y\n"
+               "# CONFIG_TLS is not set\n")
+    assert safe, out
+    assert "ktls=DISABLED" in out, out
+
+
+def test_usb_audio_module_matches_both_filename_spellings(tmp_path):
+    """The module file ships as snd-usb-audio.ko and the loaded name uses
+    underscores. Matching only one spelling misses the other."""
+    for ko in ("snd-usb-audio.ko", "snd_usb_audio.ko"):
+        out, safe = _run_surface(
+            tmp_path, "usb_audio_driver", modules="",
+            config="# CONFIG_SND_USB_AUDIO is not set\n", ondisk=[ko])
+        assert not safe, (ko, out)
+        assert "basis=ondisk" in out, (ko, out)
+
+
+def test_usb_driver_checks_are_independent_of_each_other(tmp_path):
+    """The video and audio class drivers are configured separately, so one
+    enabled must not make the other report enabled."""
+    out, safe = _run_surface(
+        tmp_path, "uvc_driver", modules="snd_usb_audio 16384 0 - Live",
+        config="# CONFIG_USB_VIDEO_CLASS is not set\n")
+    assert safe, out
+    out, safe = _run_surface(
+        tmp_path, "usb_audio_driver", modules="uvcvideo 16384 0 - Live",
+        config="# CONFIG_SND_USB_AUDIO is not set\n")
+    assert safe, out
+
+
+def test_uvc_surface_is_not_the_video_node_inventory():
+    """USB-UVCDRV-001 must not restate the existing node inventory check.
+
+    'Video Capture Devices' lists the /dev/video nodes that exist now and is
+    info level with a match-anything pattern, so it can never raise a finding.
+    A device with no camera has no node yet still binds a hostile USB camera on
+    attach, which is the property the new check scores.
+    """
+    node = _overlay_check("Video Capture Devices")
+    drv = _overlay_check(SURFACE_CHECKS["uvc_driver"])
+    assert node["safe_pattern"] in hardax.ALWAYS_MATCH_PATTERNS
+    assert node["level"] == "info"
+    assert drv["level"] in ("critical", "high", "warning", "medium")
+    assert "/dev/video" in node["command"]
+    assert "/dev/video" not in drv["command"]
+    assert "USB_VIDEO_CLASS" in drv["command"]
+    assert "USB_VIDEO_CLASS" not in node["command"]
+
+
+# ---------------------------------------------------------------------------
+# cgroup v1 release_agent
+# ---------------------------------------------------------------------------
+
+RELEASE_AGENT_CHECK = "cgroup v1 release_agent Exposure"
+
+
+def _run_release_agent(tmp_path, agents=None, mode=0o644, cgroupfs=True):
+    """agents: list of cgroup subdirectories to plant a release_agent in."""
+    _skip_without_posix_shell()
+    sys.path.insert(0, os.path.join(REPO_ROOT, "tests"))
+    from test_denied_device import reroot
+    chk = _overlay_check(RELEASE_AGENT_CHECK)
+    root = tmp_path / ("ra_%s_%s" % (len(agents or []), mode))
+    if cgroupfs:
+        (root / "sys" / "fs" / "cgroup").mkdir(parents=True, exist_ok=True)
+    for sub in (agents or []):
+        d = root / "sys" / "fs" / "cgroup" / sub
+        d.mkdir(parents=True, exist_ok=True)
+        f = d / "release_agent"
+        f.write_text("")
+        os.chmod(str(f), mode)
+    out = subprocess.run(["sh", "-c", reroot(chk["command"], str(root))],
+                         capture_output=True, text=True).stdout.strip()
+    return out, bool(re.search(chk["safe_pattern"], out, re.M))
+
+
+def test_cgroup_v2_only_has_no_release_agent(tmp_path):
+    """A v2-only device answers clean without this check reading the version."""
+    out, safe = _run_release_agent(tmp_path, agents=[])
+    assert safe, out
+    assert "release_agent=NONE" in out, out
+
+
+def test_release_agent_present_root_only_is_reported(tmp_path):
+    out, safe = _run_release_agent(tmp_path, agents=["memory"], mode=0o644)
+    assert not safe, out
+    assert "release_agent=PRESENT" in out, out
+
+
+def test_world_writable_release_agent_is_reported(tmp_path):
+    out, safe = _run_release_agent(tmp_path, agents=["memory"], mode=0o666)
+    assert not safe, out
+    assert "release_agent=WRITABLE" in out, out
+    assert "world_writable" in out, out
+
+
+def test_missing_cgroupfs_is_unmeasured_not_clean(tmp_path):
+    out, _ = _run_release_agent(tmp_path, agents=[], cgroupfs=False)
+    assert out.startswith("UNMEASURED"), out
+
+
+def test_release_agent_and_cgroup_version_are_separate_properties():
+    """One misconfiguration must not produce two findings.
+
+    SYS-CGROUP-001 owns the cgroup version, the controller list and the
+    world-writability of cgroup.procs. SYS-CGROUPRA-001 owns the release_agent
+    file. Neither may read the other's property.
+    """
+    ra = _overlay_check(RELEASE_AGENT_CHECK)
+    ver = _overlay_check("Control Group Hierarchy and Version")
+    assert "release_agent" in ra["command"]
+    assert "release_agent" not in ver["command"]
+    assert "cgroup.procs" in ver["command"]
+    assert "cgroup.procs" not in ra["command"]
+    assert "cgroup.controllers" in ver["command"]
+    assert "cgroup.controllers" not in ra["command"]
