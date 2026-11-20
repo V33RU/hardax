@@ -80,6 +80,62 @@
       "empty_is_safe": true,
       "description": "Lists thermal zone and cooling device sysfs files writable by any process. Writable trip points and cooling device states let an unprivileged process disable throttling, which on a fanless POS terminal, kiosk or embedded device is a route to sustained overheating, thermal shutdown or hardware damage, and on a phone is a battery and performance denial of service. Reported as an inventory rather than pass or fail because some platforms legitimately expose specific cooling controls to a privileged system group and the layout is entirely SoC-specific.",
       "remediation": "Restrict thermal sysfs writes to the system or thermal service UID and confirm SELinux labels the nodes so only the thermal HAL may write them."
+    },
+    {
+      "id": "KDRV-WATCHQ-001",
+      "category": "KERNEL_DRIVERS",
+      "label": "Kernel watch_queue Notification Surface",
+      "command": "V=$(uname -r 2>/dev/null); C=\"\"; OBS=0; if [ -r /proc/config.gz ]; then C=$(zcat /proc/config.gz 2>/dev/null | grep \"^CONFIG_WATCH_QUEUE=\"); OBS=1; fi; if [ -z \"$C\" ] && [ -n \"$V\" ] && [ -r \"/boot/config-$V\" ]; then C=$(grep \"^CONFIG_WATCH_QUEUE=\" < \"/boot/config-$V\" 2>/dev/null); OBS=1; fi; if [ -z \"$C\" ] && [ -r /proc/config ]; then C=$(grep \"^CONFIG_WATCH_QUEUE=\" < /proc/config 2>/dev/null); OBS=1; fi; if [ -n \"$C\" ]; then case \"$C\" in *=y) echo \"watch_queue=ENABLED $C\"; exit 0;; esac; fi; if [ \"$OBS\" = \"0\" ]; then echo \"NOT_OBSERVABLE kernel config not readable from this shell, CONFIG_WATCH_QUEUE undetermined\"; exit 0; fi; echo \"watch_queue=DISABLED basis=config\"",
+      "safe_pattern": "^(watch_queue=DISABLED|NOT_OBSERVABLE)",
+      "level": "warning",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Scores CONFIG_WATCH_QUEUE, the kernel feature behind the pipe-backed keyring and device notification queues. The option is a bool, so it is either compiled in or absent and there is no module to load later. CVE-2022-0995, which CISA added to its exploited catalog on 2026-08-26, is an out-of-bounds write in watch_queue_set_filter reachable by any local user when the feature is present. Nothing in the bundle read this symbol before. The verdict is a function of this one option and nothing else: the general module-loading switch is scored by Kernel Modules Disabled and is not re-read here. Android does not need watch_queue for any platform function, so on a device built without it the subsystem cannot be reached at all, which is why this is reported as configuration rather than as a patch-level question. That property also makes the check outlive the specific CVE: a device with the option off was never reachable by this bug and is not reachable by the next one in the same subsystem.",
+      "remediation": "Build the kernel with CONFIG_WATCH_QUEUE unset unless a platform component depends on pipe-backed notifications. Removing the option eliminates the reachable surface rather than patching one bug inside it.",
+      "why": "An out-of-bounds write primitive reachable by any local process, independent of SELinux domain.",
+      "risk_if_fail": "Local privilege escalation from an unprivileged process or app sandbox."
+    },
+    {
+      "id": "KDRV-EBTABLES-001",
+      "category": "KERNEL_DRIVERS",
+      "label": "Bridge Netfilter ebtables Target Surface",
+      "command": "V=$(uname -r 2>/dev/null); C=\"\"; OBS=0; if [ -r /proc/config.gz ]; then C=$(zcat /proc/config.gz 2>/dev/null | grep -E \"^CONFIG_BRIDGE_(EBT_SNAT|NF_EBTABLES)=\"); OBS=1; fi; if [ -z \"$C\" ] && [ -n \"$V\" ] && [ -r \"/boot/config-$V\" ]; then C=$(grep -E \"^CONFIG_BRIDGE_(EBT_SNAT|NF_EBTABLES)=\" < \"/boot/config-$V\" 2>/dev/null); OBS=1; fi; if [ -z \"$C\" ] && [ -r /proc/config ]; then C=$(grep -E \"^CONFIG_BRIDGE_(EBT_SNAT|NF_EBTABLES)=\" < /proc/config 2>/dev/null); OBS=1; fi; L=$(grep -cE \"^(ebt_snat|ebtable_nat|ebtables|br_netfilter) \" /proc/modules 2>/dev/null | head -1); L=${L:-0}; D=$(find /vendor/lib/modules /vendor_dlkm/lib/modules /system/lib/modules /system_dlkm/lib/modules /odm/lib/modules /lib/modules -maxdepth 4 \\( -name \"ebt_snat.ko\" -o -name \"ebtable_nat.ko\" -o -name \"ebtables.ko\" \\) 2>/dev/null | head -2 | tr \"\\n\" \" \"); if [ \"$L\" != \"0\" ]; then echo \"ebt_snat=ENABLED basis=loaded modules=$L\"; exit 0; fi; case \"$C\" in *=y) echo \"ebt_snat=ENABLED basis=builtin $C\"; exit 0;; *=m) echo \"ebt_snat=ENABLED basis=module $C\"; exit 0;; esac; if [ -n \"$D\" ]; then echo \"ebt_snat=ENABLED basis=ondisk $D\"; exit 0; fi; if [ \"$OBS\" = \"0\" ] && [ ! -r /proc/modules ]; then echo \"UNMEASURED kernel config unreadable and /proc/modules unreadable\"; exit 0; fi; if [ \"$OBS\" = \"0\" ]; then echo \"NOT_OBSERVABLE kernel config not readable, driver not loaded, no module file found\"; exit 0; fi; echo \"ebt_snat=DISABLED basis=config\"",
+      "safe_pattern": "^(ebt_snat=DISABLED|NOT_OBSERVABLE)",
+      "level": "warning",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Scores whether the bridge netfilter ebtables targets are reachable, read from the kernel config, the loaded module list and the module files on disk, so a device that merely autoloads the module on first use is still reported. CVE-2026-53266, added to the CISA exploited catalog on 2026-09-18, is an out-of-bounds write in the ebtables SNAT target: an ARP sender hardware address rewrite writes directly into a nonlinear socket buffer fragment backed by a spliced file. Reaching it needs CAP_NET_ADMIN, which an unprivileged process can obtain inside a user namespace. That namespace half of the precondition is already scored by the unprivileged user namespaces check and is deliberately not re-read here, so one misconfiguration cannot produce two findings. This check owns the ebtables surface alone. Android has no platform use for ebtables, so its presence on a device is vendor-added.",
+      "remediation": "Build without CONFIG_BRIDGE_EBT_SNAT and CONFIG_BRIDGE_NF_EBTABLES, or if the modules must ship, blacklist them so they cannot be autoloaded by an unprivileged socket operation.",
+      "why": "Bridge netfilter is unused on Android yet ships enabled on some vendor kernels, giving a write primitive to anything that can enter a user namespace.",
+      "risk_if_fail": "Out-of-bounds kernel write leading to local privilege escalation."
+    },
+    {
+      "id": "KDRV-AFALG-001",
+      "category": "KERNEL_DRIVERS",
+      "label": "AF_ALG Crypto User API Socket Surface",
+      "command": "V=$(uname -r 2>/dev/null); C=\"\"; OBS=0; if [ -r /proc/config.gz ]; then C=$(zcat /proc/config.gz 2>/dev/null | grep -E \"^CONFIG_CRYPTO_USER_API(_[A-Z]+)?=\"); OBS=1; fi; if [ -z \"$C\" ] && [ -n \"$V\" ] && [ -r \"/boot/config-$V\" ]; then C=$(grep -E \"^CONFIG_CRYPTO_USER_API(_[A-Z]+)?=\" < \"/boot/config-$V\" 2>/dev/null); OBS=1; fi; if [ -z \"$C\" ] && [ -r /proc/config ]; then C=$(grep -E \"^CONFIG_CRYPTO_USER_API(_[A-Z]+)?=\" < /proc/config 2>/dev/null); OBS=1; fi; L=$(grep -cE \"^(algif_skcipher|algif_hash|algif_aead|algif_rng) \" /proc/modules 2>/dev/null | head -1); L=${L:-0}; D=$(find /vendor/lib/modules /vendor_dlkm/lib/modules /system/lib/modules /system_dlkm/lib/modules /odm/lib/modules /lib/modules -maxdepth 4 \\( -name \"algif_skcipher.ko\" -o -name \"algif_hash.ko\" -o -name \"algif_aead.ko\" \\) 2>/dev/null | head -2 | tr \"\\n\" \" \"); if [ \"$L\" != \"0\" ]; then echo \"af_alg=ENABLED basis=loaded modules=$L\"; exit 0; fi; case \"$C\" in *=y) echo \"af_alg=ENABLED basis=builtin $C\"; exit 0;; *=m) echo \"af_alg=ENABLED basis=module $C\"; exit 0;; esac; if [ -n \"$D\" ]; then echo \"af_alg=ENABLED basis=ondisk $D\"; exit 0; fi; if [ \"$OBS\" = \"0\" ] && [ ! -r /proc/modules ]; then echo \"UNMEASURED kernel config unreadable and /proc/modules unreadable\"; exit 0; fi; if [ \"$OBS\" = \"0\" ]; then echo \"NOT_OBSERVABLE kernel config not readable, driver not loaded, no module file found\"; exit 0; fi; echo \"af_alg=DISABLED basis=config\"",
+      "safe_pattern": "^(af_alg=DISABLED|NOT_OBSERVABLE)",
+      "level": "warning",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Scores whether the AF_ALG socket family is available, which is what exposes the kernel crypto API to userspace. CVE-2025-39964, added to the CISA exploited catalog on 2026-09-18, is a race on concurrent writes to the same AF_ALG socket that leaves the socket's internal state inconsistent. The family is only reachable when CONFIG_CRYPTO_USER_API and one of its transforms is enabled, and Android applications use the Keystore and BoringSSL rather than AF_ALG, so on most builds this is surface with no consumer. Read from the kernel config, the loaded module list and the module files on disk, because the algif transforms are usually tristate and autoload on the first socket call. The verdict depends on this one property, so it does not overlap the crypto policy checks, which score algorithms and key sizes rather than whether the userspace socket interface exists.",
+      "remediation": "Build without CONFIG_CRYPTO_USER_API and its algif transforms unless a userspace component uses AF_ALG. If the modules ship, blacklist them so a socket call cannot autoload them.",
+      "why": "A kernel attack surface with no Android platform consumer, reachable by an ordinary socket call.",
+      "risk_if_fail": "Kernel state corruption from an unprivileged process, usable as a privilege escalation primitive."
+    },
+    {
+      "id": "KDRV-KTLS-001",
+      "category": "KERNEL_DRIVERS",
+      "label": "Kernel TLS Offload Receive Path Surface",
+      "command": "V=$(uname -r 2>/dev/null); C=\"\"; OBS=0; if [ -r /proc/config.gz ]; then C=$(zcat /proc/config.gz 2>/dev/null | grep \"^CONFIG_TLS=\"); OBS=1; fi; if [ -z \"$C\" ] && [ -n \"$V\" ] && [ -r \"/boot/config-$V\" ]; then C=$(grep \"^CONFIG_TLS=\" < \"/boot/config-$V\" 2>/dev/null); OBS=1; fi; if [ -z \"$C\" ] && [ -r /proc/config ]; then C=$(grep \"^CONFIG_TLS=\" < /proc/config 2>/dev/null); OBS=1; fi; L=$(grep -cE \"^(tls) \" /proc/modules 2>/dev/null | head -1); L=${L:-0}; D=$(find /vendor/lib/modules /vendor_dlkm/lib/modules /system/lib/modules /system_dlkm/lib/modules /odm/lib/modules /lib/modules -maxdepth 4 \\( -name \"tls.ko\" \\) 2>/dev/null | head -2 | tr \"\\n\" \" \"); if [ \"$L\" != \"0\" ]; then echo \"ktls=ENABLED basis=loaded modules=$L\"; exit 0; fi; case \"$C\" in *=y) echo \"ktls=ENABLED basis=builtin $C\"; exit 0;; *=m) echo \"ktls=ENABLED basis=module $C\"; exit 0;; esac; if [ -n \"$D\" ]; then echo \"ktls=ENABLED basis=ondisk $D\"; exit 0; fi; if [ \"$OBS\" = \"0\" ] && [ ! -r /proc/modules ]; then echo \"UNMEASURED kernel config unreadable and /proc/modules unreadable\"; exit 0; fi; if [ \"$OBS\" = \"0\" ]; then echo \"NOT_OBSERVABLE kernel config not readable, driver not loaded, no module file found\"; exit 0; fi; echo \"ktls=DISABLED basis=config\"",
+      "safe_pattern": "^(ktls=DISABLED|NOT_OBSERVABLE)",
+      "level": "warning",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Scores CONFIG_TLS, the in-kernel TLS record layer. CVE-2025-39682, added to the CISA exploited catalog on 2026-09-18, is a missing check in the kernel TLS receive path where a zero-length record taken from rx_list bypasses the intended recvmsg record-type handling. Android terminates TLS in userspace through BoringSSL, so the in-kernel record layer is normally unused and its presence is surface without a consumer. The symbol is matched exactly, with the trailing equals sign, so CONFIG_TLS_DEVICE and other symbols that merely start with the same text are not counted. Evidence is taken from the kernel config, the loaded module list and the on-disk module file, since CONFIG_TLS is usually tristate and the module autoloads when a socket requests the TLS upper layer protocol.",
+      "remediation": "Build without CONFIG_TLS unless a platform component uses kernel TLS offload. If the module ships, blacklist it so a setsockopt call cannot autoload it.",
+      "why": "An unused in-kernel protocol layer that an unprivileged socket option can bring into play.",
+      "risk_if_fail": "Kernel memory disclosure or corruption through the TLS receive path."
     }
   ]
 }
