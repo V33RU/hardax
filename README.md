@@ -8,7 +8,7 @@
   <a href="https://pypi.org/project/hardax/">
     <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg" alt="Python 3.10 | 3.11 | 3.12">
   </a>
-  <img src="https://img.shields.io/badge/checks-858-orange.svg" alt="Checks">
+  <img src="https://img.shields.io/badge/checks-865-orange.svg" alt="Checks">
   <img src="https://img.shields.io/badge/categories-29-purple.svg" alt="Categories">
   <a href="https://github.com/V33RU/hardax/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="License">
@@ -34,7 +34,7 @@
 
 ## Overview
 
-**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **858 security checks** across **29 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
+**HARDAX** (Hardening Audit eXaminer) is a comprehensive security configuration auditor for Android-based devices. It performs **865 security checks** across **29 categories** to identify misconfigurations, vulnerabilities, and security weaknesses.
 
 HARDAX is designed for:
 - **Security Researchers** - Penetration testing and vulnerability assessment
@@ -49,7 +49,7 @@ HARDAX is designed for:
 
 | Feature | Description |
 |---------|-------------|
-| **858 Security Checks** | Comprehensive coverage across 29 security categories |
+| **865 Security Checks** | Comprehensive coverage across 29 security categories |
 | **Deterministic Analysis Engine** | Offline risk score (0-100), attack-chain correlation, prioritised remediation - reasons only over confirmed findings, no LLM, no network, no hallucination |
 | **Optional AI Narrative** | Opt-in `--ai` LLM summary on top of the deterministic engine (local Ollama, or Anthropic/OpenAI with your own key). Sends only the redacted analysis summary, never raw device output. Off by default |
 | **POS/Payment Terminal Support** | 24 PCI-DSS focused checks for payment devices |
@@ -319,7 +319,7 @@ Hidden debug flags (prefix before other args):
 
 ## Security Categories
 
-HARDAX organizes **858 checks** into **29 security categories**.
+HARDAX organizes **865 checks** into **29 security categories**.
 See [COVERAGE.md](COVERAGE.md) for what each check can and cannot measure,
 how verdicts are reached, transport reachability per category, and the
 known gaps.
@@ -327,13 +327,13 @@ known gaps.
 
 | Category | Checks | Description |
 |----------|--------|-------------|
-| **SYSTEM** | 105 | Kernel, memory, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, time, power, build properties, emulator detection, SIM status, device provisioning, WebView, Scudo/GWP-ASan allocator hardening, GKI kernel and module loading, kernel/fs hardening sysctls, SGID and world-writable binaries |
+| **SYSTEM** | 106 | Kernel, memory, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, time, power, build properties, emulator detection, SIM status, device provisioning, WebView, Scudo/GWP-ASan allocator hardening, GKI kernel and module loading, kernel/fs hardening sysctls, SGID and world-writable binaries |
 | **BLUETOOTH** | 83 | BLE/Classic, pairing, profiles (PAN, HFP, A2DP, HID, SPP, OPP, MAP), L2CAP, ATT, SMP, GAP, attack surfaces |
 | **NETWORK** | 79 | Ports, WiFi, cellular (incl. Allow 2G), VPN, MQTT, CoAP, CAN bus, HL7, DICOM, hotspot WPA mode, active connections, eSIM/eUICC provisioning, IPv4/IPv6 network hardening sysctls (ICMP redirects, source routing, SYN cookies, RA acceptance) |
 | **PRIVACY** | 42 | Screen lock, location, sensors, clipboard, audio, Android 13+ Restricted Settings, Credential Manager / passkey provider |
 | **APPS** | 59 | Permissions, overlay attacks, install sources, backup audit, APK signature scheme, QUERY_ALL_PACKAGES, REQUEST_INSTALL_PACKAGES, SDK Runtime (Privacy Sandbox) |
 | **BINARY_HARDENING** | 37 | PIE, NX, RELRO, stack canaries, stripped symbols, ASLR, kptr_restrict |
-| **KERNEL_DRIVERS** | 7 | Device node permissions, DMA-BUF/ION heaps, DSP/FastRPC exposure (CVE-2024-43047 surface), GPU node permissions, binder node permissions |
+| **KERNEL_DRIVERS** | 11 | Device node permissions, DMA-BUF/ION heaps, DSP/FastRPC exposure (CVE-2024-43047 surface), GPU node permissions, binder node permissions |
 | **PARTITION** | 39 | dm-verity, OverlayFS, A/B slots, FBE/FDE, mount flags (noexec / nosuid / nodev on /data, /storage/emulated, /mnt/media_rw, /cache, /metadata), block device permissions |
 | **SELINUX** | 30 | SELinux enforcement, policy version, audit, context, boot flags |
 | **CERTIFICATE_AUDIT** | 25 | CA certificates, user certs, pinning bypass, keystore, expiry analysis |
@@ -346,7 +346,7 @@ known gaps.
 | **CRYPTOGRAPHY** | 20 | Encryption, keys, credentials, API keys, certificates, kernel entropy, Widevine DRM level |
 | **MALWARE** | 25 | Root/Magisk/SuperSU, Frida, Xposed/LSPosed, RATs, keyloggers, memory scrapers, root cloaking, KernelSU/APatch |
 | **CIS_BENCHMARK** | 17 | CIS Android Benchmark v1.6.0 controls (89% coverage) |
-| **USB_SECURITY** | 17 | USB debugging, interfaces, serial ports, gadget mode |
+| **USB_SECURITY** | 19 | USB debugging, interfaces, serial ports, gadget mode |
 | **CVE_INDICATORS** | 35 | Dirty Pipe, Bad Binder, Dirty COW, MTK-su, Exynos baseband, Mali GPU, kernel CVE ranges, WebView debugging |
 | **DEVICE_MANAGEMENT** | 9 | MDM, accounts, developer options |
 | **INPUT** | 12 | Keyboards, accessibility, input methods, IME INTERNET audit, kbd layout, clipboard auto-clear |
@@ -439,7 +439,7 @@ HARDAX/
     ├── ai.py              # Optional opt-in LLM narrative (Ollama/Anthropic/OpenAI, stdlib only)
     ├── templates/
     │   └── report.html    # Interactive HTML report template
-    └── commands/          # Security check definitions (858 checks, 29 categories)
+    └── commands/          # Security check definitions (865 checks, 29 categories)
         ├── system.json        #  86 checks - Kernel, TEE (QSEE/Mobicore/TEEGRIS/Trusty), SECCOMP, build, emulator, WebView
         ├── bluetooth.json     #  82 checks - BLE/Classic, pairing, all profiles
         ├── network.json       #  61 checks - Ports, WiFi, VPN, IoT protocols, Allow 2G, hotspot WPA
@@ -516,6 +516,7 @@ HARDAX/
 - [x] Report header carries the platform profile: kernel, ABI, build type, security patch, SELinux mode, verified boot state, bootloader lock, dm-verity mode, RAM and storage. The text, XLSX and HTML writers now share one field list, so a collected field cannot go unrendered (v6.2.0)
 - [x] Package install chain and remaining surfaces: exported components without permission, secret-code dialer receivers (OEM service menus), split APK and staged install sessions, APK signature scheme distribution, package rollback, biometric template storage, Gatekeeper lockout state, APEX active versions, filesystem repair tool permissions, eBPF network policy maps, Wi-Fi chipset firmware, USB-C port roles, secure boot fuse state, cgroup hierarchy, crash artifact accumulation, OTA signing certificates (AOSP test key detection), radio DIAG/AT interface exposure, property context labelling, boot mode and fastbootd, UWB, sensor privacy toggles, bugreport artifacts and metadata encryption (v6.1.0)
 - [x] Key material and algorithm reporting rather than presence alone. Verified boot now reports the signing algorithm, the root public key size read from the key blob itself, the hash-tree digest algorithm per vbmeta partition, and where the root of trust is held. File-based encryption reports the contents cipher separately from the filenames cipher, each scored by exactly one check. APK signature scheme v1-only packages are detected by parsing the ZIP central directory on the device, with no framework access required (v6.3.1)
+- [x] Configuration levers behind seven CISA-catalogued exploited vulnerabilities, scored as configuration rather than as patch level: `CONFIG_WATCH_QUEUE`, the bridge netfilter ebtables targets, the AF_ALG crypto socket family, the in-kernel TLS record layer, the USB video and USB audio class drivers, and the cgroup v1 `release_agent` file. Each reads the kernel config, the loaded module list and the module files on disk, so a driver that autoloads on first use is still reported (v6.4.0)
 
 ### Open
 
@@ -527,7 +528,7 @@ Grouped by theme. Order within a group is rough priority.
 
 #### Check metadata completeness
 - [ ] Stable `id` on every check. Only 38% carry one, so reports are keyed on labels and a rename breaks downstream consumers
-- [ ] `baseline_key` on the boot and identity checks. Only 7 of 858 carry one, so `--save-baseline` watches almost nothing
+- [ ] `baseline_key` on the boot and identity checks. Only 7 of 865 carry one, so `--save-baseline` watches almost nothing
 - [ ] `why` and `risk_if_fail` beyond the current 8%. The XLSX and HTML reports fall back to `description` for the rest
 - [ ] `expected_secure_state` beyond the current 2%, which is the field a Test ID / Component / Expected State methodology format needs
 - [ ] Collapse the seven severity levels. `low`, `medium` and `high` are historical and map onto the same three buckets as `info`, `warning` and `critical`
@@ -548,7 +549,7 @@ Grouped by theme. Order within a group is rough priority.
 #### Compliance mappings
 - [ ] CIS Android Benchmark v1.6.0: fill the remaining 11% to 100% coverage. The current claim is not independently verified
 - [ ] OWASP MASVS / MSTG mapping per check
-- [ ] NIST 800-53 / 800-171 mapping per check (31 of 858 checks carry one today)
+- [ ] NIST 800-53 / 800-171 mapping per check (31 of 865 checks carry one today)
 - [ ] PCI-DSS 4.0 detailed mapping (POS terminals)
 
 #### Tooling and ergonomics

@@ -1071,6 +1071,20 @@
       "remediation": "Set kernel.kexec_load_disabled=1 at boot, or build without CONFIG_KEXEC.",
       "why": "kexec is a direct route around a verified-boot chain that is otherwise intact.",
       "risk_if_fail": "An attacker with root boots an unsigned kernel without touching the bootloader."
+    },
+    {
+      "id": "SYS-CGROUPRA-001",
+      "category": "SYSTEM",
+      "label": "cgroup v1 release_agent Exposure",
+      "command": "M=$(find /sys/fs/cgroup -maxdepth 3 -name release_agent 2>/dev/null | head -8 | tr \"\\n\" \" \"); DEN=$(find /sys/fs/cgroup -maxdepth 3 -name release_agent 2>&1 >/dev/null | grep -ci \"permission denied\"); DEN=${DEN:-0}; if [ -z \"$M\" ]; then if [ \"$DEN\" != \"0\" ]; then echo \"UNMEASURED /sys/fs/cgroup not fully readable, denied=$DEN\"; exit 0; fi; if [ ! -d /sys/fs/cgroup ]; then echo \"UNMEASURED /sys/fs/cgroup is not present\"; exit 0; fi; echo \"release_agent=NONE no release_agent file under /sys/fs/cgroup\"; exit 0; fi; W=$(find /sys/fs/cgroup -maxdepth 3 -name release_agent -perm -o+w 2>/dev/null | head -4 | tr \"\\n\" \" \"); G=$(find /sys/fs/cgroup -maxdepth 3 -name release_agent -perm -g+w 2>/dev/null | head -4 | tr \"\\n\" \" \"); if [ -n \"$W\" ]; then echo \"release_agent=WRITABLE world_writable=$W\"; exit 0; fi; if [ -n \"$G\" ]; then echo \"release_agent=WRITABLE group_writable=$G\"; exit 0; fi; echo \"release_agent=PRESENT root_only=$M\"",
+      "safe_pattern": "^release_agent=NONE",
+      "level": "warning",
+      "empty_is_safe": false,
+      "null_is_safe": false,
+      "description": "Scores whether a cgroup v1 release_agent file exists under /sys/fs/cgroup and who can write it. CVE-2022-0492, added to the CISA exploited catalog on 2026-06-02, is the cgroup v1 release_agent escape: the kernel runs the program named in that file as a fully privileged process on the host when the last task leaves a cgroup, and the write was not checked against the writer's capabilities. The property is the release_agent file itself, which is distinct from the Control Group Hierarchy and Version check, which scores the cgroup version, the controller list and the world-writability of cgroup.procs. Neither re-reads the other's property. A cgroup v2 only device has no release_agent file at all and so answers NONE, which is the clean state, without this check needing to read the version. A partly readable /sys/fs/cgroup reports UNMEASURED rather than clean, because a denied walk that found nothing is not the same as an absent file.",
+      "remediation": "Mount cgroup v2 only, which has no release_agent mechanism. Where a v1 hierarchy must remain, confirm no release_agent file is writable outside the root domain and that SELinux denies writes to it from app and vendor domains.",
+      "why": "A file write that the kernel turns into execution of an arbitrary program with full privileges on the host.",
+      "risk_if_fail": "Privilege escalation to full system compromise from any domain that can write the file."
     }
   ]
 }
